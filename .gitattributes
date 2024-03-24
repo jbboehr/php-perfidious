@@ -1,0 +1,10 @@
+*                           text=auto
+.gitattributes              export-ignore
+.gitignore                  export-ignore
+.github/**                  linguist-documentation=true
+*.nix                       linguist-documentation=true
+composer.lock               linguist-generated=true
+flake.lock                  linguist-generated=true
+m4/**                       linguist-generated=true linguist-vendored=true
+nix/**                      linguist-documentation=true
+nix/composer-project.nix    linguist-generated=true
