@@ -54,9 +54,7 @@
           };
         };
 
-        makePhp = {
-          php,
-        }:
+        makePhp = {php}:
           php.buildEnv {
             extensions = {
               enabled,
@@ -65,9 +63,7 @@
               enabled ++ [all.opcache];
           };
 
-        makePackage = {
-          php,
-        }:
+        makePackage = {php}:
           pkgs.callPackage ./derivation.nix {
             php = makePhp {
               inherit php;

@@ -24,7 +24,7 @@
 
 #define PHP_PERF_NAME "perf"
 #define PHP_PERF_VERSION "0.1.0"
-#define PHP_PERF_RELEASE "2024-01-27"
+#define PHP_PERF_RELEASE "2024-03-24"
 #define PHP_PERF_AUTHORS "John Boehr <jbboehr@gmail.com> (lead)"
 
 #if (__GNUC__ >= 4) || defined(__clang__) || defined(HAVE_FUNC_ATTRIBUTE_VISIBILITY)
@@ -45,28 +45,20 @@ extern zend_module_entry perf_module_entry;
 #include "TSRM.h"
 #endif
 
-#if defined(ZTS) && ZTS
-#define PERF_G(v) TSRMG(perf_globals_id, zend_perf_globals *, v)
-#else
-#define PERF_G(v) (perf_globals.v)
-#endif
-
 #if defined(ZTS) && defined(COMPILE_DL_PERF)
 ZEND_TSRMLS_CACHE_EXTERN();
 #endif
 
 ZEND_BEGIN_MODULE_GLOBALS(perf)
+zend_bool enable;
+char *metrics;
+
+struct php_perf_enabled_metric *enabled_metrics;
+size_t enabled_metrics_count;
 ZEND_END_MODULE_GLOBALS(perf)
 
 ZEND_EXTERN_MODULE_GLOBALS(perf);
 
-#endif /* PHP_PERF_H */
+#define PERF_G(v) ZEND_MODULE_GLOBALS_ACCESSOR(perf, v)
 
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * End:
- * vim600: fdm=marker
- * vim: et sw=4 ts=4
- */
+#endif /* PHP_PERF_H */
