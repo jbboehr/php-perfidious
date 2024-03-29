@@ -3,8 +3,10 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-23.11";
+    systems.url = "github:nix-systems/default-linux";
     flake-utils = {
       url = "github:numtide/flake-utils";
+      inputs.systems.follows = "systems";
     };
     gitignore = {
       url = "github:hercules-ci/gitignore.nix";
@@ -25,6 +27,7 @@
     flake-utils,
     gitignore,
     pre-commit-hooks,
+    ...
   } @ args:
     flake-utils.lib.eachDefaultSystem (
       system: let
@@ -116,6 +119,42 @@
               export TEST_PHP_ARGS='-c ${package.php.phpIni}'
             '';
           };
+
+        makeVmTest = package: let
+          php = package.php.buildEnv {
+            extensions = {
+              enabled,
+              all,
+            }:
+              enabled ++ [all.opcache package];
+          };
+        in
+          pkgs.testers.runNixOSTest {
+            name = "php-perf-vm-test";
+            qemu.package = pkgs.qemu_full;
+            nodes = {
+              machine1 = {
+                config,
+                pkgs,
+                ...
+              }: {
+                virtualisation.qemu.options = ["-cpu host"];
+                boot.kernel.sysctl."kernel.perf_event_paranoid" = -1;
+                boot.kernel.sysctl."kernel.kptr_restrict" = lib.mkForce 0;
+                environment.systemPackages = [
+                  php
+                ];
+              };
+            };
+            testScript = {nodes, ...}: ''
+              machine.wait_for_unit("default.target")
+              machine.succeed("php -m | grep -i perf")
+              machine.succeed("php -d perf.enable=1 -r 'var_dump(\PerfExt\perf_stat());'")
+              machine.succeed("cp -r --no-preserve=mode,ownership ${src}/* .")
+              machine.succeed("cp --no-preserve=mode,ownership ${php.unwrapped}/lib/build/run-tests.php .")
+              machine.succeed("TEST_PHP_DETAILED=1 NO_INTERACTION=1 REPORT_EXIT_STATUS=1 php run-tests.php || (cat tests/*.log ; exit 1)")
+            '';
+          };
       in rec {
         packages = rec {
           php81 = makePackage {
@@ -137,11 +176,14 @@
           default = php81;
         };
 
-        checks = {
+        checks = rec {
           inherit pre-commit-check;
           php81 = makeCheck packages.php81;
           php82 = makeCheck packages.php82;
           php83 = makeCheck packages.php83;
+          vm81 = makeVmTest packages.php81;
+          vm82 = makeVmTest packages.php82;
+          vm83 = makeVmTest packages.php83;
         };
 
         formatter = pkgs.alejandra;
