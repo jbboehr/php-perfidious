@@ -2,6 +2,8 @@
   lib,
   php,
   stdenv,
+  libpfm,
+  pkg-config,
   autoreconfHook,
   buildPecl,
   src,
@@ -13,7 +15,11 @@ buildPecl rec {
 
   inherit src;
 
-  passthru.php = php;
+  buildInputs = [libpfm];
+
+  passthru = {
+    inherit php libpfm;
+  };
 
   makeFlags = ["phpincludedir=$(dev)/include"];
   outputs = ["out" "dev"];

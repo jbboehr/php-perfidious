@@ -30,6 +30,10 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
+#include <inttypes.h>
+#include <err.h>
+#include <perfmon/pfmlib.h>
+
 #include "Zend/zend_API.h"
 #include "Zend/zend_constants.h"
 #include "Zend/zend_exceptions.h"
@@ -41,14 +45,15 @@
 #include "main/SAPI.h"
 #include "ext/standard/info.h"
 #include "ext/standard/php_string.h"
-
 #include "php_perf.h"
+#include "./functions.h"
 
 #define DEFAULT_METRICS "PERF_FLAG_HW_CPU_CYCLES,PERF_FLAG_HW_INSTRUCTIONS"
 
 ZEND_DECLARE_MODULE_GLOBALS(perf);
 
 static PHP_INI_MH(OnUpdateMetrics);
+extern PHP_MINIT_FUNCTION(perf_pmu);
 
 PHP_INI_BEGIN()
 STD_PHP_INI_ENTRY("perf.enable", "0", PHP_INI_SYSTEM, OnUpdateBool, enable, zend_perf_globals, perf_globals)
@@ -336,9 +341,6 @@ done:
     ioctl(PERF_G(enabled_metrics)[0].fd, PERF_EVENT_IOC_ENABLE, PERF_IOC_FLAG_GROUP);
 }
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perf_stat_arginfo, IS_ARRAY, 0)
-ZEND_END_ARG_INFO()
-
 static PHP_RINIT_FUNCTION(perf)
 {
 #if defined(COMPILE_DL_PERF) && defined(ZTS)
@@ -357,6 +359,13 @@ static PHP_MINIT_FUNCTION(perf)
 {
     int flags = CONST_CS | CONST_PERSISTENT;
 
+    // Initialize pfm
+    int pfm_ret = pfm_initialize();
+    if (pfm_ret != PFM_SUCCESS) {
+        php_error_docref(NULL, E_WARNING, "perf: cannot initialize pfm: %s", pfm_strerror(pfm_ret));
+        return FAILURE;
+    }
+
     REGISTER_INI_ENTRIES();
 
     PERF_G(enable) = INI_BOOL("perf.enable");
@@ -365,6 +374,7 @@ static PHP_MINIT_FUNCTION(perf)
     // Register constants
     REGISTER_STRING_CONSTANT("PerfExt\\VERSION", (char *) PHP_PERF_VERSION, flags);
 
+    PHP_MINIT(perf_pmu)(INIT_FUNC_ARGS_PASSTHRU);
     //    for (size_t i = 0; i < available_metrics_count; i++) {
     //        zend_register_long_constant(
     //            available_metrics[i].name, available_metrics[i].name_len, available_metrics[i].flag, flags,
@@ -407,9 +417,12 @@ static PHP_GINIT_FUNCTION(perf)
     memset(perf_globals, 0, sizeof(zend_perf_globals));
 }
 
+PERF_LOCAL extern ZEND_FUNCTION(perf_list_pmu_events);
+
 // clang-format off
 const zend_function_entry perf_functions[] = {
     ZEND_RAW_FENTRY("PerfExt\\perf_stat", ZEND_FN(perf_stat), perf_stat_arginfo, 0)
+    ZEND_RAW_FENTRY("PerfExt\\list_pmu_events", ZEND_FN(perf_list_pmu_events), perf_list_pmu_events_arginfo, 0)
     PHP_FE_END
 };
 // clang-format on

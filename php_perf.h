@@ -49,6 +49,8 @@ extern zend_module_entry perf_module_entry;
 ZEND_TSRMLS_CACHE_EXTERN();
 #endif
 
+PERF_PUBLIC extern zend_class_entry *perf_pmu_enum_ce;
+
 ZEND_BEGIN_MODULE_GLOBALS(perf)
 zend_bool enable;
 char *metrics;

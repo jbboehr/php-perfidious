@@ -101,6 +101,7 @@
             buildInputs = with pkgs; [
               actionlint
               clang-tools
+              include-what-you-use
               lcov
               linuxPackages_latest.perf
               gdb
@@ -110,7 +111,9 @@
             ];
             shellHook = ''
               ${pre-commit-check.shellHook}
-              #ln -sf ${package.php.unwrapped.dev}/include/php/ .direnv/php-include
+              mkdir -p .direnv/include
+              ln -sf ${package.php.unwrapped.dev}/include/php/ .direnv/include/php
+              ln -sf ${package.libpfm}/include/perfmon .direnv/include/perfmon
               export REPORT_EXIT_STATUS=1
               export NO_INTERACTION=1
               export PATH="$PWD/vendor/bin:$PATH"

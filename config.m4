@@ -7,8 +7,12 @@ AC_DEFUN([PHP_PERF_ADD_SOURCES], [
 ])
 
 if test "$PHP_PERF" != "no"; then
+    PHP_ADD_LIBRARY(pfm, , PERF_SHARED_LIBADD)
+
     PHP_PERF_ADD_SOURCES([
         src/extension.c
+        src/functions.c
+        src/pmu_enum.c
     ])
 
     PHP_ADD_BUILD_DIR(src)
