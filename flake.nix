@@ -36,6 +36,8 @@
 
         src' = gitignore.lib.gitignoreSource ./.;
 
+        iwyu = pkgs.callPackage ./nix/iwyu.nix {};
+
         src = pkgs.lib.cleanSourceWith {
           name = "php-perf-source";
           src = src';
@@ -67,7 +69,7 @@
           };
 
         makePackage = {php}:
-          pkgs.callPackage ./derivation.nix {
+          pkgs.callPackage ./nix/derivation.nix {
             php = makePhp {
               inherit php;
             };
@@ -103,7 +105,7 @@
               actionlint
               autoconf-archive
               clang-tools
-              include-what-you-use
+              iwyu
               lcov
               linuxPackages_latest.perf
               gdb
