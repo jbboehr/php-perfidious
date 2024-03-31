@@ -295,6 +295,8 @@ static PHP_METHOD(PerfExtHandle, disable)
     ZEND_ASSERT(obj->handle->marker == PHP_PERF_HANDLE_MARKER);
 
     php_perf_handle_disable(obj->handle);
+
+    RETURN_ZVAL(self, 1, 0);
 }
 
 static PHP_METHOD(PerfExtHandle, enable)
@@ -308,6 +310,8 @@ static PHP_METHOD(PerfExtHandle, enable)
     ZEND_ASSERT(obj->handle->marker == PHP_PERF_HANDLE_MARKER);
 
     php_perf_handle_enable(obj->handle);
+
+    RETURN_ZVAL(self, 1, 0);
 }
 
 static PHP_METHOD(PerfExtHandle, read)
@@ -334,6 +338,8 @@ static PHP_METHOD(PerfExtHandle, reset)
     ZEND_ASSERT(obj->handle->marker == PHP_PERF_HANDLE_MARKER);
 
     php_perf_handle_reset(obj->handle);
+
+    RETURN_ZVAL(self, 1, 0);
 }
 
 static zend_function_entry php_perf_handle_methods[] = {
