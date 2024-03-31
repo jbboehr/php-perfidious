@@ -26,7 +26,42 @@
 #include "Zend/zend_enum.h"
 #include "main/php.h"
 #include "php_perf.h"
-#include "./functions.h"
+
+PERF_LOCAL
+PHP_FUNCTION(perf_list_pmus)
+{
+    unsigned long index = 0;
+
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    array_init(return_value);
+
+    pfm_for_all_pmus(index)
+    {
+        pfm_pmu_info_t pinfo = {0};
+        int ret;
+        zval tmp = {0};
+
+        pinfo.size = sizeof(pinfo);
+
+        ret = pfm_get_pmu_info(index, &pinfo);
+        if (ret != PFM_SUCCESS) {
+            continue;
+            //            php_error_docref(NULL, E_WARNING, "perf: libpfm: cannot get pmu info for %lu: %s", index,
+            //            pfm_strerror(ret)); return;
+        }
+
+        array_init(&tmp);
+
+        add_assoc_string_ex(&tmp, ZEND_STRL("name"), pinfo.name);
+        add_assoc_string_ex(&tmp, ZEND_STRL("desc"), pinfo.desc);
+        add_assoc_long_ex(&tmp, ZEND_STRL("pmu"), (zend_long) pinfo.pmu);
+        add_assoc_long_ex(&tmp, ZEND_STRL("type"), (zend_long) pinfo.type);
+        add_assoc_long_ex(&tmp, ZEND_STRL("nevents"), (zend_long) pinfo.nevents);
+
+        add_next_index_zval(return_value, &tmp);
+    }
+}
 
 PERF_LOCAL
 PHP_FUNCTION(perf_list_pmu_events)

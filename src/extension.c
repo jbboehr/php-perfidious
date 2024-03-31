@@ -417,11 +417,13 @@ static PHP_GINIT_FUNCTION(perf)
     memset(perf_globals, 0, sizeof(zend_perf_globals));
 }
 
+PERF_LOCAL extern ZEND_FUNCTION(perf_list_pmus);
 PERF_LOCAL extern ZEND_FUNCTION(perf_list_pmu_events);
 
 // clang-format off
 const zend_function_entry perf_functions[] = {
     ZEND_RAW_FENTRY("PerfExt\\perf_stat", ZEND_FN(perf_stat), perf_stat_arginfo, 0)
+    ZEND_RAW_FENTRY("PerfExt\\list_pmus", ZEND_FN(perf_list_pmus), perf_list_pmus_arginfo, 0)
     ZEND_RAW_FENTRY("PerfExt\\list_pmu_events", ZEND_FN(perf_list_pmu_events), perf_list_pmu_events_arginfo, 0)
     PHP_FE_END
 };

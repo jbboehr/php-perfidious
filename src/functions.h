@@ -22,6 +22,9 @@
 
 #include "Zend/zend_API.h"
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perf_list_pmus_arginfo, IS_ARRAY, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perf_list_pmu_events_arginfo, IS_ARRAY, 0)
     ZEND_ARG_OBJ_INFO(0, pmu, PmuExt\\PmuEnum, 0)
 ZEND_END_ARG_INFO()

@@ -1,5 +1,5 @@
 --TEST--
-version
+PerfExt\VERSION
 --EXTENSIONS--
 perf
 --INI--
