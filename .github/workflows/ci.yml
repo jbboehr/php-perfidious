@@ -143,7 +143,7 @@ jobs:
                     key: nix-store.nar-${{ runner.os }}-${{ hashFiles('flake.nix', 'flake.lock') }}
                     restore-keys: nix-store.nar-${{ runner.os }}-
 
-            -   uses: cachix/install-nix-action@v25
+            -   uses: cachix/install-nix-action@v26
                 with:
                     nix_path: nixpkgs=channel:nixos-23.11
                     extra_nix_config: "system-features = nixos-test benchmark big-parallel kvm"
