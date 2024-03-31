@@ -68,12 +68,19 @@
               enabled ++ [all.opcache];
           };
 
-        makePackage = {php}:
+        makePackage = {
+          stdenv,
+          php,
+        }: let
+        in
           pkgs.callPackage ./nix/derivation.nix {
             php = makePhp {
               inherit php;
             };
-            inherit (php) buildPecl;
+            buildPecl = pkgs.callPackage (nixpkgs + "/pkgs/build-support/php/build-pecl.nix") {
+              inherit php stdenv;
+            };
+            inherit stdenv;
             inherit src;
           };
 
@@ -99,7 +106,9 @@
         };
 
         mkDevShell = package:
-          pkgs.mkShell {
+          (pkgs.mkShell.override {
+            stdenv = package.stdenv;
+          }) {
             inputsFrom = [package];
             buildInputs = with pkgs; [
               actionlint
@@ -109,7 +118,6 @@
               lcov
               linuxPackages_latest.perf
               gdb
-              package.php
               package.php.packages.composer
               valgrind
             ];
@@ -165,31 +173,55 @@
         packages = rec {
           php81 = makePackage {
             php = pkgs.php81;
+            stdenv = pkgs.stdenv;
+          };
+          php81-clang = makePackage {
+            php = pkgs.php81;
+            stdenv = pkgs.clangStdenv;
           };
           php82 = makePackage {
             php = pkgs.php82;
+            stdenv = pkgs.stdenv;
+          };
+          php82-clang = makePackage {
+            php = pkgs.php82;
+            stdenv = pkgs.clangStdenv;
           };
           php83 = makePackage {
             php = pkgs.php83;
+            stdenv = pkgs.stdenv;
+          };
+          php83-clang = makePackage {
+            php = pkgs.php83;
+            stdenv = pkgs.clangStdenv;
           };
           default = php81;
         };
 
         devShells = rec {
           php81 = mkDevShell packages.php81;
+          php81-clang = mkDevShell packages.php81-clang;
           php82 = mkDevShell packages.php82;
+          php82-clang = mkDevShell packages.php82-clang;
           php83 = mkDevShell packages.php83;
+          php83-clang = mkDevShell packages.php83-clang;
           default = php81;
         };
 
         checks = rec {
           inherit pre-commit-check;
           php81 = makeCheck packages.php81;
+          php81-clang = makeCheck packages.php81-clang;
           php82 = makeCheck packages.php82;
+          php82-clang = makeCheck packages.php82-clang;
           php83 = makeCheck packages.php83;
+          php83-clang = makeCheck packages.php83-clang;
           vm81 = makeVmTest packages.php81;
+          vm81-clang = makeVmTest packages.php81-clang;
           vm82 = makeVmTest packages.php82;
+          vm82-clang = makeVmTest packages.php82-clang;
           vm83 = makeVmTest packages.php83;
+          vm83-clang = makeVmTest packages.php83-clang;
         };
 
         formatter = pkgs.alejandra;

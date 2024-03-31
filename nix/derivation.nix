@@ -18,9 +18,10 @@ buildPecl rec {
   inherit src;
 
   buildInputs = [libpfm];
+  nativeBuildInputs = [php.unwrapped.dev];
 
   passthru = {
-    inherit php libpfm;
+    inherit php libpfm stdenv;
   };
 
   configureFlags =

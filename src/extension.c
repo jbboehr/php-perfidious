@@ -58,7 +58,7 @@ PERF_LOCAL zend_result php_perf_pmu_enum_minit(void);
 #if PHP_VERSION_ID < 80200
 static ZEND_INI_MH(OnUpdateStr)
 {
-    zend_string **p = (zend_string **) ZEND_INI_GET_ADDR();
+    zend_string **p = (zend_string **) (void *) ZEND_INI_GET_ADDR();
     *p = new_value;
     return SUCCESS;
 }

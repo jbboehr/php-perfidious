@@ -28,6 +28,8 @@ AC_DEFUN([PHP_PERF_ADD_SOURCES], [
 if test "$PHP_PERF" != "no"; then
     AX_IS_RELEASE([git-directory])
     AX_CFLAGS_WARN_ALL([WARN_CFLAGS])
+
+    # a lot of these are in PHP headers...
     AX_COMPILER_FLAGS([WARN_CFLAGS],[WARN_LDFLAGS],,,[ \
         -Wno-undef -Wno-error=undef \
         -Wno-redundant-decls -Wno-error=redundant-decls \
@@ -36,7 +38,9 @@ if test "$PHP_PERF" != "no"; then
         -Wno-shadow -Wno-error=shadow \
         -Wno-missing-prototypes -Wno-error=missing-prototypes \
         -Wno-missing-declarations -Wno-error=missing-declarations \
+        -Wno-cast-align -Wno-error=cast-align \
     ])
+    
     CFLAGS="$WARN_CFLAGS $CFLAGS"
     LDFLAGS="$WARN_LDFLAGS $LDFLAGS"
 
