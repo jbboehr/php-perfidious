@@ -9,6 +9,7 @@ set(SOURCE_FILES
     src/extension.c
     src/functions.c
     src/pmu_enum.c
+    src/handle.c
 )
 
 execute_process (

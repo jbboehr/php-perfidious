@@ -26,8 +26,8 @@ AlwaysBreakBeforeMultilineStrings: false
 AlwaysBreakTemplateDeclarations: MultiLine
 AttributeMacros:
   - __capability
-  - KANI_LOCAL
-  - KANI_PUBLIC
+  - PERF_LOCAL
+  - PERF_PUBLIC
   - zend_never_inline
   - zend_always_inline
 BinPackArguments: false
@@ -112,7 +112,7 @@ IndentWrappedFunctionNames: false
 InsertTrailingCommas: Wrapped
 KeepEmptyLinesAtTheStartOfBlocks: true
 LambdaBodyIndentation: Signature
-MacroBlockBegin: "^ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO|ZEND_PARSE_PARAMETERS_START$"
+MacroBlockBegin: "^ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO|ZEND_PARSE_PARAMETERS_START|ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX$"
 MacroBlockEnd:   '^ZEND_END_ARG_INFO|ZEND_PARSE_PARAMETERS_END$'
 MaxEmptyLinesToKeep: 1
 NamespaceIndentation: None

@@ -52,7 +52,6 @@
 
 ZEND_DECLARE_MODULE_GLOBALS(perf);
 
-static PHP_INI_MH(OnUpdateMetrics);
 extern PHP_MINIT_FUNCTION(perf_pmu);
 
 PHP_INI_BEGIN()
@@ -374,6 +373,7 @@ static PHP_MINIT_FUNCTION(perf)
     // Register constants
     REGISTER_STRING_CONSTANT("PerfExt\\VERSION", (char *) PHP_PERF_VERSION, flags);
 
+    PHP_MINIT(perf_handle)(INIT_FUNC_ARGS_PASSTHRU);
     PHP_MINIT(perf_pmu)(INIT_FUNC_ARGS_PASSTHRU);
     //    for (size_t i = 0; i < available_metrics_count; i++) {
     //        zend_register_long_constant(
@@ -419,12 +419,14 @@ static PHP_GINIT_FUNCTION(perf)
 
 PERF_LOCAL extern ZEND_FUNCTION(perf_list_pmus);
 PERF_LOCAL extern ZEND_FUNCTION(perf_list_pmu_events);
+PERF_LOCAL extern ZEND_FUNCTION(perf_open);
 
 // clang-format off
 const zend_function_entry perf_functions[] = {
     ZEND_RAW_FENTRY("PerfExt\\perf_stat", ZEND_FN(perf_stat), perf_stat_arginfo, 0)
     ZEND_RAW_FENTRY("PerfExt\\list_pmus", ZEND_FN(perf_list_pmus), perf_list_pmus_arginfo, 0)
     ZEND_RAW_FENTRY("PerfExt\\list_pmu_events", ZEND_FN(perf_list_pmu_events), perf_list_pmu_events_arginfo, 0)
+    ZEND_RAW_FENTRY("PerfExt\\open", ZEND_FN(perf_open), perf_open_arginfo, 0)
     PHP_FE_END
 };
 // clang-format on

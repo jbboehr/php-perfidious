@@ -26,6 +26,7 @@
 #include "Zend/zend_enum.h"
 #include "main/php.h"
 #include "php_perf.h"
+#include "./handle.h"
 
 PERF_LOCAL
 PHP_FUNCTION(perf_list_pmus)
@@ -110,4 +111,46 @@ PHP_FUNCTION(perf_list_pmu_events)
 
         add_next_index_zval(return_value, &tmp);
     }
+}
+
+PERF_LOCAL
+PHP_FUNCTION(perf_open)
+{
+    HashTable *event_names_ht;
+    zval *z;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ARRAY_HT(event_names_ht);
+    ZEND_PARSE_PARAMETERS_END();
+
+    const char **arr = ecalloc(sizeof(const char *), zend_array_count(event_names_ht) + 1);
+    size_t arr_count = 0;
+
+    ZEND_HASH_FOREACH_VAL(event_names_ht, z)
+    {
+        if (Z_TYPE_P(z) == IS_STRING) {
+            arr[arr_count++] = Z_STRVAL_P(z);
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+
+    arr[arr_count] = NULL;
+
+    struct php_perf_handle *handle = php_perf_handle_open(arr, arr_count, 0);
+
+    object_init_ex(return_value, perf_handle_ce);
+
+    struct php_perf_handle_obj *obj = php_perf_fetch_handle_object(Z_OBJ_P(return_value));
+    obj->handle = handle;
+
+    // if (Z_OBJCE_P(return_value)->constructor) {
+    //     zend_call_known_instance_method_with_0_params(
+    //         Z_OBJCE_P(return_value)->constructor, Z_OBJ_P(return_value), NULL
+    //     );
+    // }
+
+    // if (EG(exception)) {
+    //     php_perf_handle_close(handle);
+    //     RETURN_NULL();
+    // }
 }

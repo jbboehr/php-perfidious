@@ -13,6 +13,7 @@ if test "$PHP_PERF" != "no"; then
         src/extension.c
         src/functions.c
         src/pmu_enum.c
+        src/handle.c
     ])
 
     PHP_ADD_BUILD_DIR(src)

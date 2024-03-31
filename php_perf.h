@@ -38,6 +38,22 @@
 #define PERF_LOCAL
 #endif
 
+#if (__GNUC__ >= 3) || defined(__clang__)
+#define PHP_PERF_ATTR_NONNULL(...) __attribute__((nonnull(__VA_ARGS__)))
+#define PHP_PERF_ATTR_NONNULL_ALL __attribute__((nonnull))
+#define PHP_PERF_ATTR_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
+#else
+#define PHP_PERF_ATTR_NONNULL(...)
+#define PHP_PERF_ATTR_NONNULL_ALL
+#define PHP_PERF_ATTR_WARN_UNUSED_RESULT
+#endif
+
+#if ((__GNUC__ >= 5) || ((__GNUC__ >= 4) && (__GNUC_MINOR__ >= 9))) || defined(__clang__)
+#define PHP_PERF_ATTR_RETURNS_NONNULL __attribute__((returns_nonnull))
+#else
+#define PHP_PERF_ATTR_RETURNS_NONNULL
+#endif
+
 extern zend_module_entry perf_module_entry;
 #define phpext_perf_ptr &perf_module_entry
 
@@ -50,6 +66,7 @@ ZEND_TSRMLS_CACHE_EXTERN();
 #endif
 
 PERF_PUBLIC extern zend_class_entry *perf_pmu_enum_ce;
+PERF_PUBLIC extern zend_class_entry *perf_handle_ce;
 
 ZEND_BEGIN_MODULE_GLOBALS(perf)
 zend_bool enable;
@@ -62,5 +79,16 @@ ZEND_END_MODULE_GLOBALS(perf)
 ZEND_EXTERN_MODULE_GLOBALS(perf);
 
 #define PERF_G(v) ZEND_MODULE_GLOBALS_ACCESSOR(perf, v)
+
+// php_perf_handle
+struct php_perf_handle;
+PERF_PUBLIC void php_perf_handle_reset(struct php_perf_handle *handle);
+PERF_PUBLIC void php_perf_handle_enable(struct php_perf_handle *handle);
+PERF_PUBLIC void php_perf_handle_disable(struct php_perf_handle *handle);
+PERF_PUBLIC void php_perf_handle_close(struct php_perf_handle *handle);
+PERF_PUBLIC PHP_PERF_ATTR_WARN_UNUSED_RESULT struct php_perf_handle *
+php_perf_handle_open(const char **event_names, size_t event_names_length, bool persist);
+PERF_PUBLIC
+void php_perf_handle_read_to_array(struct php_perf_handle *handle, zval *return_value);
 
 #endif /* PHP_PERF_H */
