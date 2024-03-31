@@ -72,11 +72,11 @@ PERF_PUBLIC extern zend_class_entry *perf_handle_ce;
 
 ZEND_BEGIN_MODULE_GLOBALS(perf)
     zend_bool global_enable;
-    char *global_metrics;
+    zend_string *global_metrics;
     struct php_perf_handle *global_handle;
 
     zend_bool request_enable;
-    char *request_metrics;
+    zend_string *request_metrics;
     struct php_perf_handle *request_handle;
 ZEND_END_MODULE_GLOBALS(perf)
 

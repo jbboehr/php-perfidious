@@ -55,12 +55,21 @@ ZEND_DECLARE_MODULE_GLOBALS(perf);
 PERF_LOCAL zend_result php_perf_handle_minit(void);
 PERF_LOCAL zend_result php_perf_pmu_enum_minit(void);
 
+#if PHP_VERSION_ID < 80200
+static ZEND_INI_MH(OnUpdateStr)
+{
+    zend_string **p = (zend_string **) ZEND_INI_GET_ADDR();
+    *p = new_value;
+    return SUCCESS;
+}
+#endif
+
 // clang-format off
 PHP_INI_BEGIN()
     STD_PHP_INI_ENTRY("perf.global.enable", "0", PHP_INI_SYSTEM, OnUpdateBool, global_enable, zend_perf_globals, perf_globals)
-    STD_PHP_INI_ENTRY("perf.global.metrics", DEFAULT_METRICS, PHP_INI_SYSTEM, OnUpdateString, global_metrics, zend_perf_globals, perf_globals)
+    STD_PHP_INI_ENTRY("perf.global.metrics", DEFAULT_METRICS, PHP_INI_SYSTEM, OnUpdateStr, global_metrics, zend_perf_globals, perf_globals)
     STD_PHP_INI_ENTRY("perf.request.enable", "0", PHP_INI_SYSTEM, OnUpdateBool, request_enable, zend_perf_globals, perf_globals)
-    STD_PHP_INI_ENTRY("perf.request.metrics", DEFAULT_METRICS, PHP_INI_SYSTEM, OnUpdateString, request_metrics, zend_perf_globals, perf_globals)
+    STD_PHP_INI_ENTRY("perf.request.metrics", DEFAULT_METRICS, PHP_INI_SYSTEM, OnUpdateStr, request_metrics, zend_perf_globals, perf_globals)
 PHP_INI_END()
 // clang-format on
 
@@ -88,17 +97,17 @@ static PHP_RSHUTDOWN_FUNCTION(perf)
     return SUCCESS;
 }
 
-static struct php_perf_handle *split_and_open(const char *metrics, bool persist)
+static struct php_perf_handle *split_and_open(zend_string *metrics, bool persist)
 {
     zval z_metrics = {0};
     struct php_perf_handle *handle;
 
-    zend_string *delim = zend_string_init_fast(ZEND_STRL(","));
-    zend_string *orig = zend_string_init(metrics, strlen(metrics), persist);
-    array_init(&z_metrics);
-    php_explode(delim, orig, &z_metrics, ZEND_LONG_MAX);
-    zend_string_release(delim);
-    zend_string_release(orig);
+    do {
+        zend_string *delim = zend_string_init_fast(ZEND_STRL(","));
+        array_init(&z_metrics);
+        php_explode(delim, metrics, &z_metrics, ZEND_LONG_MAX);
+        zend_string_release(delim);
+    } while (false);
 
     if (Z_TYPE(z_metrics) != IS_ARRAY) {
         zval_dtor(&z_metrics);
@@ -120,6 +129,10 @@ static struct php_perf_handle *split_and_open(const char *metrics, bool persist)
     ZEND_HASH_FOREACH_END();
 
     handle = php_perf_handle_open(arr, arr_len, persist);
+
+    if (handle != NULL) {
+        php_perf_handle_enable(handle);
+    }
 
     zval_dtor(&z_metrics);
     pefree(arr, persist);
