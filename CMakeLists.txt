@@ -7,6 +7,7 @@ set(CMAKE_C_STANDARD 99)
 
 set(SOURCE_FILES
     src/extension.c
+    src/exceptions.c
     src/functions.c
     src/handle.c
     src/pmu_event_info.c

@@ -52,6 +52,7 @@ if test "$PHP_PERF" != "no"; then
 
     PHP_PERF_ADD_SOURCES([
         src/extension.c
+        src/exceptions.c
         src/functions.c
         src/handle.c
         src/pmu_event_info.c
@@ -61,5 +62,7 @@ if test "$PHP_PERF" != "no"; then
     PHP_ADD_BUILD_DIR(src)
     PHP_INSTALL_HEADERS([ext/perf], [php_perf.h])
     PHP_NEW_EXTENSION(perf, $PHP_PERF_SOURCES, $ext_shared, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
+    PHP_ADD_EXTENSION_DEP(perf, spl, false)
+    PHP_ADD_EXTENSION_DEP(perf, opcache, true)
     PHP_SUBST(PERF_SHARED_LIBADD)
 fi

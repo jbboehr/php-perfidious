@@ -23,10 +23,70 @@
 
 #include <perfmon/pfmlib.h>
 #include "Zend/zend_API.h"
-#include "Zend/zend_enum.h"
+#include "Zend/zend_exceptions.h"
 #include "main/php.h"
 #include "php_perf.h"
 #include "./handle.h"
+
+enum php_perf_err_mode
+{
+    PHP_PERF_SILENT,
+    PHP_PERF_WARNING,
+    PHP_PERF_THROW
+};
+
+static zend_result php_perf_get_pmu_info(zend_long pmu, zval *rv, enum php_perf_err_mode err_mode)
+{
+    pfm_pmu_info_t pmu_info = {0};
+    int ret;
+
+    pmu_info.size = sizeof(pmu_info);
+
+    ret = pfm_get_pmu_info(pmu, &pmu_info);
+    if (ret != PFM_SUCCESS) {
+        switch (err_mode) {
+            case PHP_PERF_WARNING:
+                php_error_docref(
+                    NULL, E_WARNING, "perf: libpfm: cannot get pmu info for %lu: %s", pmu, pfm_strerror(ret)
+                );
+                break;
+            default:
+            case PHP_PERF_THROW:
+                zend_throw_exception_ex(
+                    perf_pmu_not_found_exception_ce, ret, "cannot get pmu info for %lu: %s", pmu, pfm_strerror(ret)
+                );
+                break;
+            case PHP_PERF_SILENT:
+                break;
+        }
+        return FAILURE;
+    }
+
+    ZVAL_UNDEF(rv);
+    object_init_ex(rv, perf_pmu_info_ce);
+
+    zend_update_property_string(Z_OBJCE_P(rv), Z_OBJ_P(rv), "name", sizeof("name") - 1, pmu_info.name);
+    zend_update_property_string(Z_OBJCE_P(rv), Z_OBJ_P(rv), "desc", sizeof("desc") - 1, pmu_info.desc);
+    zend_update_property_long(Z_OBJCE_P(rv), Z_OBJ_P(rv), "pmu", sizeof("pmu") - 1, (zend_long) pmu_info.pmu);
+    zend_update_property_long(Z_OBJCE_P(rv), Z_OBJ_P(rv), "type", sizeof("type") - 1, (zend_long) pmu_info.type);
+    zend_update_property_long(
+        Z_OBJCE_P(rv), Z_OBJ_P(rv), "nevents", sizeof("nevents") - 1, (zend_long) pmu_info.nevents
+    );
+
+    return SUCCESS;
+}
+
+PERF_LOCAL
+PHP_FUNCTION(perf_get_pmu_info)
+{
+    zend_long pmu;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_LONG(pmu)
+    ZEND_PARSE_PARAMETERS_END();
+
+    php_perf_get_pmu_info(pmu, return_value, PHP_PERF_THROW);
+}
 
 PERF_LOCAL
 PHP_FUNCTION(perf_list_pmus)
@@ -39,33 +99,11 @@ PHP_FUNCTION(perf_list_pmus)
 
     pfm_for_all_pmus(index)
     {
-        pfm_pmu_info_t pinfo = {0};
-        int ret;
         zval tmp = {0};
-
-        pinfo.size = sizeof(pinfo);
-
-        ret = pfm_get_pmu_info(index, &pinfo);
-        if (ret != PFM_SUCCESS) {
-            // php_error_docref(NULL, E_WARNING, "perf: libpfm: cannot get pmu info for %lu: %s", index,
-            // pfm_strerror(ret));
-            continue;
+        zend_result result = php_perf_get_pmu_info((zend_long) index, &tmp, PHP_PERF_SILENT);
+        if (result == SUCCESS) {
+            add_next_index_zval(return_value, &tmp);
         }
-
-        array_init(&tmp);
-
-        object_init_ex(&tmp, perf_pmu_info_ce);
-
-        zend_update_property_string(Z_OBJCE(tmp), Z_OBJ(tmp), "name", sizeof("name") - 1, pinfo.name);
-        zend_update_property_string(Z_OBJCE(tmp), Z_OBJ(tmp), "desc", sizeof("desc") - 1, pinfo.desc);
-        zend_update_property_long(Z_OBJCE(tmp), Z_OBJ(tmp), "pmu", sizeof("pmu") - 1, (zend_long) pinfo.pmu);
-        zend_update_property_long(Z_OBJCE(tmp), Z_OBJ(tmp), "type", sizeof("type") - 1, (zend_long) pinfo.type);
-        zend_update_property_long(
-            Z_OBJCE(tmp), Z_OBJ(tmp), "nevents", sizeof("nevents") - 1, (zend_long) pinfo.nevents
-        );
-
-        add_next_index_zval(return_value, &tmp);
-
         ZVAL_UNDEF(&tmp);
     }
 }

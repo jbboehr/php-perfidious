@@ -67,6 +67,7 @@ ZEND_TSRMLS_CACHE_EXTERN();
 
 struct php_perf_handle;
 
+PERF_PUBLIC extern zend_class_entry *perf_pmu_not_found_exception_ce;
 PERF_PUBLIC extern zend_class_entry *perf_pmu_event_info_ce;
 PERF_PUBLIC extern zend_class_entry *perf_pmu_info_ce;
 PERF_PUBLIC extern zend_class_entry *perf_handle_ce;

@@ -24,25 +24,16 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <linux/perf_event.h>
-#include <linux/hw_breakpoint.h>
-#include <sys/ioctl.h>
-#include <sys/syscall.h>
-#include <unistd.h>
-
 #include <inttypes.h>
-#include <err.h>
 #include <perfmon/pfmlib.h>
 
 #include "Zend/zend_API.h"
 #include "Zend/zend_constants.h"
-#include "Zend/zend_exceptions.h"
 #include "Zend/zend_ini.h"
 #include "Zend/zend_modules.h"
 #include "Zend/zend_operators.h"
 #include "main/php.h"
 #include "main/php_ini.h"
-#include "main/SAPI.h"
 #include "ext/standard/info.h"
 #include "ext/standard/php_string.h"
 #include "php_perf.h"
@@ -52,6 +43,7 @@
 
 ZEND_DECLARE_MODULE_GLOBALS(perf);
 
+PERF_LOCAL zend_result php_perf_exceptions_minit(void);
 PERF_LOCAL zend_result php_perf_handle_minit(void);
 PERF_LOCAL zend_result php_perf_pmu_event_info_minit(void);
 PERF_LOCAL zend_result php_perf_pmu_info_minit(void);
@@ -155,6 +147,10 @@ static PHP_MINIT_FUNCTION(perf)
     REGISTER_INI_ENTRIES();
 
     REGISTER_STRING_CONSTANT("PerfExt\\VERSION", (char *) PHP_PERF_VERSION, flags);
+
+    if (SUCCESS != php_perf_exceptions_minit()) {
+        return FAILURE;
+    }
 
     if (SUCCESS != php_perf_handle_minit()) {
         return FAILURE;
@@ -265,12 +261,9 @@ static PHP_GINIT_FUNCTION(perf)
     memset(perf_globals, 0, sizeof(zend_perf_globals));
 }
 
-PERF_LOCAL extern ZEND_FUNCTION(perf_list_pmus);
-PERF_LOCAL extern ZEND_FUNCTION(perf_list_pmu_events);
-PERF_LOCAL extern ZEND_FUNCTION(perf_open);
-
 // clang-format off
 const zend_function_entry perf_functions[] = {
+    ZEND_RAW_FENTRY("PerfExt\\get_pmu_info", ZEND_FN(perf_get_pmu_info), perf_get_pmu_info_arginfo, 0)
     ZEND_RAW_FENTRY("PerfExt\\list_pmus", ZEND_FN(perf_list_pmus), perf_list_pmus_arginfo, 0)
     ZEND_RAW_FENTRY("PerfExt\\list_pmu_events", ZEND_FN(perf_list_pmu_events), perf_list_pmu_events_arginfo, 0)
     ZEND_RAW_FENTRY("PerfExt\\open", ZEND_FN(perf_open), perf_open_arginfo, 0)
@@ -279,6 +272,7 @@ const zend_function_entry perf_functions[] = {
 // clang-format on
 
 static const zend_module_dep perf_deps[] = {
+    {"spl",     NULL, NULL, MODULE_DEP_REQUIRED},
     {"opcache", NULL, NULL, MODULE_DEP_OPTIONAL},
     ZEND_MOD_END,
 };
