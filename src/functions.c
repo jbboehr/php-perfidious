@@ -47,9 +47,8 @@ PHP_FUNCTION(perf_list_pmus)
 
         ret = pfm_get_pmu_info(index, &pinfo);
         if (ret != PFM_SUCCESS) {
+            php_error_docref(NULL, E_WARNING, "perf: libpfm: cannot get pmu info for %lu: %s", index, pfm_strerror(ret));
             continue;
-            //            php_error_docref(NULL, E_WARNING, "perf: libpfm: cannot get pmu info for %lu: %s", index,
-            //            pfm_strerror(ret)); return;
         }
 
         array_init(&tmp);

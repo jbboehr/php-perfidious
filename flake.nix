@@ -115,6 +115,7 @@
               autoconf-archive
               clang-tools
               iwyu
+              gperf
               lcov
               linuxPackages_latest.perf
               gdb

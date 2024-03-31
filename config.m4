@@ -40,7 +40,9 @@ if test "$PHP_PERF" != "no"; then
         -Wno-missing-declarations -Wno-error=missing-declarations \
         -Wno-cast-align -Wno-error=cast-align \
     ])
-    
+
+    AC_CHECK_PROG([GPERF], [gperf], [gperf], [no])
+
     CFLAGS="$WARN_CFLAGS $CFLAGS"
     LDFLAGS="$WARN_LDFLAGS $LDFLAGS"
 
@@ -55,10 +57,15 @@ if test "$PHP_PERF" != "no"; then
         src/functions.c
         src/pmu_enum.c
         src/handle.c
+        src/pmu_ht.c
     ])
 
     PHP_ADD_BUILD_DIR(src)
     PHP_INSTALL_HEADERS([ext/perf], [php_perf.h])
     PHP_NEW_EXTENSION(perf, $PHP_PERF_SOURCES, $ext_shared, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
     PHP_SUBST(PERF_SHARED_LIBADD)
+
+	AS_IF([ test "$GPERF" != "no" ], [
+        PHP_ADD_MAKEFILE_FRAGMENT($abs_srcdir/Makefile.gperf.frag)
+    ])
 fi
