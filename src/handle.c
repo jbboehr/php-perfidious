@@ -192,15 +192,16 @@ done:
 
 PERF_PUBLIC
 PHP_PERF_ATTR_WARN_UNUSED_RESULT
-struct php_perf_handle *php_perf_handle_open(const char **event_names, size_t event_names_length, bool persist)
+struct php_perf_handle *php_perf_handle_open(zend_string **event_names, size_t event_names_length, bool persist)
 {
     int fd;
     uint64_t id;
     int group_fd;
     int err;
 
-    struct php_perf_handle *handle =
-        pecalloc(sizeof(struct php_perf_handle) + sizeof(struct php_perf_metric) * (event_names_length + 1), 1, 1);
+    struct php_perf_handle *handle = pecalloc(
+        sizeof(struct php_perf_handle) + sizeof(struct php_perf_metric) * (event_names_length + 1), 1, persist
+    );
     handle->marker = PHP_PERF_HANDLE_MARKER;
     handle->metrics_size = event_names_length + 1;
 
@@ -225,8 +226,16 @@ struct php_perf_handle *php_perf_handle_open(const char **event_names, size_t ev
         }
         err = ioctl(fd, PERF_EVENT_IOC_ID, &id);
         if (err == -1) {
+            handle_ioctl_error();
+            close(fd);
+            goto cleanup;
         }
-        ioctl(fd, PERF_EVENT_IOC_RESET, fd);
+        err = ioctl(fd, PERF_EVENT_IOC_RESET, fd);
+        if (err == -1) {
+            handle_ioctl_error();
+            close(fd);
+            goto cleanup;
+        }
         handle->metrics[handle->metrics_count++] = (struct php_perf_metric){
             .fd = fd,
             .id = id,
@@ -237,16 +246,21 @@ struct php_perf_handle *php_perf_handle_open(const char **event_names, size_t ev
 
     // Open the other events
     for (size_t i = 0; i < event_names_length; i++) {
-        const char *event_name = event_names[i];
+        zend_string *event_name = event_names[i];
         struct perf_event_attr attr = {0};
         pfm_perf_encode_arg_t arg = {0};
         arg.attr = &attr;
         arg.size = sizeof(arg);
 
-        err = pfm_get_os_event_encoding(event_name, PFM_PLM3, PFM_OS_PERF_EVENT, &arg);
+        err = pfm_get_os_event_encoding(ZSTR_VAL(event_name), PFM_PLM3, PFM_OS_PERF_EVENT, &arg);
         if (UNEXPECTED(err != PFM_SUCCESS)) {
             php_error_docref(
-                NULL, E_WARNING, "perf: failed to get event encoding for %s: %s", event_name, pfm_strerror(err)
+                NULL,
+                E_WARNING,
+                "perf: failed to get event encoding for %.*s: %s",
+                (int) ZSTR_LEN(event_name),
+                ZSTR_VAL(event_name),
+                pfm_strerror(err)
             );
             goto cleanup;
         }
@@ -261,19 +275,38 @@ struct php_perf_handle *php_perf_handle_open(const char **event_names, size_t ev
         fd = (int) perf_event_open(&attr, 0, -1, group_fd, 0);
 
         if (UNEXPECTED(fd == -1)) {
-            php_error_docref(NULL, E_WARNING, "perf: perf_event_open failed for %s: %s", event_name, strerror(errno));
+            php_error_docref(
+                NULL,
+                E_WARNING,
+                "perf: perf_event_open failed for %.*s: %s",
+                (int) ZSTR_LEN(event_name),
+                ZSTR_VAL(event_name),
+                strerror(errno)
+            );
             goto cleanup;
         }
 
-        ioctl(fd, PERF_EVENT_IOC_ID, &id);
-        ioctl(fd, PERF_EVENT_IOC_RESET, fd);
+        err = ioctl(fd, PERF_EVENT_IOC_ID, &id);
+        if (err == -1) {
+            handle_ioctl_error();
+            close(fd);
+            goto cleanup;
+        }
+
+        err = ioctl(fd, PERF_EVENT_IOC_RESET, fd);
+        if (err == -1) {
+            handle_ioctl_error();
+            close(fd);
+            goto cleanup;
+        }
 
         ZEND_ASSERT(handle->metrics_count < handle->metrics_size);
 
         handle->metrics[handle->metrics_count++] = (struct php_perf_metric){
             .fd = fd,
             .id = id,
-            .name = zend_string_init(event_name, strlen(event_name), persist),
+            // can't use zend_string_copy because it doesn't persist?
+            .name = zend_string_dup(event_name, persist),
         };
     }
 

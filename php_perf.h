@@ -65,15 +65,19 @@ extern zend_module_entry perf_module_entry;
 ZEND_TSRMLS_CACHE_EXTERN();
 #endif
 
+struct php_perf_handle;
+
 PERF_PUBLIC extern zend_class_entry *perf_pmu_enum_ce;
 PERF_PUBLIC extern zend_class_entry *perf_handle_ce;
 
 ZEND_BEGIN_MODULE_GLOBALS(perf)
-zend_bool enable;
-char *metrics;
+    zend_bool global_enable;
+    char *global_metrics;
+    struct php_perf_handle *global_handle;
 
-struct php_perf_enabled_metric *enabled_metrics;
-size_t enabled_metrics_count;
+    zend_bool request_enable;
+    char *request_metrics;
+    struct php_perf_handle *request_handle;
 ZEND_END_MODULE_GLOBALS(perf)
 
 ZEND_EXTERN_MODULE_GLOBALS(perf);
@@ -87,7 +91,7 @@ PERF_PUBLIC void php_perf_handle_enable(struct php_perf_handle *handle);
 PERF_PUBLIC void php_perf_handle_disable(struct php_perf_handle *handle);
 PERF_PUBLIC void php_perf_handle_close(struct php_perf_handle *handle);
 PERF_PUBLIC PHP_PERF_ATTR_WARN_UNUSED_RESULT struct php_perf_handle *
-php_perf_handle_open(const char **event_names, size_t event_names_length, bool persist);
+php_perf_handle_open(zend_string **event_names, size_t event_names_length, bool persist);
 PERF_PUBLIC
 void php_perf_handle_read_to_array(struct php_perf_handle *handle, zval *return_value);
 

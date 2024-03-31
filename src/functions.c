@@ -123,13 +123,13 @@ PHP_FUNCTION(perf_open)
         Z_PARAM_ARRAY_HT(event_names_ht);
     ZEND_PARSE_PARAMETERS_END();
 
-    const char **arr = ecalloc(sizeof(const char *), zend_array_count(event_names_ht) + 1);
+    zend_string **arr = ecalloc(sizeof(zend_string *), zend_array_count(event_names_ht) + 1);
     size_t arr_count = 0;
 
     ZEND_HASH_FOREACH_VAL(event_names_ht, z)
     {
         if (Z_TYPE_P(z) == IS_STRING) {
-            arr[arr_count++] = Z_STRVAL_P(z);
+            arr[arr_count++] = Z_STR_P(z);
         }
     }
     ZEND_HASH_FOREACH_END();

@@ -156,7 +156,6 @@
             testScript = {nodes, ...}: ''
               machine.wait_for_unit("default.target")
               machine.succeed("php -m | grep -i perf")
-              machine.succeed("php -d perf.enable=1 -r 'var_dump(\PerfExt\perf_stat());'")
               machine.succeed("cp -r --no-preserve=mode,ownership ${src}/* .")
               machine.succeed("cp --no-preserve=mode,ownership ${php.unwrapped}/lib/build/run-tests.php .")
               machine.succeed("TEST_PHP_DETAILED=1 NO_INTERACTION=1 REPORT_EXIT_STATUS=1 php run-tests.php || (cat tests/*.log ; exit 1)")
