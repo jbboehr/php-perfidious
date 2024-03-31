@@ -40,7 +40,7 @@ if test "$PHP_PERF" != "no"; then
         -Wno-missing-declarations -Wno-error=missing-declarations \
         -Wno-cast-align -Wno-error=cast-align \
     ])
-    
+
     CFLAGS="$WARN_CFLAGS $CFLAGS"
     LDFLAGS="$WARN_LDFLAGS $LDFLAGS"
 
@@ -53,8 +53,9 @@ if test "$PHP_PERF" != "no"; then
     PHP_PERF_ADD_SOURCES([
         src/extension.c
         src/functions.c
-        src/pmu_enum.c
         src/handle.c
+        src/pmu_event_info.c
+        src/pmu_info.c
     ])
 
     PHP_ADD_BUILD_DIR(src)

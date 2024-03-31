@@ -47,36 +47,39 @@ PHP_FUNCTION(perf_list_pmus)
 
         ret = pfm_get_pmu_info(index, &pinfo);
         if (ret != PFM_SUCCESS) {
+            // php_error_docref(NULL, E_WARNING, "perf: libpfm: cannot get pmu info for %lu: %s", index,
+            // pfm_strerror(ret));
             continue;
-            //            php_error_docref(NULL, E_WARNING, "perf: libpfm: cannot get pmu info for %lu: %s", index,
-            //            pfm_strerror(ret)); return;
         }
 
         array_init(&tmp);
 
-        add_assoc_string_ex(&tmp, ZEND_STRL("name"), pinfo.name);
-        add_assoc_string_ex(&tmp, ZEND_STRL("desc"), pinfo.desc);
-        add_assoc_long_ex(&tmp, ZEND_STRL("pmu"), (zend_long) pinfo.pmu);
-        add_assoc_long_ex(&tmp, ZEND_STRL("type"), (zend_long) pinfo.type);
-        add_assoc_long_ex(&tmp, ZEND_STRL("nevents"), (zend_long) pinfo.nevents);
+        object_init_ex(&tmp, perf_pmu_info_ce);
+
+        zend_update_property_string(Z_OBJCE(tmp), Z_OBJ(tmp), "name", sizeof("name") - 1, pinfo.name);
+        zend_update_property_string(Z_OBJCE(tmp), Z_OBJ(tmp), "desc", sizeof("desc") - 1, pinfo.desc);
+        zend_update_property_long(Z_OBJCE(tmp), Z_OBJ(tmp), "pmu", sizeof("pmu") - 1, (zend_long) pinfo.pmu);
+        zend_update_property_long(Z_OBJCE(tmp), Z_OBJ(tmp), "type", sizeof("type") - 1, (zend_long) pinfo.type);
+        zend_update_property_long(
+            Z_OBJCE(tmp), Z_OBJ(tmp), "nevents", sizeof("nevents") - 1, (zend_long) pinfo.nevents
+        );
 
         add_next_index_zval(return_value, &tmp);
+
+        ZVAL_UNDEF(&tmp);
     }
 }
 
 PERF_LOCAL
 PHP_FUNCTION(perf_list_pmu_events)
 {
-    zend_object *pmu_enum = NULL;
+    zend_long pmu_id;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_OBJ_OF_CLASS(pmu_enum, perf_pmu_enum_ce)
+        Z_PARAM_LONG(pmu_id)
     ZEND_PARSE_PARAMETERS_END();
 
-    zval *pmu_z = zend_enum_fetch_case_value(pmu_enum);
-    ZEND_ASSERT(EXPECTED(pmu_z != NULL && Z_TYPE_P(pmu_z) == IS_LONG));
-
-    pfm_pmu_t pmu = Z_LVAL_P(pmu_z);
+    pfm_pmu_t pmu = pmu_id;
     pfm_event_info_t info = {0};
     pfm_pmu_info_t pinfo = {0};
     int i;
@@ -105,9 +108,18 @@ PHP_FUNCTION(perf_list_pmu_events)
         array_init(&tmp);
 
         size_t buf_len = snprintf(buf, sizeof(buf), "%s::%s", pinfo.name, info.name);
-        add_assoc_stringl_ex(&tmp, ZEND_STRL("name"), buf, buf_len);
 
-        add_assoc_bool_ex(&tmp, ZEND_STRL("is_present"), pinfo.is_present);
+        object_init_ex(&tmp, perf_pmu_event_info_ce);
+
+        zend_update_property_stringl(Z_OBJCE(tmp), Z_OBJ(tmp), "name", sizeof("name") - 1, buf, buf_len);
+        zend_update_property_string(Z_OBJCE(tmp), Z_OBJ(tmp), "desc", sizeof("desc") - 1, info.desc);
+        if (info.equiv) {
+            zend_update_property_string(Z_OBJCE(tmp), Z_OBJ(tmp), "equiv", sizeof("equiv") - 1, info.equiv);
+        } else {
+            zend_update_property_null(Z_OBJCE(tmp), Z_OBJ(tmp), "equiv", sizeof("equiv") - 1);
+        }
+        zend_update_property_long(Z_OBJCE(tmp), Z_OBJ(tmp), "pmu", sizeof("pmu") - 1, (zend_long) info.pmu);
+        zend_update_property_bool(Z_OBJCE(tmp), Z_OBJ(tmp), "is_present", sizeof("is_present") - 1, pinfo.is_present);
 
         add_next_index_zval(return_value, &tmp);
     }

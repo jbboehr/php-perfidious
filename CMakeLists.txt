@@ -8,8 +8,9 @@ set(CMAKE_C_STANDARD 99)
 set(SOURCE_FILES
     src/extension.c
     src/functions.c
-    src/pmu_enum.c
     src/handle.c
+    src/pmu_event_info.c
+    src/pmu_info.c
 )
 
 execute_process (

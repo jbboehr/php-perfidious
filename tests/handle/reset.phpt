@@ -1,5 +1,5 @@
 --TEST--
-PerfExt\Handle::reset
+PerfExt\Handle::reset()
 --EXTENSIONS--
 perf
 --FILE--

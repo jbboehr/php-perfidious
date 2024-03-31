@@ -26,13 +26,11 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perf_list_pmus_arginfo, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perf_list_pmu_events_arginfo, IS_ARRAY, 0)
-    ZEND_ARG_OBJ_INFO(0, pmu, PmuExt\\PmuEnum, 0)
+    ZEND_ARG_TYPE_INFO(0, pmu, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perf_open_arginfo, IS_MIXED, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perf_stat_arginfo, IS_ARRAY, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perf_open_arginfo, 0, 0, PerfExt\\Handle, 0)
+    ZEND_ARG_TYPE_INFO(0, event_names, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
 #endif /* PHP_PERF_FUNCTIONS_H */

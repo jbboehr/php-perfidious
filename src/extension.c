@@ -53,7 +53,8 @@
 ZEND_DECLARE_MODULE_GLOBALS(perf);
 
 PERF_LOCAL zend_result php_perf_handle_minit(void);
-PERF_LOCAL zend_result php_perf_pmu_enum_minit(void);
+PERF_LOCAL zend_result php_perf_pmu_event_info_minit(void);
+PERF_LOCAL zend_result php_perf_pmu_info_minit(void);
 
 #if PHP_VERSION_ID < 80200
 static ZEND_INI_MH(OnUpdateStr)
@@ -159,7 +160,11 @@ static PHP_MINIT_FUNCTION(perf)
         return FAILURE;
     }
 
-    if (SUCCESS != php_perf_pmu_enum_minit()) {
+    if (SUCCESS != php_perf_pmu_event_info_minit()) {
+        return FAILURE;
+    }
+
+    if (SUCCESS != php_perf_pmu_info_minit()) {
         return FAILURE;
     }
 

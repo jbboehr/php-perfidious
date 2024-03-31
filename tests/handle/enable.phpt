@@ -1,5 +1,5 @@
 --TEST--
-PerfExt\Handle::enable
+PerfExt\Handle::enable()
 --EXTENSIONS--
 perf
 --FILE--

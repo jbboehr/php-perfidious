@@ -1,5 +1,5 @@
 --TEST--
-PerfExt\open
+PerfExt\open()
 --EXTENSIONS--
 perf
 --FILE--
