@@ -76,9 +76,10 @@
           };
 
         makeCheck = package:
-          package.overrideAttrs (old: {
-            doCheck = true;
-          });
+          package.override {
+            checkSupport = true;
+            WerrorSupport = true;
+          };
 
         pre-commit-check = pre-commit-hooks.lib.${system}.run {
           src = src';
@@ -100,6 +101,7 @@
             inputsFrom = [package];
             buildInputs = with pkgs; [
               actionlint
+              autoconf-archive
               clang-tools
               include-what-you-use
               lcov

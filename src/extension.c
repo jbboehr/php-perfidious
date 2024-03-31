@@ -52,7 +52,8 @@
 
 ZEND_DECLARE_MODULE_GLOBALS(perf);
 
-extern PHP_MINIT_FUNCTION(perf_pmu);
+PERF_LOCAL zend_result php_perf_handle_minit(void);
+PERF_LOCAL zend_result php_perf_pmu_enum_minit(void);
 
 PHP_INI_BEGIN()
 STD_PHP_INI_ENTRY("perf.enable", "0", PHP_INI_SYSTEM, OnUpdateBool, enable, zend_perf_globals, perf_globals)
@@ -242,7 +243,7 @@ static inline int register_events(void)
                 continue;
             }
 
-            for (int i = 0; i < available_metrics_count; i++) {
+            for (size_t i = 0; i < available_metrics_count; i++) {
                 struct php_perf_available_metric *a = &available_metrics[i];
                 if (Z_STRLEN_P(z) == a->name_len && 0 == memcmp(a->name, Z_STRVAL_P(z), a->name_len)) {
                     enabled_metrics[enabled_metrics_count++] = (struct php_perf_enabled_metric){
@@ -274,7 +275,7 @@ static inline int register_events(void)
     PERF_G(enabled_metrics)[0].id = id;
 
     // Register all the other metrics
-    for (int i = 1; i < PERF_G(enabled_metrics_count); i++) {
+    for (size_t i = 1; i < PERF_G(enabled_metrics_count); i++) {
         struct php_perf_enabled_metric *m = &PERF_G(enabled_metrics)[i];
 
         fd = perf_event_open_simple(m->avail->type, m->avail->config, PERF_G(enabled_metrics)[0].fd);
@@ -320,8 +321,8 @@ PHP_FUNCTION(perf_stat)
         goto done;
     }
 
-    for (int i = 0; i < data->nr; i++) {
-        for (int j = 0; j < PERF_G(enabled_metrics_count); j++) {
+    for (size_t i = 0; i < data->nr; i++) {
+        for (size_t j = 0; j < PERF_G(enabled_metrics_count); j++) {
             struct php_perf_enabled_metric *e = &PERF_G(enabled_metrics)[j];
             if (e->id == data->values[i].id && e->avail) {
                 if (data->values[i].value > (uint64_t) ZEND_LONG_MAX) {
@@ -373,8 +374,14 @@ static PHP_MINIT_FUNCTION(perf)
     // Register constants
     REGISTER_STRING_CONSTANT("PerfExt\\VERSION", (char *) PHP_PERF_VERSION, flags);
 
-    PHP_MINIT(perf_handle)(INIT_FUNC_ARGS_PASSTHRU);
-    PHP_MINIT(perf_pmu)(INIT_FUNC_ARGS_PASSTHRU);
+    if (SUCCESS != php_perf_handle_minit()) {
+        return FAILURE;
+    }
+
+    if (SUCCESS != php_perf_pmu_enum_minit()) {
+        return FAILURE;
+    }
+
     //    for (size_t i = 0; i < available_metrics_count; i++) {
     //        zend_register_long_constant(
     //            available_metrics[i].name, available_metrics[i].name_len, available_metrics[i].flag, flags,
@@ -459,5 +466,6 @@ zend_module_entry perf_module_entry = {
 #if defined(ZTS)
 ZEND_TSRMLS_CACHE_DEFINE()
 #endif
+ZEND_DLEXPORT zend_module_entry *get_module(void);
 ZEND_GET_MODULE(perf) // Common for all PHP extensions which are build as shared modules
 #endif

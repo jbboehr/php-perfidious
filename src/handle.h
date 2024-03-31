@@ -71,6 +71,4 @@ ZEND_END_ARG_INFO()
 
 static const uint64_t PHP_PERF_HANDLE_MARKER = 0x327b23c66b8b4567;
 
-PERF_LOCAL PHP_MINIT_FUNCTION(perf_handle);
-
 #endif /* PHP_PERF_HANDLE_H */

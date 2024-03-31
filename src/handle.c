@@ -152,14 +152,14 @@ void php_perf_handle_read_to_array(struct php_perf_handle *handle, zval *return_
         goto done;
     }
 
-    for (int i = 0; i < data->nr; i++) {
+    for (size_t i = 0; i < data->nr; i++) {
         struct php_perf_metric *e = &handle->metrics[i];
 
         if (UNEXPECTED(e->id != data->values[i].id)) {
             e = NULL;
 
             // skip the first entry - it should be the dummy
-            for (int j = 1; j < handle->metrics_count; j++) {
+            for (size_t j = 1; j < handle->metrics_count; j++) {
                 if (handle->metrics[j].id == data->values[i].id) {
                     e = &handle->metrics[j];
                     break;
@@ -343,7 +343,7 @@ static zend_function_entry php_perf_handle_methods[] = {
                 PHP_ME(PerfExtHandle, reset, perf_handle_reset_arginfo, ZEND_ACC_PUBLIC) PHP_FE_END};
 
 PERF_LOCAL
-PHP_MINIT_FUNCTION(perf_handle)
+zend_result php_perf_handle_minit(void)
 {
     zend_class_entry ce;
 

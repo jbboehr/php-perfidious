@@ -7,6 +7,8 @@
   autoreconfHook,
   buildPecl,
   src,
+  checkSupport ? false,
+  WerrorSupport ? false,
 }:
 buildPecl rec {
   pname = "perf";
@@ -21,8 +23,15 @@ buildPecl rec {
     inherit php libpfm;
   };
 
+  configureFlags =
+    []
+    ++ lib.optional WerrorSupport "--enable-compile-warnings=error"
+    ++ lib.optionals (!WerrorSupport) ["--enable-compile-warnings=yes" "--disable-Werror"];
+
   makeFlags = ["phpincludedir=$(dev)/include"];
   outputs = ["out" "dev"];
+
+  doCheck = checkSupport;
 
   #TEST_PHP_DETAILED = 1;
   NO_INTERACTION = 1;

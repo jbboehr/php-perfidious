@@ -637,7 +637,7 @@ static zend_class_entry *register_class_PmuEnum(void)
     return class_entry;
 }
 
-PERF_LOCAL PHP_MINIT_FUNCTION(perf_pmu)
+PERF_LOCAL zend_result php_perf_pmu_enum_minit(void)
 {
     perf_pmu_enum_ce = register_class_PmuEnum();
 
