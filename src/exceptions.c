@@ -36,6 +36,8 @@ static zend_class_entry *register_class_PmuNotFoundException(void)
     INIT_CLASS_ENTRY(ce, PHP_PERF_NAMESPACE "\\PmuNotFoundException", NULL);
     class_entry = zend_register_internal_class_ex(&ce, spl_ce_InvalidArgumentException);
 
+    class_entry->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NO_DYNAMIC_PROPERTIES;
+
     return class_entry;
 }
 

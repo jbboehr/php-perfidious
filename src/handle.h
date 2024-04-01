@@ -48,6 +48,7 @@ struct perfidious_read_format
 struct perfidious_handle_obj
 {
     struct perfidious_handle *handle;
+    bool no_auto_close;
     zend_object std;
 };
 

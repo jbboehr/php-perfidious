@@ -50,7 +50,7 @@ static void perfidious_handle_obj_free(zend_object *object)
 {
     struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(object);
 
-    if (obj->handle) {
+    if (obj->handle && !obj->no_auto_close) {
         perfidious_handle_close(obj->handle);
         obj->handle = NULL;
     }
@@ -388,6 +388,7 @@ static zend_function_entry perfidious_handle_methods[] = {
 static zend_always_inline zend_class_entry *register_class_Handle(void)
 {
     zend_class_entry ce;
+    zend_class_entry *class_entry;
 
     memcpy(&perfidious_handle_obj_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
     perfidious_handle_obj_handlers.offset = XtOffsetOf(struct perfidious_handle_obj, std);
@@ -395,14 +396,18 @@ static zend_always_inline zend_class_entry *register_class_Handle(void)
     perfidious_handle_obj_handlers.clone_obj = NULL;
 
     INIT_CLASS_ENTRY(ce, PHP_PERF_NAMESPACE "\\Handle", perfidious_handle_methods);
-    return zend_register_internal_class(&ce);
+    class_entry = zend_register_internal_class(&ce);
+
+    class_entry->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NO_DYNAMIC_PROPERTIES | ZEND_ACC_NOT_SERIALIZABLE;
+    class_entry->create_object = perfidious_handle_obj_create;
+
+    return class_entry;
 }
 
 PERFIDIOUS_LOCAL
 zend_result perfidious_handle_minit(void)
 {
     perfidious_handle_ce = register_class_Handle();
-    perfidious_handle_ce->create_object = perfidious_handle_obj_create;
 
     return SUCCESS;
 }

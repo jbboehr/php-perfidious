@@ -264,9 +264,11 @@ static PHP_GINIT_FUNCTION(perf)
 // clang-format off
 const zend_function_entry perf_functions[] = {
     ZEND_RAW_FENTRY(PHP_PERF_NAMESPACE "\\get_pmu_info", ZEND_FN(perfidious_get_pmu_info), perfidious_get_pmu_info_arginfo, 0)
+    ZEND_RAW_FENTRY(PHP_PERF_NAMESPACE "\\global_handle", ZEND_FN(perfidious_global_handle), perfidious_global_handle_arginfo, 0)
     ZEND_RAW_FENTRY(PHP_PERF_NAMESPACE "\\list_pmus", ZEND_FN(perfidious_list_pmus), perfidious_list_pmus_arginfo, 0)
     ZEND_RAW_FENTRY(PHP_PERF_NAMESPACE "\\list_pmu_events", ZEND_FN(perfidious_list_pmu_events), perfidious_list_pmu_events_arginfo, 0)
     ZEND_RAW_FENTRY(PHP_PERF_NAMESPACE "\\open", ZEND_FN(perfidious_open), perfidious_open_arginfo, 0)
+    ZEND_RAW_FENTRY(PHP_PERF_NAMESPACE "\\request_handle", ZEND_FN(perfidious_request_handle), perfidious_request_handle_arginfo, 0)
     PHP_FE_END
 };
 // clang-format on

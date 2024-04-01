@@ -111,6 +111,8 @@ static zend_always_inline zend_class_entry *register_class_PmuEventInfo(void)
         zend_string_release(name);
     } while (false);
 
+    class_entry->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NO_DYNAMIC_PROPERTIES;
+
     return class_entry;
 }
 

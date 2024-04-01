@@ -20,26 +20,35 @@
 #ifndef PHP_PERF_FUNCTIONS_H
 #define PHP_PERF_FUNCTIONS_H
 
+#include <stdbool.h>
 #include "Zend/zend_API.h"
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_get_pmu_info_arginfo, 0, 0, PerfExt\\PmuInfo, 0)
-    ZEND_ARG_TYPE_INFO(0, pmu, IS_LONG, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_get_pmu_info_arginfo, false, 1, PerfExt\\PmuInfo, false)
+    ZEND_ARG_TYPE_INFO(false, pmu, IS_LONG, false)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perfidious_list_pmus_arginfo, IS_ARRAY, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_global_handle_arginfo, false, 0, PerfExt\\Handle, false)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perfidious_list_pmu_events_arginfo, IS_ARRAY, 0)
-    ZEND_ARG_TYPE_INFO(0, pmu, IS_LONG, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perfidious_list_pmus_arginfo, IS_ARRAY, false)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_open_arginfo, 0, 0, PerfExt\\Handle, 0)
-    ZEND_ARG_TYPE_INFO(0, event_names, IS_ARRAY, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perfidious_list_pmu_events_arginfo, IS_ARRAY, false)
+    ZEND_ARG_TYPE_INFO(false, pmu, IS_LONG, false)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_open_arginfo, false, 1, PerfExt\\Handle, false)
+    ZEND_ARG_TYPE_INFO(false, event_names, IS_ARRAY, false)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_request_handle_arginfo, false, 0, PerfExt\\Handle, true)
 ZEND_END_ARG_INFO()
 
 PERFIDIOUS_LOCAL extern ZEND_FUNCTION(perfidious_get_pmu_info);
+PERFIDIOUS_LOCAL extern ZEND_FUNCTION(perfidious_global_handle);
 PERFIDIOUS_LOCAL extern ZEND_FUNCTION(perfidious_list_pmus);
 PERFIDIOUS_LOCAL extern ZEND_FUNCTION(perfidious_list_pmu_events);
 PERFIDIOUS_LOCAL extern ZEND_FUNCTION(perfidious_open);
+PERFIDIOUS_LOCAL extern ZEND_FUNCTION(perfidious_request_handle);
 
 #endif /* PHP_PERF_FUNCTIONS_H */

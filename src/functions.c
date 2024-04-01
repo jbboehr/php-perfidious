@@ -87,6 +87,22 @@ PHP_FUNCTION(perfidious_get_pmu_info)
 }
 
 PERFIDIOUS_LOCAL
+PHP_FUNCTION(perfidious_global_handle)
+{
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    if (PERF_G(global_enable) && PERF_G(global_handle)) {
+        object_init_ex(return_value, perfidious_handle_ce);
+
+        struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(return_value));
+        obj->no_auto_close = true;
+        obj->handle = PERF_G(global_handle);
+    } else {
+        RETURN_NULL();
+    }
+}
+
+PERFIDIOUS_LOCAL
 PHP_FUNCTION(perfidious_list_pmus)
 {
     unsigned long index = 0;
@@ -190,4 +206,20 @@ PHP_FUNCTION(perfidious_open)
 
     struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(return_value));
     obj->handle = handle;
+}
+
+PERFIDIOUS_LOCAL
+PHP_FUNCTION(perfidious_request_handle)
+{
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    if (PERF_G(request_enable) && PERF_G(request_handle)) {
+        object_init_ex(return_value, perfidious_handle_ce);
+
+        struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(return_value));
+        obj->no_auto_close = true;
+        obj->handle = PERF_G(request_handle);
+    } else {
+        RETURN_NULL();
+    }
 }
