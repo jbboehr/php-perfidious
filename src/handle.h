@@ -20,22 +20,22 @@
 #ifndef PHP_PERF_HANDLE_H
 #define PHP_PERF_HANDLE_H
 
-struct php_perf_metric
+struct perfidious_metric
 {
     int fd;
     uint64_t id;
     zend_string *name;
 };
 
-struct php_perf_handle
+struct perfidious_handle
 {
     uint64_t marker;
     size_t metrics_size;
     size_t metrics_count;
-    struct php_perf_metric metrics[];
+    struct perfidious_metric metrics[];
 };
 
-struct php_perf_read_format
+struct perfidious_read_format
 {
     uint64_t nr;
     struct
@@ -45,28 +45,28 @@ struct php_perf_read_format
     } values[];
 };
 
-struct php_perf_handle_obj
+struct perfidious_handle_obj
 {
-    struct php_perf_handle *handle;
+    struct perfidious_handle *handle;
     zend_object std;
 };
 
-static inline struct php_perf_handle_obj *php_perf_fetch_handle_object(zend_object *obj)
+static inline struct perfidious_handle_obj *perfidious_fetch_handle_object(zend_object *obj)
 {
-    return (struct php_perf_handle_obj *) ((char *) (obj) -XtOffsetOf(struct php_perf_handle_obj, std));
+    return (struct perfidious_handle_obj *) ((char *) (obj) -XtOffsetOf(struct perfidious_handle_obj, std));
 }
-#define Z_PERF_HANDLE_P(zv) php_perf_fetch_handle_object(Z_OBJ_P((zv)))
+#define Z_PERF_HANDLE_P(zv) perfidious_fetch_handle_object(Z_OBJ_P((zv)))
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perf_handle_disable_arginfo, 0, 0, PerfExt\\Handle, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_handle_disable_arginfo, 0, 0, PerfExt\\Handle, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perf_handle_enable_arginfo, 0, 0, PerfExt\\Handle, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_handle_enable_arginfo, 0, 0, PerfExt\\Handle, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perf_handle_read_arginfo, IS_ARRAY, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perfidious_handle_read_arginfo, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perf_handle_reset_arginfo, 0, 0, PerfExt\\Handle, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_handle_reset_arginfo, 0, 0, PerfExt\\Handle, 0)
 ZEND_END_ARG_INFO()
 
 static const uint64_t PHP_PERF_HANDLE_MARKER = 0x327b23c66b8b4567;

@@ -43,10 +43,10 @@
 
 ZEND_DECLARE_MODULE_GLOBALS(perf);
 
-PERF_LOCAL zend_result php_perf_exceptions_minit(void);
-PERF_LOCAL zend_result php_perf_handle_minit(void);
-PERF_LOCAL zend_result php_perf_pmu_event_info_minit(void);
-PERF_LOCAL zend_result php_perf_pmu_info_minit(void);
+PERFIDIOUS_LOCAL zend_result perfidious_exceptions_minit(void);
+PERFIDIOUS_LOCAL zend_result perfidious_handle_minit(void);
+PERFIDIOUS_LOCAL zend_result perfidious_pmu_event_info_minit(void);
+PERFIDIOUS_LOCAL zend_result perfidious_pmu_info_minit(void);
 
 #if PHP_VERSION_ID < 80200
 static ZEND_INI_MH(OnUpdateStr)
@@ -73,8 +73,8 @@ static PHP_RINIT_FUNCTION(perf)
 #endif
 
     if (PERF_G(request_handle)) {
-        php_perf_handle_reset(PERF_G(request_handle));
-        php_perf_handle_enable(PERF_G(request_handle));
+        perfidious_handle_reset(PERF_G(request_handle));
+        perfidious_handle_enable(PERF_G(request_handle));
     }
 
     return SUCCESS;
@@ -83,17 +83,17 @@ static PHP_RINIT_FUNCTION(perf)
 static PHP_RSHUTDOWN_FUNCTION(perf)
 {
     if (PERF_G(request_handle)) {
-        php_perf_handle_reset(PERF_G(request_handle));
-        php_perf_handle_disable(PERF_G(request_handle));
+        perfidious_handle_reset(PERF_G(request_handle));
+        perfidious_handle_disable(PERF_G(request_handle));
     }
 
     return SUCCESS;
 }
 
-static struct php_perf_handle *split_and_open(zend_string *metrics, bool persist)
+static struct perfidious_handle *split_and_open(zend_string *metrics, bool persist)
 {
     zval z_metrics = {0};
-    struct php_perf_handle *handle;
+    struct perfidious_handle *handle;
 
     do {
         zend_string *delim = zend_string_init_fast(ZEND_STRL(","));
@@ -121,10 +121,10 @@ static struct php_perf_handle *split_and_open(zend_string *metrics, bool persist
     }
     ZEND_HASH_FOREACH_END();
 
-    handle = php_perf_handle_open(arr, arr_len, persist);
+    handle = perfidious_handle_open(arr, arr_len, persist);
 
     if (handle != NULL) {
-        php_perf_handle_enable(handle);
+        perfidious_handle_enable(handle);
     }
 
     zval_dtor(&z_metrics);
@@ -146,26 +146,26 @@ static PHP_MINIT_FUNCTION(perf)
 
     REGISTER_INI_ENTRIES();
 
-    REGISTER_STRING_CONSTANT("PerfExt\\VERSION", (char *) PHP_PERF_VERSION, flags);
+    REGISTER_STRING_CONSTANT(PHP_PERF_NAMESPACE "\\VERSION", (char *) PHP_PERF_VERSION, flags);
 
-    if (SUCCESS != php_perf_exceptions_minit()) {
+    if (SUCCESS != perfidious_exceptions_minit()) {
         return FAILURE;
     }
 
-    if (SUCCESS != php_perf_handle_minit()) {
+    if (SUCCESS != perfidious_handle_minit()) {
         return FAILURE;
     }
 
-    if (SUCCESS != php_perf_pmu_event_info_minit()) {
+    if (SUCCESS != perfidious_pmu_event_info_minit()) {
         return FAILURE;
     }
 
-    if (SUCCESS != php_perf_pmu_info_minit()) {
+    if (SUCCESS != perfidious_pmu_info_minit()) {
         return FAILURE;
     }
 
     if (PERF_G(global_enable) && PERF_G(global_metrics) != NULL) {
-        struct php_perf_handle *handle = NULL;
+        struct perfidious_handle *handle = NULL;
         if (PERF_G(global_metrics) != NULL) {
             handle = split_and_open(PERF_G(global_metrics), true);
         }
@@ -176,7 +176,7 @@ static PHP_MINIT_FUNCTION(perf)
     }
 
     if (PERF_G(request_enable)) {
-        struct php_perf_handle *handle = NULL;
+        struct perfidious_handle *handle = NULL;
         if (PERF_G(request_metrics) != NULL) {
             handle = split_and_open(PERF_G(request_metrics), true);
         }
@@ -192,12 +192,12 @@ static PHP_MINIT_FUNCTION(perf)
 static PHP_MSHUTDOWN_FUNCTION(perf)
 {
     if (PERF_G(request_handle)) {
-        php_perf_handle_close(PERF_G(request_handle));
+        perfidious_handle_close(PERF_G(request_handle));
         PERF_G(request_handle) = NULL;
     }
 
     if (PERF_G(global_handle)) {
-        php_perf_handle_close(PERF_G(global_handle));
+        perfidious_handle_close(PERF_G(global_handle));
         PERF_G(global_handle) = NULL;
     }
 
@@ -206,11 +206,11 @@ static PHP_MSHUTDOWN_FUNCTION(perf)
     return SUCCESS;
 }
 
-static void minfo_handle_metrics(struct php_perf_handle *handle)
+static void minfo_handle_metrics(struct perfidious_handle *handle)
 {
     zval z_metrics = {0};
 
-    php_perf_handle_read_to_array(handle, &z_metrics);
+    perfidious_handle_read_to_array(handle, &z_metrics);
 
     zend_string *key;
     zval *val;
@@ -263,10 +263,10 @@ static PHP_GINIT_FUNCTION(perf)
 
 // clang-format off
 const zend_function_entry perf_functions[] = {
-    ZEND_RAW_FENTRY("PerfExt\\get_pmu_info", ZEND_FN(perf_get_pmu_info), perf_get_pmu_info_arginfo, 0)
-    ZEND_RAW_FENTRY("PerfExt\\list_pmus", ZEND_FN(perf_list_pmus), perf_list_pmus_arginfo, 0)
-    ZEND_RAW_FENTRY("PerfExt\\list_pmu_events", ZEND_FN(perf_list_pmu_events), perf_list_pmu_events_arginfo, 0)
-    ZEND_RAW_FENTRY("PerfExt\\open", ZEND_FN(perf_open), perf_open_arginfo, 0)
+    ZEND_RAW_FENTRY(PHP_PERF_NAMESPACE "\\get_pmu_info", ZEND_FN(perfidious_get_pmu_info), perfidious_get_pmu_info_arginfo, 0)
+    ZEND_RAW_FENTRY(PHP_PERF_NAMESPACE "\\list_pmus", ZEND_FN(perfidious_list_pmus), perfidious_list_pmus_arginfo, 0)
+    ZEND_RAW_FENTRY(PHP_PERF_NAMESPACE "\\list_pmu_events", ZEND_FN(perfidious_list_pmu_events), perfidious_list_pmu_events_arginfo, 0)
+    ZEND_RAW_FENTRY(PHP_PERF_NAMESPACE "\\open", ZEND_FN(perfidious_open), perfidious_open_arginfo, 0)
     PHP_FE_END
 };
 // clang-format on

@@ -38,40 +38,40 @@
 #include "php_perf.h"
 #include "./handle.h"
 
-PERF_PUBLIC zend_class_entry *perf_handle_ce;
-static zend_object_handlers php_perf_handle_obj_handlers;
+PERFIDIOUS_PUBLIC zend_class_entry *perfidious_handle_ce;
+static zend_object_handlers perfidious_handle_obj_handlers;
 
 static void handle_ioctl_error(void)
 {
     php_error_docref(NULL, E_WARNING, "perf: ioctl: %s", strerror(errno));
 }
 
-static void php_perf_handle_obj_free(zend_object *object)
+static void perfidious_handle_obj_free(zend_object *object)
 {
-    struct php_perf_handle_obj *obj = php_perf_fetch_handle_object(object);
+    struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(object);
 
     if (obj->handle) {
-        php_perf_handle_close(obj->handle);
+        perfidious_handle_close(obj->handle);
         obj->handle = NULL;
     }
 
     zend_object_std_dtor((zend_object *) object);
 }
 
-static zend_object *php_perf_handle_obj_create(zend_class_entry *ce)
+static zend_object *perfidious_handle_obj_create(zend_class_entry *ce)
 {
-    struct php_perf_handle_obj *obj;
+    struct perfidious_handle_obj *obj;
 
     obj = ecalloc(1, sizeof(*obj) + zend_object_properties_size(ce));
     zend_object_std_init(&obj->std, ce);
     object_properties_init(&obj->std, ce);
-    obj->std.handlers = &php_perf_handle_obj_handlers;
+    obj->std.handlers = &perfidious_handle_obj_handlers;
 
     return &obj->std;
 }
 
-PERF_PUBLIC
-void php_perf_handle_reset(struct php_perf_handle *handle)
+PERFIDIOUS_PUBLIC
+void perfidious_handle_reset(struct perfidious_handle *handle)
 {
     int err;
 
@@ -85,8 +85,8 @@ void php_perf_handle_reset(struct php_perf_handle *handle)
     }
 }
 
-PERF_PUBLIC
-void php_perf_handle_enable(struct php_perf_handle *handle)
+PERFIDIOUS_PUBLIC
+void perfidious_handle_enable(struct perfidious_handle *handle)
 {
     int err;
 
@@ -100,8 +100,8 @@ void php_perf_handle_enable(struct php_perf_handle *handle)
     }
 }
 
-PERF_PUBLIC
-void php_perf_handle_disable(struct php_perf_handle *handle)
+PERFIDIOUS_PUBLIC
+void perfidious_handle_disable(struct perfidious_handle *handle)
 {
     int err;
 
@@ -115,8 +115,8 @@ void php_perf_handle_disable(struct php_perf_handle *handle)
     }
 }
 
-PERF_PUBLIC
-void php_perf_handle_close(struct php_perf_handle *handle)
+PERFIDIOUS_PUBLIC
+void perfidious_handle_close(struct perfidious_handle *handle)
 {
     int err;
 
@@ -134,16 +134,16 @@ void php_perf_handle_close(struct php_perf_handle *handle)
     handle->metrics_count = 0;
 }
 
-PERF_PUBLIC
-void php_perf_handle_read_to_array(struct php_perf_handle *handle, zval *return_value)
+PERFIDIOUS_PUBLIC
+void perfidious_handle_read_to_array(struct perfidious_handle *handle, zval *return_value)
 {
-    php_perf_handle_disable(handle);
+    perfidious_handle_disable(handle);
 
     array_init(return_value);
 
-    size_t size = sizeof(struct php_perf_read_format) +
-                  sizeof(((struct php_perf_read_format){0}).values[0]) * handle->metrics_count;
-    struct php_perf_read_format *data = alloca(size);
+    size_t size = sizeof(struct perfidious_read_format) +
+                  sizeof(((struct perfidious_read_format){0}).values[0]) * handle->metrics_count;
+    struct perfidious_read_format *data = alloca(size);
 
     ssize_t bytes_read = read(handle->metrics[0].fd, (void *) data, size);
 
@@ -153,7 +153,7 @@ void php_perf_handle_read_to_array(struct php_perf_handle *handle, zval *return_
     }
 
     for (size_t i = 0; i < data->nr; i++) {
-        struct php_perf_metric *e = &handle->metrics[i];
+        struct perfidious_metric *e = &handle->metrics[i];
 
         if (UNEXPECTED(e->id != data->values[i].id)) {
             e = NULL;
@@ -187,20 +187,20 @@ void php_perf_handle_read_to_array(struct php_perf_handle *handle, zval *return_
     }
 
 done:
-    php_perf_handle_enable(handle);
+    perfidious_handle_enable(handle);
 }
 
-PERF_PUBLIC
-PHP_PERF_ATTR_WARN_UNUSED_RESULT
-struct php_perf_handle *php_perf_handle_open(zend_string **event_names, size_t event_names_length, bool persist)
+PERFIDIOUS_PUBLIC
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
+struct perfidious_handle *perfidious_handle_open(zend_string **event_names, size_t event_names_length, bool persist)
 {
     int fd;
     uint64_t id;
     int group_fd;
     int err;
 
-    struct php_perf_handle *handle = pecalloc(
-        sizeof(struct php_perf_handle) + sizeof(struct php_perf_metric) * (event_names_length + 1), 1, persist
+    struct perfidious_handle *handle = pecalloc(
+        sizeof(struct perfidious_handle) + sizeof(struct perfidious_metric) * (event_names_length + 1), 1, persist
     );
     handle->marker = PHP_PERF_HANDLE_MARKER;
     handle->metrics_size = event_names_length + 1;
@@ -236,7 +236,7 @@ struct php_perf_handle *php_perf_handle_open(zend_string **event_names, size_t e
             close(fd);
             goto cleanup;
         }
-        handle->metrics[handle->metrics_count++] = (struct php_perf_metric){
+        handle->metrics[handle->metrics_count++] = (struct perfidious_metric){
             .fd = fd,
             .id = id,
             .name = zend_string_init(ZEND_STRL("PERF_COUNT_SW_DUMMY"), persist),
@@ -302,7 +302,7 @@ struct php_perf_handle *php_perf_handle_open(zend_string **event_names, size_t e
 
         ZEND_ASSERT(handle->metrics_count < handle->metrics_size);
 
-        handle->metrics[handle->metrics_count++] = (struct php_perf_metric){
+        handle->metrics[handle->metrics_count++] = (struct perfidious_metric){
             .fd = fd,
             .id = id,
             // can't use zend_string_copy because it doesn't persist?
@@ -313,87 +313,96 @@ struct php_perf_handle *php_perf_handle_open(zend_string **event_names, size_t e
     return handle;
 
 cleanup:
-    php_perf_handle_close(handle);
+    perfidious_handle_close(handle);
     return NULL;
 }
 
-static PHP_METHOD(PerfExtHandle, disable)
+static PHP_METHOD(Handle, disable)
 {
     zval *self = getThis();
 
     ZEND_PARSE_PARAMETERS_NONE();
 
-    struct php_perf_handle_obj *obj = php_perf_fetch_handle_object(Z_OBJ_P(self));
+    struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(self));
 
     ZEND_ASSERT(obj->handle->marker == PHP_PERF_HANDLE_MARKER);
 
-    php_perf_handle_disable(obj->handle);
+    perfidious_handle_disable(obj->handle);
 
     RETURN_ZVAL(self, 1, 0);
 }
 
-static PHP_METHOD(PerfExtHandle, enable)
+static PHP_METHOD(Handle, enable)
 {
     zval *self = getThis();
 
     ZEND_PARSE_PARAMETERS_NONE();
 
-    struct php_perf_handle_obj *obj = php_perf_fetch_handle_object(Z_OBJ_P(self));
+    struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(self));
 
     ZEND_ASSERT(obj->handle->marker == PHP_PERF_HANDLE_MARKER);
 
-    php_perf_handle_enable(obj->handle);
+    perfidious_handle_enable(obj->handle);
 
     RETURN_ZVAL(self, 1, 0);
 }
 
-static PHP_METHOD(PerfExtHandle, read)
+static PHP_METHOD(Handle, read)
 {
     zval *self = getThis();
 
     ZEND_PARSE_PARAMETERS_NONE();
 
-    struct php_perf_handle_obj *obj = php_perf_fetch_handle_object(Z_OBJ_P(self));
+    struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(self));
 
     ZEND_ASSERT(obj->handle->marker == PHP_PERF_HANDLE_MARKER);
 
-    php_perf_handle_read_to_array(obj->handle, return_value);
+    perfidious_handle_read_to_array(obj->handle, return_value);
 }
 
-static PHP_METHOD(PerfExtHandle, reset)
+static PHP_METHOD(Handle, reset)
 {
     zval *self = getThis();
 
     ZEND_PARSE_PARAMETERS_NONE();
 
-    struct php_perf_handle_obj *obj = php_perf_fetch_handle_object(Z_OBJ_P(self));
+    struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(self));
 
     ZEND_ASSERT(obj->handle->marker == PHP_PERF_HANDLE_MARKER);
 
-    php_perf_handle_reset(obj->handle);
+    perfidious_handle_reset(obj->handle);
 
     RETURN_ZVAL(self, 1, 0);
 }
 
-static zend_function_entry php_perf_handle_methods[] = {
-    PHP_ME(PerfExtHandle, disable, perf_handle_disable_arginfo, ZEND_ACC_PUBLIC)
-        PHP_ME(PerfExtHandle, enable, perf_handle_enable_arginfo, ZEND_ACC_PUBLIC)
-            PHP_ME(PerfExtHandle, read, perf_handle_read_arginfo, ZEND_ACC_PUBLIC)
-                PHP_ME(PerfExtHandle, reset, perf_handle_reset_arginfo, ZEND_ACC_PUBLIC) PHP_FE_END};
+// clang-format off
+static zend_function_entry perfidious_handle_methods[] = {
+    PHP_ME(Handle, disable, perfidious_handle_disable_arginfo, ZEND_ACC_PUBLIC)
+    PHP_ME(Handle, enable, perfidious_handle_enable_arginfo, ZEND_ACC_PUBLIC)
+    PHP_ME(Handle, read, perfidious_handle_read_arginfo, ZEND_ACC_PUBLIC)
+    PHP_ME(Handle, reset, perfidious_handle_reset_arginfo, ZEND_ACC_PUBLIC)
+    PHP_FE_END
+};
+// clang-format on
 
-PERF_LOCAL
-zend_result php_perf_handle_minit(void)
+static zend_always_inline zend_class_entry *register_class_Handle(void)
 {
     zend_class_entry ce;
 
-    memcpy(&php_perf_handle_obj_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
-    php_perf_handle_obj_handlers.offset = XtOffsetOf(struct php_perf_handle_obj, std);
-    php_perf_handle_obj_handlers.free_obj = php_perf_handle_obj_free;
-    php_perf_handle_obj_handlers.clone_obj = NULL;
+    memcpy(&perfidious_handle_obj_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
+    perfidious_handle_obj_handlers.offset = XtOffsetOf(struct perfidious_handle_obj, std);
+    perfidious_handle_obj_handlers.free_obj = perfidious_handle_obj_free;
+    perfidious_handle_obj_handlers.clone_obj = NULL;
 
-    INIT_CLASS_ENTRY(ce, "PerfExt\\Handle", php_perf_handle_methods);
-    perf_handle_ce = zend_register_internal_class(&ce);
-    perf_handle_ce->create_object = php_perf_handle_obj_create;
+    INIT_CLASS_ENTRY(ce, PHP_PERF_NAMESPACE "\\Handle", perfidious_handle_methods);
+    return zend_register_internal_class(&ce);
+}
+
+PERFIDIOUS_LOCAL
+zend_result perfidious_handle_minit(void)
+{
+    perfidious_handle_ce = register_class_Handle();
+    perfidious_handle_ce->create_object = perfidious_handle_obj_create;
 
     return SUCCESS;
 }

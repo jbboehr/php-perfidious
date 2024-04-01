@@ -26,22 +26,22 @@
 #include <ext/spl/spl_exceptions.h>
 #include "php_perf.h"
 
-PERF_PUBLIC zend_class_entry *perf_pmu_not_found_exception_ce;
+PERFIDIOUS_PUBLIC zend_class_entry *perfidious_pmu_not_found_exception_ce;
 
 static zend_class_entry *register_class_PmuNotFoundException(void)
 {
     zend_class_entry ce;
     zend_class_entry *class_entry;
 
-    INIT_CLASS_ENTRY(ce, "PerfExt\\PmuNotFoundException", NULL);
+    INIT_CLASS_ENTRY(ce, PHP_PERF_NAMESPACE "\\PmuNotFoundException", NULL);
     class_entry = zend_register_internal_class_ex(&ce, spl_ce_InvalidArgumentException);
 
     return class_entry;
 }
 
-PERF_LOCAL zend_result php_perf_exceptions_minit(void)
+PERFIDIOUS_LOCAL zend_result perfidious_exceptions_minit(void)
 {
-    perf_pmu_not_found_exception_ce = register_class_PmuNotFoundException();
+    perfidious_pmu_not_found_exception_ce = register_class_PmuNotFoundException();
 
     return SUCCESS;
 }

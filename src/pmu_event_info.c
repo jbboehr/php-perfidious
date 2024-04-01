@@ -26,16 +26,14 @@
 #include "Zend/zend_enum.h"
 #include "php_perf.h"
 
-PERF_PUBLIC zend_class_entry *perf_pmu_event_info_ce;
+PERFIDIOUS_PUBLIC zend_class_entry *perfidious_pmu_event_info_ce;
 
-static zend_function_entry php_perf_pmu_event_info_methods[] = {PHP_FE_END};
-
-static zend_class_entry *register_class_PmuEventInfo(void)
+static zend_always_inline zend_class_entry *register_class_PmuEventInfo(void)
 {
     zend_class_entry ce;
     zend_class_entry *class_entry;
 
-    INIT_CLASS_ENTRY(ce, "PerfExt\\PmuEventInfo", php_perf_pmu_event_info_methods);
+    INIT_CLASS_ENTRY(ce, PHP_PERF_NAMESPACE "\\PmuEventInfo", NULL);
     class_entry = zend_register_internal_class(&ce);
 
     do {
@@ -116,9 +114,9 @@ static zend_class_entry *register_class_PmuEventInfo(void)
     return class_entry;
 }
 
-PERF_LOCAL zend_result php_perf_pmu_event_info_minit(void)
+PERFIDIOUS_LOCAL zend_result perfidious_pmu_event_info_minit(void)
 {
-    perf_pmu_event_info_ce = register_class_PmuEventInfo();
+    perfidious_pmu_event_info_ce = register_class_PmuEventInfo();
 
     return SUCCESS;
 }

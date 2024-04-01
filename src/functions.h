@@ -22,24 +22,24 @@
 
 #include "Zend/zend_API.h"
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perf_get_pmu_info_arginfo, 0, 0, PerfExt\\PmuInfo, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_get_pmu_info_arginfo, 0, 0, PerfExt\\PmuInfo, 0)
     ZEND_ARG_TYPE_INFO(0, pmu, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perf_list_pmus_arginfo, IS_ARRAY, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perfidious_list_pmus_arginfo, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perf_list_pmu_events_arginfo, IS_ARRAY, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perfidious_list_pmu_events_arginfo, IS_ARRAY, 0)
     ZEND_ARG_TYPE_INFO(0, pmu, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perf_open_arginfo, 0, 0, PerfExt\\Handle, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_open_arginfo, 0, 0, PerfExt\\Handle, 0)
     ZEND_ARG_TYPE_INFO(0, event_names, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
-PERF_LOCAL extern ZEND_FUNCTION(perf_get_pmu_info);
-PERF_LOCAL extern ZEND_FUNCTION(perf_list_pmus);
-PERF_LOCAL extern ZEND_FUNCTION(perf_list_pmu_events);
-PERF_LOCAL extern ZEND_FUNCTION(perf_open);
+PERFIDIOUS_LOCAL extern ZEND_FUNCTION(perfidious_get_pmu_info);
+PERFIDIOUS_LOCAL extern ZEND_FUNCTION(perfidious_list_pmus);
+PERFIDIOUS_LOCAL extern ZEND_FUNCTION(perfidious_list_pmu_events);
+PERFIDIOUS_LOCAL extern ZEND_FUNCTION(perfidious_open);
 
 #endif /* PHP_PERF_FUNCTIONS_H */

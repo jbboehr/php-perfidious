@@ -26,16 +26,10 @@
 #include "Zend/zend_exceptions.h"
 #include "main/php.h"
 #include "php_perf.h"
+#include "./functions.h"
 #include "./handle.h"
 
-enum php_perf_err_mode
-{
-    PHP_PERF_SILENT,
-    PHP_PERF_WARNING,
-    PHP_PERF_THROW
-};
-
-static zend_result php_perf_get_pmu_info(zend_long pmu, zval *rv, enum php_perf_err_mode err_mode)
+static zend_result perfidious_get_pmu_info(zend_long pmu, zval *rv, enum perfidious_error_mode err_mode)
 {
     pfm_pmu_info_t pmu_info = {0};
     int ret;
@@ -53,7 +47,11 @@ static zend_result php_perf_get_pmu_info(zend_long pmu, zval *rv, enum php_perf_
             default:
             case PHP_PERF_THROW:
                 zend_throw_exception_ex(
-                    perf_pmu_not_found_exception_ce, ret, "cannot get pmu info for %lu: %s", pmu, pfm_strerror(ret)
+                    perfidious_pmu_not_found_exception_ce,
+                    ret,
+                    "cannot get pmu info for %lu: %s",
+                    pmu,
+                    pfm_strerror(ret)
                 );
                 break;
             case PHP_PERF_SILENT:
@@ -63,7 +61,7 @@ static zend_result php_perf_get_pmu_info(zend_long pmu, zval *rv, enum php_perf_
     }
 
     ZVAL_UNDEF(rv);
-    object_init_ex(rv, perf_pmu_info_ce);
+    object_init_ex(rv, perfidious_pmu_info_ce);
 
     zend_update_property_string(Z_OBJCE_P(rv), Z_OBJ_P(rv), "name", sizeof("name") - 1, pmu_info.name);
     zend_update_property_string(Z_OBJCE_P(rv), Z_OBJ_P(rv), "desc", sizeof("desc") - 1, pmu_info.desc);
@@ -76,8 +74,8 @@ static zend_result php_perf_get_pmu_info(zend_long pmu, zval *rv, enum php_perf_
     return SUCCESS;
 }
 
-PERF_LOCAL
-PHP_FUNCTION(perf_get_pmu_info)
+PERFIDIOUS_LOCAL
+PHP_FUNCTION(perfidious_get_pmu_info)
 {
     zend_long pmu;
 
@@ -85,11 +83,11 @@ PHP_FUNCTION(perf_get_pmu_info)
         Z_PARAM_LONG(pmu)
     ZEND_PARSE_PARAMETERS_END();
 
-    php_perf_get_pmu_info(pmu, return_value, PHP_PERF_THROW);
+    perfidious_get_pmu_info(pmu, return_value, PHP_PERF_THROW);
 }
 
-PERF_LOCAL
-PHP_FUNCTION(perf_list_pmus)
+PERFIDIOUS_LOCAL
+PHP_FUNCTION(perfidious_list_pmus)
 {
     unsigned long index = 0;
 
@@ -100,7 +98,7 @@ PHP_FUNCTION(perf_list_pmus)
     pfm_for_all_pmus(index)
     {
         zval tmp = {0};
-        zend_result result = php_perf_get_pmu_info((zend_long) index, &tmp, PHP_PERF_SILENT);
+        zend_result result = perfidious_get_pmu_info((zend_long) index, &tmp, PHP_PERF_SILENT);
         if (result == SUCCESS) {
             add_next_index_zval(return_value, &tmp);
         }
@@ -108,8 +106,8 @@ PHP_FUNCTION(perf_list_pmus)
     }
 }
 
-PERF_LOCAL
-PHP_FUNCTION(perf_list_pmu_events)
+PERFIDIOUS_LOCAL
+PHP_FUNCTION(perfidious_list_pmu_events)
 {
     zend_long pmu_id;
 
@@ -147,7 +145,7 @@ PHP_FUNCTION(perf_list_pmu_events)
 
         size_t buf_len = snprintf(buf, sizeof(buf), "%s::%s", pinfo.name, info.name);
 
-        object_init_ex(&tmp, perf_pmu_event_info_ce);
+        object_init_ex(&tmp, perfidious_pmu_event_info_ce);
 
         zend_update_property_stringl(Z_OBJCE(tmp), Z_OBJ(tmp), "name", sizeof("name") - 1, buf, buf_len);
         zend_update_property_string(Z_OBJCE(tmp), Z_OBJ(tmp), "desc", sizeof("desc") - 1, info.desc);
@@ -163,8 +161,8 @@ PHP_FUNCTION(perf_list_pmu_events)
     }
 }
 
-PERF_LOCAL
-PHP_FUNCTION(perf_open)
+PERFIDIOUS_LOCAL
+PHP_FUNCTION(perfidious_open)
 {
     HashTable *event_names_ht;
     zval *z;
@@ -186,21 +184,10 @@ PHP_FUNCTION(perf_open)
 
     arr[arr_count] = NULL;
 
-    struct php_perf_handle *handle = php_perf_handle_open(arr, arr_count, 0);
+    struct perfidious_handle *handle = perfidious_handle_open(arr, arr_count, 0);
 
-    object_init_ex(return_value, perf_handle_ce);
+    object_init_ex(return_value, perfidious_handle_ce);
 
-    struct php_perf_handle_obj *obj = php_perf_fetch_handle_object(Z_OBJ_P(return_value));
+    struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(return_value));
     obj->handle = handle;
-
-    // if (Z_OBJCE_P(return_value)->constructor) {
-    //     zend_call_known_instance_method_with_0_params(
-    //         Z_OBJCE_P(return_value)->constructor, Z_OBJ_P(return_value), NULL
-    //     );
-    // }
-
-    // if (EG(exception)) {
-    //     php_perf_handle_close(handle);
-    //     RETURN_NULL();
-    // }
 }

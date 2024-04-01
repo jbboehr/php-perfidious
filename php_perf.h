@@ -26,32 +26,33 @@
 #define PHP_PERF_VERSION "0.1.0"
 #define PHP_PERF_RELEASE "2024-03-24"
 #define PHP_PERF_AUTHORS "John Boehr <jbboehr@gmail.com> (lead)"
+#define PHP_PERF_NAMESPACE "PerfExt"
 
 #if (__GNUC__ >= 4) || defined(__clang__) || defined(HAVE_FUNC_ATTRIBUTE_VISIBILITY)
-#define PERF_PUBLIC __attribute__((visibility("default")))
-#define PERF_LOCAL __attribute__((visibility("hidden")))
+#define PERFIDIOUS_PUBLIC __attribute__((visibility("default")))
+#define PERFIDIOUS_LOCAL __attribute__((visibility("hidden")))
 #elif defined(PHP_WIN32) && defined(PERF_EXPORTS)
-#define PERF_PUBLIC __declspec(dllexport)
-#define PERF_LOCAL
+#define PERFIDIOUS_PUBLIC __declspec(dllexport)
+#define PERFIDIOUS_LOCAL
 #else
-#define PERF_PUBLIC
-#define PERF_LOCAL
+#define PERFIDIOUS_PUBLIC
+#define PERFIDIOUS_LOCAL
 #endif
 
 #if (__GNUC__ >= 3) || defined(__clang__)
-#define PHP_PERF_ATTR_NONNULL(...) __attribute__((nonnull(__VA_ARGS__)))
-#define PHP_PERF_ATTR_NONNULL_ALL __attribute__((nonnull))
-#define PHP_PERF_ATTR_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
+#define PERFIDIOUS_ATTR_NONNULL(...) __attribute__((nonnull(__VA_ARGS__)))
+#define PERFIDIOUS_ATTR_NONNULL_ALL __attribute__((nonnull))
+#define PERFIDIOUS_ATTR_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
 #else
-#define PHP_PERF_ATTR_NONNULL(...)
-#define PHP_PERF_ATTR_NONNULL_ALL
-#define PHP_PERF_ATTR_WARN_UNUSED_RESULT
+#define PERFIDIOUS_ATTR_NONNULL(...)
+#define PERFIDIOUS_ATTR_NONNULL_ALL
+#define PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
 #endif
 
 #if ((__GNUC__ >= 5) || ((__GNUC__ >= 4) && (__GNUC_MINOR__ >= 9))) || defined(__clang__)
-#define PHP_PERF_ATTR_RETURNS_NONNULL __attribute__((returns_nonnull))
+#define PERFIDIOUS_ATTR_RETURNS_NONNULL __attribute__((returns_nonnull))
 #else
-#define PHP_PERF_ATTR_RETURNS_NONNULL
+#define PERFIDIOUS_ATTR_RETURNS_NONNULL
 #endif
 
 extern zend_module_entry perf_module_entry;
@@ -65,36 +66,41 @@ extern zend_module_entry perf_module_entry;
 ZEND_TSRMLS_CACHE_EXTERN();
 #endif
 
-struct php_perf_handle;
+struct perfidious_handle;
 
-PERF_PUBLIC extern zend_class_entry *perf_pmu_not_found_exception_ce;
-PERF_PUBLIC extern zend_class_entry *perf_pmu_event_info_ce;
-PERF_PUBLIC extern zend_class_entry *perf_pmu_info_ce;
-PERF_PUBLIC extern zend_class_entry *perf_handle_ce;
+enum perfidious_error_mode
+{
+    PHP_PERF_SILENT = 0,
+    PHP_PERF_WARNING = 1,
+    PHP_PERF_THROW = 2,
+};
+
+PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_pmu_not_found_exception_ce;
+PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_pmu_event_info_ce;
+PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_pmu_info_ce;
+PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_handle_ce;
 
 ZEND_BEGIN_MODULE_GLOBALS(perf)
     zend_bool global_enable;
     zend_string *global_metrics;
-    struct php_perf_handle *global_handle;
+    struct perfidious_handle *global_handle;
 
     zend_bool request_enable;
     zend_string *request_metrics;
-    struct php_perf_handle *request_handle;
+    struct perfidious_handle *request_handle;
 ZEND_END_MODULE_GLOBALS(perf)
 
 ZEND_EXTERN_MODULE_GLOBALS(perf);
 
 #define PERF_G(v) ZEND_MODULE_GLOBALS_ACCESSOR(perf, v)
 
-// php_perf_handle
-struct php_perf_handle;
-PERF_PUBLIC void php_perf_handle_reset(struct php_perf_handle *handle);
-PERF_PUBLIC void php_perf_handle_enable(struct php_perf_handle *handle);
-PERF_PUBLIC void php_perf_handle_disable(struct php_perf_handle *handle);
-PERF_PUBLIC void php_perf_handle_close(struct php_perf_handle *handle);
-PERF_PUBLIC PHP_PERF_ATTR_WARN_UNUSED_RESULT struct php_perf_handle *
-php_perf_handle_open(zend_string **event_names, size_t event_names_length, bool persist);
-PERF_PUBLIC
-void php_perf_handle_read_to_array(struct php_perf_handle *handle, zval *return_value);
+PERFIDIOUS_PUBLIC void perfidious_handle_reset(struct perfidious_handle *handle);
+PERFIDIOUS_PUBLIC void perfidious_handle_enable(struct perfidious_handle *handle);
+PERFIDIOUS_PUBLIC void perfidious_handle_disable(struct perfidious_handle *handle);
+PERFIDIOUS_PUBLIC void perfidious_handle_close(struct perfidious_handle *handle);
+PERFIDIOUS_PUBLIC PERFIDIOUS_ATTR_WARN_UNUSED_RESULT struct perfidious_handle *
+perfidious_handle_open(zend_string **event_names, size_t event_names_length, bool persist);
+PERFIDIOUS_PUBLIC
+void perfidious_handle_read_to_array(struct perfidious_handle *handle, zval *return_value);
 
 #endif /* PHP_PERF_H */
