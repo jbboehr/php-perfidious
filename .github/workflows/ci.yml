@@ -113,22 +113,22 @@ jobs:
                         --compat-libtool \
                         --output-file coverage.info
 
-#            -   name: Coveralls
-#                uses: coverallsapp/github-action@v2
-#                with:
-#                    file: coverage.info
-#                    format: lcov
-#                    parallel: true
+            -   name: Coveralls
+                uses: coverallsapp/github-action@v2
+                with:
+                    file: coverage.info
+                    format: lcov
+                    parallel: true
 
-#    finish:
-#        needs: coverage
-#        if: ${{ always() }}
-#        runs-on: ubuntu-latest
-#        steps:
-#            -   name: Coveralls Finished
-#                uses: coverallsapp/github-action@v2
-#                with:
-#                    parallel-finished: true
+    finish:
+        needs: coverage
+        if: ${{ always() }}
+        runs-on: ubuntu-latest
+        steps:
+            -   name: Coveralls Finished
+                uses: coverallsapp/github-action@v2
+                with:
+                    parallel-finished: true
 
     nix:
         runs-on: ubuntu-latest
