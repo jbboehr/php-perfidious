@@ -26,10 +26,14 @@ AlwaysBreakBeforeMultilineStrings: false
 AlwaysBreakTemplateDeclarations: MultiLine
 AttributeMacros:
   - __capability
-  - PERF_LOCAL
-  - PERF_PUBLIC
   - zend_never_inline
   - zend_always_inline
+  - PERFIDIOUS_PUBLIC
+  - PERFIDIOUS_LOCAL
+  - PERFIDIOUS_ATTR_NONNULL
+  - PERFIDIOUS_ATTR_NONNULL_ALL
+  - PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
+  - PERFIDIOUS_ATTR_RETURNS_NONNULL
 BinPackArguments: false
 BinPackParameters: false
 BraceWrapping:

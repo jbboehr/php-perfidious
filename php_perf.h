@@ -94,13 +94,29 @@ ZEND_EXTERN_MODULE_GLOBALS(perf);
 
 #define PERF_G(v) ZEND_MODULE_GLOBALS_ACCESSOR(perf, v)
 
-PERFIDIOUS_PUBLIC void perfidious_handle_reset(struct perfidious_handle *handle);
-PERFIDIOUS_PUBLIC void perfidious_handle_enable(struct perfidious_handle *handle);
-PERFIDIOUS_PUBLIC void perfidious_handle_disable(struct perfidious_handle *handle);
-PERFIDIOUS_PUBLIC void perfidious_handle_close(struct perfidious_handle *handle);
-PERFIDIOUS_PUBLIC PERFIDIOUS_ATTR_WARN_UNUSED_RESULT struct perfidious_handle *
-perfidious_handle_open(zend_string **event_names, size_t event_names_length, bool persist);
 PERFIDIOUS_PUBLIC
+PERFIDIOUS_ATTR_NONNULL_ALL
+void perfidious_handle_reset(struct perfidious_handle *handle);
+
+PERFIDIOUS_PUBLIC
+PERFIDIOUS_ATTR_NONNULL_ALL
+void perfidious_handle_enable(struct perfidious_handle *handle);
+
+PERFIDIOUS_PUBLIC
+PERFIDIOUS_ATTR_NONNULL_ALL
+void perfidious_handle_disable(struct perfidious_handle *handle);
+
+PERFIDIOUS_PUBLIC
+PERFIDIOUS_ATTR_NONNULL_ALL
+void perfidious_handle_close(struct perfidious_handle *handle);
+
+PERFIDIOUS_PUBLIC
+PERFIDIOUS_ATTR_NONNULL_ALL
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
+struct perfidious_handle *perfidious_handle_open(zend_string **event_names, size_t event_names_length, bool persist);
+
+PERFIDIOUS_PUBLIC
+PERFIDIOUS_ATTR_NONNULL_ALL
 void perfidious_handle_read_to_array(struct perfidious_handle *handle, zval *return_value);
 
 #endif /* PHP_PERF_H */

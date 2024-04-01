@@ -52,6 +52,8 @@ struct perfidious_handle_obj
     zend_object std;
 };
 
+PERFIDIOUS_ATTR_NONNULL_ALL
+PERFIDIOUS_ATTR_RETURNS_NONNULL
 static inline struct perfidious_handle_obj *perfidious_fetch_handle_object(zend_object *obj)
 {
     return (struct perfidious_handle_obj *) ((char *) (obj) -XtOffsetOf(struct perfidious_handle_obj, std));

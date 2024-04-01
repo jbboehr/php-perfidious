@@ -29,6 +29,8 @@
 #include "./functions.h"
 #include "./handle.h"
 
+PERFIDIOUS_ATTR_NONNULL_ALL
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
 static zend_result perfidious_get_pmu_info(zend_long pmu, zval *rv, enum perfidious_error_mode err_mode)
 {
     pfm_pmu_info_t pmu_info = {0};
@@ -83,7 +85,9 @@ PHP_FUNCTION(perfidious_get_pmu_info)
         Z_PARAM_LONG(pmu)
     ZEND_PARSE_PARAMETERS_END();
 
-    perfidious_get_pmu_info(pmu, return_value, PHP_PERF_THROW);
+    if (SUCCESS != perfidious_get_pmu_info(pmu, return_value, PHP_PERF_THROW)) {
+        RETURN_NULL();
+    }
 }
 
 PERFIDIOUS_LOCAL

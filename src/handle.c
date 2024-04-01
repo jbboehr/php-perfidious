@@ -41,11 +41,12 @@
 PERFIDIOUS_PUBLIC zend_class_entry *perfidious_handle_ce;
 static zend_object_handlers perfidious_handle_obj_handlers;
 
-static void handle_ioctl_error(void)
+static void perfidious_handle_ioctl_error(void)
 {
     php_error_docref(NULL, E_WARNING, "perf: ioctl: %s", strerror(errno));
 }
 
+PERFIDIOUS_ATTR_NONNULL_ALL
 static void perfidious_handle_obj_free(zend_object *object)
 {
     struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(object);
@@ -58,6 +59,8 @@ static void perfidious_handle_obj_free(zend_object *object)
     zend_object_std_dtor((zend_object *) object);
 }
 
+PERFIDIOUS_ATTR_NONNULL_ALL
+PERFIDIOUS_ATTR_RETURNS_NONNULL
 static zend_object *perfidious_handle_obj_create(zend_class_entry *ce)
 {
     struct perfidious_handle_obj *obj;
@@ -71,6 +74,7 @@ static zend_object *perfidious_handle_obj_create(zend_class_entry *ce)
 }
 
 PERFIDIOUS_PUBLIC
+PERFIDIOUS_ATTR_NONNULL_ALL
 void perfidious_handle_reset(struct perfidious_handle *handle)
 {
     int err;
@@ -81,11 +85,12 @@ void perfidious_handle_reset(struct perfidious_handle *handle)
 
     err = ioctl(handle->metrics[0].fd, PERF_EVENT_IOC_RESET, PERF_IOC_FLAG_GROUP);
     if (UNEXPECTED(err == -1)) {
-        handle_ioctl_error();
+        perfidious_handle_ioctl_error();
     }
 }
 
 PERFIDIOUS_PUBLIC
+PERFIDIOUS_ATTR_NONNULL_ALL
 void perfidious_handle_enable(struct perfidious_handle *handle)
 {
     int err;
@@ -96,11 +101,12 @@ void perfidious_handle_enable(struct perfidious_handle *handle)
 
     err = ioctl(handle->metrics[0].fd, PERF_EVENT_IOC_ENABLE, PERF_IOC_FLAG_GROUP);
     if (UNEXPECTED(err == -1)) {
-        handle_ioctl_error();
+        perfidious_handle_ioctl_error();
     }
 }
 
 PERFIDIOUS_PUBLIC
+PERFIDIOUS_ATTR_NONNULL_ALL
 void perfidious_handle_disable(struct perfidious_handle *handle)
 {
     int err;
@@ -111,11 +117,12 @@ void perfidious_handle_disable(struct perfidious_handle *handle)
 
     err = ioctl(handle->metrics[0].fd, PERF_EVENT_IOC_DISABLE, PERF_IOC_FLAG_GROUP);
     if (UNEXPECTED(err == -1)) {
-        handle_ioctl_error();
+        perfidious_handle_ioctl_error();
     }
 }
 
 PERFIDIOUS_PUBLIC
+PERFIDIOUS_ATTR_NONNULL_ALL
 void perfidious_handle_close(struct perfidious_handle *handle)
 {
     int err;
@@ -135,6 +142,7 @@ void perfidious_handle_close(struct perfidious_handle *handle)
 }
 
 PERFIDIOUS_PUBLIC
+PERFIDIOUS_ATTR_NONNULL_ALL
 void perfidious_handle_read_to_array(struct perfidious_handle *handle, zval *return_value)
 {
     perfidious_handle_disable(handle);
@@ -191,6 +199,7 @@ done:
 }
 
 PERFIDIOUS_PUBLIC
+PERFIDIOUS_ATTR_NONNULL_ALL
 PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
 struct perfidious_handle *perfidious_handle_open(zend_string **event_names, size_t event_names_length, bool persist)
 {
@@ -226,13 +235,13 @@ struct perfidious_handle *perfidious_handle_open(zend_string **event_names, size
         }
         err = ioctl(fd, PERF_EVENT_IOC_ID, &id);
         if (err == -1) {
-            handle_ioctl_error();
+            perfidious_handle_ioctl_error();
             close(fd);
             goto cleanup;
         }
         err = ioctl(fd, PERF_EVENT_IOC_RESET, fd);
         if (err == -1) {
-            handle_ioctl_error();
+            perfidious_handle_ioctl_error();
             close(fd);
             goto cleanup;
         }
@@ -288,14 +297,14 @@ struct perfidious_handle *perfidious_handle_open(zend_string **event_names, size
 
         err = ioctl(fd, PERF_EVENT_IOC_ID, &id);
         if (err == -1) {
-            handle_ioctl_error();
+            perfidious_handle_ioctl_error();
             close(fd);
             goto cleanup;
         }
 
         err = ioctl(fd, PERF_EVENT_IOC_RESET, fd);
         if (err == -1) {
-            handle_ioctl_error();
+            perfidious_handle_ioctl_error();
             close(fd);
             goto cleanup;
         }
@@ -385,6 +394,8 @@ static zend_function_entry perfidious_handle_methods[] = {
 };
 // clang-format on
 
+PERFIDIOUS_ATTR_RETURNS_NONNULL
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
 static zend_always_inline zend_class_entry *register_class_Handle(void)
 {
     zend_class_entry ce;

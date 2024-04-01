@@ -28,6 +28,8 @@
 
 PERFIDIOUS_PUBLIC zend_class_entry *perfidious_pmu_event_info_ce;
 
+PERFIDIOUS_ATTR_RETURNS_NONNULL
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
 static zend_always_inline zend_class_entry *register_class_PmuEventInfo(void)
 {
     zend_class_entry ce;

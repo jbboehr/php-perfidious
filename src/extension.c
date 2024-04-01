@@ -206,7 +206,7 @@ static PHP_MSHUTDOWN_FUNCTION(perf)
     return SUCCESS;
 }
 
-static void minfo_handle_metrics(struct perfidious_handle *handle)
+static zend_always_inline void minfo_handle_metrics(struct perfidious_handle *handle)
 {
     zval z_metrics = {0};
 
@@ -262,7 +262,8 @@ static PHP_GINIT_FUNCTION(perf)
 }
 
 // clang-format off
-const zend_function_entry perf_functions[] = {
+PERFIDIOUS_LOCAL
+const zend_function_entry perfidious_functions[] = {
     ZEND_RAW_FENTRY(PHP_PERF_NAMESPACE "\\get_pmu_info", ZEND_FN(perfidious_get_pmu_info), perfidious_get_pmu_info_arginfo, 0)
     ZEND_RAW_FENTRY(PHP_PERF_NAMESPACE "\\global_handle", ZEND_FN(perfidious_global_handle), perfidious_global_handle_arginfo, 0)
     ZEND_RAW_FENTRY(PHP_PERF_NAMESPACE "\\list_pmus", ZEND_FN(perfidious_list_pmus), perfidious_list_pmus_arginfo, 0)
@@ -284,7 +285,7 @@ zend_module_entry perf_module_entry = {
     NULL,
     perf_deps,                /* Deps */
     PHP_PERF_NAME,            /* Name */
-    perf_functions,           /* Functions */
+    perfidious_functions,     /* Functions */
     PHP_MINIT(perf),          /* MINIT */
     PHP_MSHUTDOWN(perf),      /* MSHUTDOWN */
     PHP_RINIT(perf),          /* RINIT */
