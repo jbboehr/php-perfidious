@@ -12,7 +12,7 @@ try {
     var_dump(get_class($e));
 }
 --EXPECTF--
-object(PerfExt\PmuInfo)#%d (5) {
+object(PerfExt\PmuInfo)#%d (6) {
   ["name"]=>
   string(4) "perf"
   ["desc"]=>
@@ -23,5 +23,7 @@ object(PerfExt\PmuInfo)#%d (5) {
   int(3)
   ["nevents"]=>
   int(%d)
+  ["is_present"]=>
+  bool(true)
 }
 string(28) "PerfExt\PmuNotFoundException"

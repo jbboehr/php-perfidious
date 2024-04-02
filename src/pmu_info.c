@@ -113,6 +113,21 @@ static zend_always_inline zend_class_entry *register_class_PmuInfo(void)
         zend_string_release(name);
     } while (false);
 
+    do {
+        zval default_value = {0};
+        ZVAL_UNDEF(&default_value);
+        zend_string *name = zend_string_init_interned("is_present", sizeof("is_present") - 1, 1);
+        zend_declare_typed_property(
+            class_entry,
+            name,
+            &default_value,
+            ZEND_ACC_PUBLIC | ZEND_ACC_READONLY,
+            NULL,
+            (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_BOOL)
+        );
+        zend_string_release(name);
+    } while (false);
+
     class_entry->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NO_DYNAMIC_PROPERTIES;
 
     return class_entry;

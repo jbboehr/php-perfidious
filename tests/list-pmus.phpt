@@ -15,7 +15,7 @@ foreach ($pmus as $pmu) {
 --EXPECTF--
 bool(true)
 string(15) "PerfExt\PmuInfo"
-object(PerfExt\PmuInfo)#%d (5) {
+object(PerfExt\PmuInfo)#%d (6) {
   ["name"]=>
   string(4) "perf"
   ["desc"]=>
@@ -26,4 +26,6 @@ object(PerfExt\PmuInfo)#%d (5) {
   int(3)
   ["nevents"]=>
   int(%d)
+  ["is_present"]=>
+  bool(true)
 }

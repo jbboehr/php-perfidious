@@ -62,6 +62,7 @@ static zend_result perfidious_get_pmu_info(zend_long pmu, zval *rv, bool silent)
     zend_update_property_long(
         Z_OBJCE_P(rv), Z_OBJ_P(rv), "nevents", sizeof("nevents") - 1, (zend_long) pmu_info.nevents
     );
+    zend_update_property_bool(Z_OBJCE_P(rv), Z_OBJ_P(rv), "is_present", sizeof("is_present") - 1, pmu_info.is_present);
 
     return SUCCESS;
 }
