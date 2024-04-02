@@ -39,6 +39,8 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_open_arginfo, false, 1, PerfExt\\Handle, false)
     ZEND_ARG_TYPE_INFO(false, event_names, IS_ARRAY, false)
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(false, pid, IS_LONG, true, "0")
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(false, cpu, IS_LONG, true, "-1")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_request_handle_arginfo, false, 0, PerfExt\\Handle, true)

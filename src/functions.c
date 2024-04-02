@@ -21,14 +21,18 @@
 #include "config.h"
 #endif
 
+#include <unistd.h>
+#include <sys/capability.h>
 #include <perfmon/pfmlib.h>
-#include "Zend/zend_API.h"
-#include "Zend/zend_exceptions.h"
+#include <Zend/zend_API.h>
+#include <Zend/zend_exceptions.h>
+#include <Zend/zend_portability.h>
 #include "main/php.h"
 #include "php_perf.h"
 #include "./functions.h"
 #include "./handle.h"
 
+ZEND_COLD
 PERFIDIOUS_ATTR_NONNULL_ALL
 PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
 static zend_result perfidious_get_pmu_info(zend_long pmu, zval *rv, bool silent)
@@ -62,6 +66,7 @@ static zend_result perfidious_get_pmu_info(zend_long pmu, zval *rv, bool silent)
     return SUCCESS;
 }
 
+ZEND_COLD
 PERFIDIOUS_LOCAL
 PHP_FUNCTION(perfidious_get_pmu_info)
 {
@@ -76,6 +81,7 @@ PHP_FUNCTION(perfidious_get_pmu_info)
     }
 }
 
+ZEND_COLD
 PERFIDIOUS_LOCAL
 PHP_FUNCTION(perfidious_global_handle)
 {
@@ -92,6 +98,7 @@ PHP_FUNCTION(perfidious_global_handle)
     }
 }
 
+ZEND_COLD
 PERFIDIOUS_LOCAL
 PHP_FUNCTION(perfidious_list_pmus)
 {
@@ -112,6 +119,7 @@ PHP_FUNCTION(perfidious_list_pmus)
     }
 }
 
+ZEND_COLD
 PERFIDIOUS_LOCAL
 PHP_FUNCTION(perfidious_list_pmu_events)
 {
@@ -179,16 +187,52 @@ PHP_FUNCTION(perfidious_list_pmu_events)
     }
 }
 
+ZEND_COLD
 PERFIDIOUS_LOCAL
 PHP_FUNCTION(perfidious_open)
 {
     HashTable *event_names_ht;
+    zend_long pid = 0;
+    zend_long cpu = -1;
     zval *z;
 
-    ZEND_PARSE_PARAMETERS_START(1, 1)
+    ZEND_PARSE_PARAMETERS_START(1, 3)
         Z_PARAM_ARRAY_HT(event_names_ht);
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(pid)
+        Z_PARAM_LONG(cpu)
     ZEND_PARSE_PARAMETERS_END();
 
+#if SIZEOF_ZEND_LONG > SIZEOF_PID_T
+    // Check pid for overflow
+    const zend_long PID_MAX = (((zend_long) 1) << ((SIZEOF_PID_T * 8) - 1)) - 1;
+    if (pid > PID_MAX) {
+        zend_throw_exception_ex(perfidious_overflow_exception_ce, 0, "pid too large: %ld > %ld", pid, PID_MAX);
+        return;
+    }
+#endif
+
+    // Check capability if pid > 0
+    if (pid > 0) {
+        cap_t cap = cap_get_proc();
+        if (cap != NULL) {
+            cap_flag_value_t v = CAP_CLEAR;
+            cap_get_flag(cap, CAP_PERFMON, CAP_EFFECTIVE, &v);
+            if (v == CAP_CLEAR) {
+                zend_throw_exception_ex(perfidious_io_exception_ce, 0, "pid greater than zero and CAP_PERFMON not set");
+                return;
+            }
+        }
+    }
+
+    // Check cpu for overflow
+    long int n_proc_onln = sysconf(_SC_NPROCESSORS_ONLN);
+    if (cpu > n_proc_onln) {
+        zend_throw_exception_ex(perfidious_overflow_exception_ce, 0, "cpu too large: %ld > %ld", cpu, n_proc_onln);
+        return;
+    }
+
+    // Copy event names into an array
     zend_string **arr = ecalloc(sizeof(zend_string *), zend_array_count(event_names_ht) + 1);
     size_t arr_count = 0;
 
@@ -202,7 +246,7 @@ PHP_FUNCTION(perfidious_open)
 
     arr[arr_count] = NULL;
 
-    struct perfidious_handle *handle = perfidious_handle_open(arr, arr_count, 0);
+    struct perfidious_handle *handle = perfidious_handle_open_ex(arr, arr_count, (pid_t) pid, (int) cpu, false);
 
     object_init_ex(return_value, perfidious_handle_ce);
 
@@ -210,6 +254,7 @@ PHP_FUNCTION(perfidious_open)
     obj->handle = handle;
 }
 
+ZEND_COLD
 PERFIDIOUS_LOCAL
 PHP_FUNCTION(perfidious_request_handle)
 {

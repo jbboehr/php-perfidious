@@ -28,6 +28,8 @@ AttributeMacros:
   - __capability
   - zend_never_inline
   - zend_always_inline
+  - ZEND_COLD
+  - ZEND_HOT
   - PERFIDIOUS_PUBLIC
   - PERFIDIOUS_LOCAL
   - PERFIDIOUS_ATTR_NONNULL

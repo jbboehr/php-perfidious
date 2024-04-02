@@ -41,6 +41,8 @@ if test "$PHP_PERF" != "no"; then
         -Wno-cast-align -Wno-error=cast-align \
     ])
 
+    AC_CHECK_SIZEOF(pid_t)
+
     CFLAGS="$WARN_CFLAGS $CFLAGS"
     LDFLAGS="$WARN_LDFLAGS $LDFLAGS"
 
@@ -48,6 +50,7 @@ if test "$PHP_PERF" != "no"; then
         AC_DEFINE([PERF_DEBUG], [1], [Enable vyrtue debug support])
     fi
 
+    PHP_ADD_LIBRARY(cap, , PERF_SHARED_LIBADD)
     PHP_ADD_LIBRARY(pfm, , PERF_SHARED_LIBADD)
 
     PHP_PERF_ADD_SOURCES([

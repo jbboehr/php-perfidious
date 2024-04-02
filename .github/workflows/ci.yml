@@ -28,7 +28,7 @@ jobs:
 
             -   uses: awalsh128/cache-apt-pkgs-action@latest
                 with:
-                  packages: libpfm4-dev valgrind
+                  packages: libcap-dev libpfm4-dev valgrind
                   version: 1
 
             -   name: Install PHP
@@ -75,7 +75,7 @@ jobs:
 
             -   uses: awalsh128/cache-apt-pkgs-action@latest
                 with:
-                    packages: lcov libpfm4-dev
+                    packages: lcov libcap-dev libpfm4-dev
                     version: 1
 
             -   name: Install PHP

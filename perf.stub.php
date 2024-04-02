@@ -31,7 +31,7 @@ function list_pmu_events(int $pmu): array
 {
 }
 
-function open(array $event_names): Handle
+function open(array $event_names, int $pid = 0, int $cpu = -1): Handle
 {
 }
 

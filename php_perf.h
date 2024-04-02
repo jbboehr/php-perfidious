@@ -20,6 +20,7 @@
 #ifndef PHP_PERF_H
 #define PHP_PERF_H
 
+#include <sys/types.h>
 #include "main/php.h"
 
 #define PHP_PERF_NAME "perf"
@@ -53,6 +54,14 @@
 #define PERFIDIOUS_ATTR_RETURNS_NONNULL __attribute__((returns_nonnull))
 #else
 #define PERFIDIOUS_ATTR_RETURNS_NONNULL
+#endif
+
+#ifndef ZEND_HOT
+#if defined(__GNUC__) && ZEND_GCC_VERSION >= 4003
+#define ZEND_HOT __attribute__((hot))
+#else
+#define ZEND_HOT
+#endif
 #endif
 
 extern zend_module_entry perf_module_entry;
@@ -111,6 +120,12 @@ PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
 PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
 struct perfidious_handle *perfidious_handle_open(zend_string **event_names, size_t event_names_length, bool persist);
+
+PERFIDIOUS_PUBLIC
+PERFIDIOUS_ATTR_NONNULL_ALL
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
+struct perfidious_handle *
+perfidious_handle_open_ex(zend_string **event_names, size_t event_names_length, pid_t pid, int cpu, bool persist);
 
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL

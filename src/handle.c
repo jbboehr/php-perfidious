@@ -35,6 +35,7 @@
 
 #include <Zend/zend_API.h>
 #include <Zend/zend_exceptions.h>
+#include <Zend/zend_portability.h>
 #include "main/php.h"
 #include "php_perf.h"
 #include "./handle.h"
@@ -90,6 +91,7 @@ void perfidious_handle_reset(struct perfidious_handle *handle)
     }
 }
 
+ZEND_HOT
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
 void perfidious_handle_enable(struct perfidious_handle *handle)
@@ -108,6 +110,7 @@ void perfidious_handle_enable(struct perfidious_handle *handle)
     handle->enabled = true;
 }
 
+ZEND_HOT
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
 void perfidious_handle_disable(struct perfidious_handle *handle)
@@ -144,6 +147,7 @@ void perfidious_handle_close(struct perfidious_handle *handle)
     handle->metrics_count = 0;
 }
 
+ZEND_HOT
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
 zend_result perfidious_handle_read_to_array(struct perfidious_handle *handle, zval *return_value)
@@ -219,6 +223,15 @@ PERFIDIOUS_ATTR_NONNULL_ALL
 PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
 struct perfidious_handle *perfidious_handle_open(zend_string **event_names, size_t event_names_length, bool persist)
 {
+    return perfidious_handle_open_ex(event_names, event_names_length, 0, -1, persist);
+}
+
+PERFIDIOUS_PUBLIC
+PERFIDIOUS_ATTR_NONNULL_ALL
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
+struct perfidious_handle *
+perfidious_handle_open_ex(zend_string **event_names, size_t event_names_length, pid_t pid, int cpu, bool persist)
+{
     int fd;
     uint64_t id;
     int group_fd;
@@ -242,7 +255,7 @@ struct perfidious_handle *perfidious_handle_open(zend_string **event_names, size
             .exclude_hv = 1,
             .read_format = PERF_FORMAT_GROUP | PERF_FORMAT_ID,
         };
-        fd = (int) perf_event_open(&attr, 0, -1, -1, 0);
+        fd = (int) perf_event_open(&attr, pid, cpu, -1, 0);
         if (UNEXPECTED(fd == -1)) {
             zend_throw_exception_ex(
                 perfidious_io_exception_ce,
@@ -300,7 +313,7 @@ struct perfidious_handle *perfidious_handle_open(zend_string **event_names, size
         attr.exclude_hv = 1;
         attr.read_format = PERF_FORMAT_GROUP | PERF_FORMAT_ID;
 
-        fd = (int) perf_event_open(&attr, 0, -1, group_fd, 0);
+        fd = (int) perf_event_open(&attr, pid, cpu, group_fd, 0);
 
         if (UNEXPECTED(fd == -1)) {
             zend_throw_exception_ex(
@@ -375,6 +388,7 @@ static PHP_METHOD(Handle, enable)
     RETURN_ZVAL(self, 1, 0);
 }
 
+ZEND_HOT
 static PHP_METHOD(Handle, read)
 {
     zval *self = getThis();

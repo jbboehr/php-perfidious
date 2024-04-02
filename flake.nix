@@ -124,7 +124,9 @@
             shellHook = ''
               ${pre-commit-check.shellHook}
               mkdir -p .direnv/include
+              unlink .direnv/include/php
               ln -sf ${package.php.unwrapped.dev}/include/php/ .direnv/include/php
+              unlink .direnv/include/perfmon
               ln -sf ${package.libpfm}/include/perfmon .direnv/include/perfmon
               export REPORT_EXIT_STATUS=1
               export NO_INTERACTION=1
@@ -166,7 +168,7 @@
               machine.succeed("php -m | grep -i perf")
               machine.succeed("cp -r --no-preserve=mode,ownership ${src}/* .")
               machine.succeed("cp --no-preserve=mode,ownership ${php.unwrapped}/lib/build/run-tests.php .")
-              machine.succeed("TEST_PHP_DETAILED=1 NO_INTERACTION=1 REPORT_EXIT_STATUS=1 php run-tests.php || (cat tests/*.log ; exit 1)")
+              machine.succeed("TEST_PHP_DETAILED=1 NO_INTERACTION=1 REPORT_EXIT_STATUS=1 php run-tests.php || (find tests -name '*.log' | xargs -n1 cat ; exit 1)")
             '';
           };
       in rec {

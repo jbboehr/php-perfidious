@@ -39,7 +39,7 @@
 #include "php_perf.h"
 #include "./functions.h"
 
-#define DEFAULT_METRICS "perf::PERF_FLAG_HW_CPU_CYCLES,perf::PERF_FLAG_HW_INSTRUCTIONS"
+#define DEFAULT_METRICS "perf::PERF_COUNT_HW_CPU_CYCLES,perf::PERF_COUNT_HW_INSTRUCTIONS"
 
 ZEND_DECLARE_MODULE_GLOBALS(perf);
 

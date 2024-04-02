@@ -2,6 +2,7 @@
   lib,
   php,
   stdenv,
+  libcap,
   libpfm,
   pkg-config,
   autoreconfHook,
@@ -17,8 +18,8 @@ buildPecl rec {
 
   inherit src;
 
-  buildInputs = [libpfm];
-  nativeBuildInputs = [php.unwrapped.dev];
+  buildInputs = [libcap libpfm];
+  nativeBuildInputs = [php.unwrapped.dev pkg-config];
 
   passthru = {
     inherit php libpfm stdenv;

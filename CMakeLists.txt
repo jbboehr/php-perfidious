@@ -14,6 +14,8 @@ set(SOURCE_FILES
     src/pmu_info.c
 )
 
+add_compile_definitions(HAVE_CONFIG_H=1)
+
 execute_process (
         COMMAND php-config --include-dir
         OUTPUT_VARIABLE PHP_SOURCE
