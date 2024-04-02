@@ -32,6 +32,7 @@ struct perfidious_handle
     uint64_t marker;
     size_t metrics_size;
     size_t metrics_count;
+    bool enabled;
     struct perfidious_metric metrics[];
 };
 

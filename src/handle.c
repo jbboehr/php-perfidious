@@ -103,6 +103,8 @@ void perfidious_handle_enable(struct perfidious_handle *handle)
     if (UNEXPECTED(err == -1)) {
         perfidious_handle_ioctl_error();
     }
+
+    handle->enabled = true;
 }
 
 PERFIDIOUS_PUBLIC
@@ -119,6 +121,8 @@ void perfidious_handle_disable(struct perfidious_handle *handle)
     if (UNEXPECTED(err == -1)) {
         perfidious_handle_ioctl_error();
     }
+
+    handle->enabled = false;
 }
 
 PERFIDIOUS_PUBLIC
@@ -145,7 +149,11 @@ PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
 void perfidious_handle_read_to_array(struct perfidious_handle *handle, zval *return_value)
 {
-    perfidious_handle_disable(handle);
+    bool orig_enabled = handle->enabled;
+
+    if (orig_enabled) {
+        perfidious_handle_disable(handle);
+    }
 
     array_init(return_value);
 
@@ -195,7 +203,9 @@ void perfidious_handle_read_to_array(struct perfidious_handle *handle, zval *ret
     }
 
 done:
-    perfidious_handle_enable(handle);
+    if (orig_enabled) {
+        perfidious_handle_enable(handle);
+    }
 }
 
 PERFIDIOUS_PUBLIC
