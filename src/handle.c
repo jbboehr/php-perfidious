@@ -33,7 +33,8 @@
 #include <perfmon/pfmlib.h>
 #include <perfmon/pfmlib_perf_event.h>
 
-#include "Zend/zend_API.h"
+#include <Zend/zend_API.h>
+#include <Zend/zend_exceptions.h>
 #include "main/php.h"
 #include "php_perf.h"
 #include "./handle.h"
@@ -43,7 +44,7 @@ static zend_object_handlers perfidious_handle_obj_handlers;
 
 static void perfidious_handle_ioctl_error(void)
 {
-    php_error_docref(NULL, E_WARNING, "perf: ioctl: %s", strerror(errno));
+    zend_throw_exception_ex(perfidious_io_exception_ce, errno, "ioctl failed: %s", strerror(errno));
 }
 
 PERFIDIOUS_ATTR_NONNULL_ALL
@@ -129,12 +130,10 @@ PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
 void perfidious_handle_close(struct perfidious_handle *handle)
 {
-    int err;
-
     for (ssize_t i = (ssize_t) handle->metrics_count - 1; i >= 0; i--) {
-        err = close(handle->metrics[i].fd);
+        int err = close(handle->metrics[i].fd);
         if (err == -1) {
-            php_error_docref(NULL, E_WARNING, "perf: close: %s", strerror(errno));
+            zend_throw_exception_ex(perfidious_io_exception_ce, errno, "close failed: %s", strerror(errno));
             // continue even if it fails
         }
         if (EXPECTED(handle->metrics[i].name)) {
@@ -147,15 +146,14 @@ void perfidious_handle_close(struct perfidious_handle *handle)
 
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
-void perfidious_handle_read_to_array(struct perfidious_handle *handle, zval *return_value)
+zend_result perfidious_handle_read_to_array(struct perfidious_handle *handle, zval *return_value)
 {
+    zend_result rv = SUCCESS;
     bool orig_enabled = handle->enabled;
 
     if (orig_enabled) {
         perfidious_handle_disable(handle);
     }
-
-    array_init(return_value);
 
     size_t size = sizeof(struct perfidious_read_format) +
                   sizeof(((struct perfidious_read_format){0}).values[0]) * handle->metrics_count;
@@ -164,9 +162,13 @@ void perfidious_handle_read_to_array(struct perfidious_handle *handle, zval *ret
     ssize_t bytes_read = read(handle->metrics[0].fd, (void *) data, size);
 
     if (bytes_read == -1) {
-        php_error_docref(NULL, E_WARNING, "perf: failed to read: %s", strerror(errno));
+        rv = FAILURE;
+        ZVAL_UNDEF(return_value);
+        zend_throw_exception_ex(perfidious_io_exception_ce, errno, "failed to read: %s", strerror(errno));
         goto done;
     }
+
+    array_init(return_value);
 
     for (size_t i = 0; i < data->nr; i++) {
         struct perfidious_metric *e = &handle->metrics[i];
@@ -192,10 +194,12 @@ void perfidious_handle_read_to_array(struct perfidious_handle *handle, zval *ret
 
         if (EXPECTED(e->name != NULL)) {
             if (UNEXPECTED(data->values[i].value > (uint64_t) ZEND_LONG_MAX)) {
-                php_error_docref(
-                    NULL, E_WARNING, "perf: counter truncation for %.*s", (int) e->name->len, e->name->val
+                zend_throw_exception_ex(
+                    perfidious_overflow_exception_ce, 0, "counter truncation for %.*s", (int) e->name->len, e->name->val
                 );
-                continue;
+                ZVAL_UNDEF(return_value);
+                rv = FAILURE;
+                goto done;
             }
 
             add_assoc_long_ex(return_value, e->name->val, e->name->len, (zend_long) data->values[i].value);
@@ -206,6 +210,8 @@ done:
     if (orig_enabled) {
         perfidious_handle_enable(handle);
     }
+
+    return rv;
 }
 
 PERFIDIOUS_PUBLIC
@@ -238,8 +244,11 @@ struct perfidious_handle *perfidious_handle_open(zend_string **event_names, size
         };
         fd = (int) perf_event_open(&attr, 0, -1, -1, 0);
         if (UNEXPECTED(fd == -1)) {
-            php_error_docref(
-                NULL, E_WARNING, "perf: perf_event_open failed for %s: %s", "PERF_COUNT_SW_DUMMY", strerror(errno)
+            zend_throw_exception_ex(
+                perfidious_io_exception_ce,
+                errno,
+                "perf_event_open() failed for perf::PERF_COUNT_SW_DUMMY: %s",
+                strerror(errno)
             );
             goto cleanup;
         }
@@ -273,10 +282,10 @@ struct perfidious_handle *perfidious_handle_open(zend_string **event_names, size
 
         err = pfm_get_os_event_encoding(ZSTR_VAL(event_name), PFM_PLM3, PFM_OS_PERF_EVENT, &arg);
         if (UNEXPECTED(err != PFM_SUCCESS)) {
-            php_error_docref(
-                NULL,
-                E_WARNING,
-                "perf: failed to get event encoding for %.*s: %s",
+            zend_throw_exception_ex(
+                perfidious_pmu_event_not_found_exception_ce,
+                err,
+                "failed to get libpfm event encoding for %.*s: %s",
                 (int) ZSTR_LEN(event_name),
                 ZSTR_VAL(event_name),
                 pfm_strerror(err)
@@ -294,10 +303,10 @@ struct perfidious_handle *perfidious_handle_open(zend_string **event_names, size
         fd = (int) perf_event_open(&attr, 0, -1, group_fd, 0);
 
         if (UNEXPECTED(fd == -1)) {
-            php_error_docref(
-                NULL,
-                E_WARNING,
-                "perf: perf_event_open failed for %.*s: %s",
+            zend_throw_exception_ex(
+                perfidious_io_exception_ce,
+                errno,
+                "perf_event_open() failed for %.*s: %s",
                 (int) ZSTR_LEN(event_name),
                 ZSTR_VAL(event_name),
                 strerror(errno)

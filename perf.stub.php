@@ -39,21 +39,43 @@ function request_handle(): ?Handle
 {
 }
 
-final class PmuNotFoundException extends \InvalidArgumentException
+interface Exception
+{
+}
+
+final class IOException extends \RuntimeException implements Exception
+{
+}
+
+final class OverflowException extends \OverflowException implements Exception
+{
+}
+
+final class PmuNotFoundException extends \InvalidArgumentException implements Exception
 {
 }
 
 final class Handle
 {
+    /**
+     * @throws IOException
+     */
     public function enable(): self {}
 
+    /**
+     * @throws IOException
+     */
     public function disable(): self {}
 
     /**
      * @return array<string, int>
+     * @throws OverflowException|IOException
      */
     public function read(): array {}
 
+    /**
+     * @throws IOException
+     */
     public function reset(): self {}
 }
 

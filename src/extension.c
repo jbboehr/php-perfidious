@@ -140,7 +140,7 @@ static PHP_MINIT_FUNCTION(perf)
     // Initialize pfm
     int pfm_ret = pfm_initialize();
     if (pfm_ret != PFM_SUCCESS) {
-        php_error_docref(NULL, E_WARNING, "perf: cannot initialize pfm: %s", pfm_strerror(pfm_ret));
+        php_error_docref(NULL, E_WARNING, PHP_PERF_NAME ": cannot initialize libpfm: %s", pfm_strerror(pfm_ret));
         return FAILURE;
     }
 

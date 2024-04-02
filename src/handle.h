@@ -20,6 +20,10 @@
 #ifndef PHP_PERF_HANDLE_H
 #define PHP_PERF_HANDLE_H
 
+#include <stdio.h>
+#include <stdarg.h>
+#include <Zend/zend_portability.h>
+
 struct perfidious_metric
 {
     int fd;

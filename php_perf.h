@@ -68,14 +68,11 @@ ZEND_TSRMLS_CACHE_EXTERN();
 
 struct perfidious_handle;
 
-enum perfidious_error_mode
-{
-    PHP_PERF_SILENT = 0,
-    PHP_PERF_WARNING = 1,
-    PHP_PERF_THROW = 2,
-};
-
+PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_exception_interface_ce;
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_pmu_not_found_exception_ce;
+PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_pmu_event_not_found_exception_ce;
+PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_overflow_exception_ce;
+PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_io_exception_ce;
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_pmu_event_info_ce;
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_pmu_info_ce;
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_handle_ce;
@@ -117,6 +114,6 @@ struct perfidious_handle *perfidious_handle_open(zend_string **event_names, size
 
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
-void perfidious_handle_read_to_array(struct perfidious_handle *handle, zval *return_value);
+zend_result perfidious_handle_read_to_array(struct perfidious_handle *handle, zval *return_value);
 
 #endif /* PHP_PERF_H */

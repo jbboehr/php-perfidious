@@ -22,30 +22,97 @@
 #endif
 
 #include <Zend/zend_API.h>
-#include <Zend/zend_enum.h>
 #include <ext/spl/spl_exceptions.h>
 #include "php_perf.h"
 
+PERFIDIOUS_PUBLIC zend_class_entry *perfidious_exception_interface_ce;
 PERFIDIOUS_PUBLIC zend_class_entry *perfidious_pmu_not_found_exception_ce;
+PERFIDIOUS_PUBLIC zend_class_entry *perfidious_pmu_event_not_found_exception_ce;
+PERFIDIOUS_PUBLIC zend_class_entry *perfidious_overflow_exception_ce;
+PERFIDIOUS_PUBLIC zend_class_entry *perfidious_io_exception_ce;
 
 PERFIDIOUS_ATTR_RETURNS_NONNULL
 PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
-static zend_class_entry *register_class_PmuNotFoundException(void)
+static zend_class_entry *register_class_ExceptionInterface(void)
+{
+    zend_class_entry ce;
+    zend_class_entry *class_entry;
+
+    INIT_CLASS_ENTRY(ce, PHP_PERF_NAMESPACE "\\ExceptionInterface", NULL);
+    class_entry = zend_register_internal_interface(&ce);
+
+    return class_entry;
+}
+
+PERFIDIOUS_ATTR_RETURNS_NONNULL
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
+static zend_class_entry *register_class_OverflowException(zend_class_entry *iface)
+{
+    zend_class_entry ce;
+    zend_class_entry *class_entry;
+
+    INIT_CLASS_ENTRY(ce, PHP_PERF_NAMESPACE "\\OverflowException", NULL);
+    class_entry = zend_register_internal_class_ex(&ce, spl_ce_OverflowException);
+    class_entry->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NO_DYNAMIC_PROPERTIES;
+    zend_class_implements(class_entry, 1, iface);
+
+    return class_entry;
+}
+
+PERFIDIOUS_ATTR_RETURNS_NONNULL
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
+static zend_class_entry *register_class_PmuNotFoundException(zend_class_entry *iface)
 {
     zend_class_entry ce;
     zend_class_entry *class_entry;
 
     INIT_CLASS_ENTRY(ce, PHP_PERF_NAMESPACE "\\PmuNotFoundException", NULL);
     class_entry = zend_register_internal_class_ex(&ce, spl_ce_InvalidArgumentException);
-
     class_entry->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NO_DYNAMIC_PROPERTIES;
+    zend_class_implements(class_entry, 1, iface);
 
     return class_entry;
 }
 
-PERFIDIOUS_LOCAL zend_result perfidious_exceptions_minit(void)
+PERFIDIOUS_ATTR_RETURNS_NONNULL
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
+static zend_class_entry *register_class_PmuEventNotFoundException(zend_class_entry *iface)
 {
-    perfidious_pmu_not_found_exception_ce = register_class_PmuNotFoundException();
+    zend_class_entry ce;
+    zend_class_entry *class_entry;
+
+    INIT_CLASS_ENTRY(ce, PHP_PERF_NAMESPACE "\\PmuEventNotFoundException", NULL);
+    class_entry = zend_register_internal_class_ex(&ce, spl_ce_InvalidArgumentException);
+    class_entry->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NO_DYNAMIC_PROPERTIES;
+    zend_class_implements(class_entry, 1, iface);
+
+    return class_entry;
+}
+
+PERFIDIOUS_ATTR_RETURNS_NONNULL
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
+static zend_class_entry *register_class_IOException(zend_class_entry *iface)
+{
+    zend_class_entry ce;
+    zend_class_entry *class_entry;
+
+    INIT_CLASS_ENTRY(ce, PHP_PERF_NAMESPACE "\\IOException", NULL);
+    class_entry = zend_register_internal_class_ex(&ce, spl_ce_RuntimeException);
+    class_entry->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NO_DYNAMIC_PROPERTIES;
+    zend_class_implements(class_entry, 1, iface);
+
+    return class_entry;
+}
+
+PERFIDIOUS_LOCAL
+zend_result perfidious_exceptions_minit(void)
+{
+    perfidious_exception_interface_ce = register_class_ExceptionInterface();
+    perfidious_overflow_exception_ce = register_class_OverflowException(perfidious_exception_interface_ce);
+    perfidious_pmu_not_found_exception_ce = register_class_PmuNotFoundException(perfidious_exception_interface_ce);
+    perfidious_pmu_event_not_found_exception_ce =
+        register_class_PmuEventNotFoundException(perfidious_exception_interface_ce);
+    perfidious_io_exception_ce = register_class_IOException(perfidious_exception_interface_ce);
 
     return SUCCESS;
 }
