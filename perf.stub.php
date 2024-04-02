@@ -25,12 +25,15 @@ function list_pmus(): array
 
 /**
  * @return list<PmuEventInfo>
- * @throws PmuNotFoundException
+ * @throws PmuNotFoundException|PmuEventNotFoundException
  */
 function list_pmu_events(int $pmu): array
 {
 }
 
+/**
+ * @throws PmuEventNotFoundException|IOException|OverflowException
+ */
 function open(array $event_names, int $pid = 0, int $cpu = -1): Handle
 {
 }
@@ -52,6 +55,10 @@ final class OverflowException extends \OverflowException implements Exception
 }
 
 final class PmuNotFoundException extends \InvalidArgumentException implements Exception
+{
+}
+
+final class PmuEventNotFoundException extends \InvalidArgumentException implements Exception
 {
 }
 

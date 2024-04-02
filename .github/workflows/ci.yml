@@ -39,6 +39,8 @@ jobs:
                     php-version: "${{ matrix.php-version }}"
                     tools: composer:v2
 
+            -   run: php -l perf.stub.php && php perf.stub.php
+
             -   run: phpize
 
             -   run: ./configure --enable-compile-warnings=error
