@@ -111,11 +111,20 @@ Some notable generic perf events are:
 * `perf::PERF_COUNT_SW_PAGE_FAULTS`
 * `perf::PERF_COUNT_SW_CONTEXT_SWITCHES`
 
+## Configuration
+
+| Name | Default | Changeable | Description  |
+| --------------------- | -------- | ----------- | ------------ |
+| `perf.global.enable` | `0` | `PHP_INI_SYSTEM_` | Set to `1` to enable the global handle. This handle is kept open between requests. You can read from this handle via e.g. `var_dump(PerfExt\global_handle()?->read());`. |
+| `perf.global.metrics` | `perf::PERF_COUNT_HW_CPU_CYCLES`, `perf::PERF_COUNT_HW_INSTRUCTIONS`  | `PHP_INI_SYSTEM_` | The metrics to monitor with the global handle. |
+| `perf.request.enable` | `0` | `PHP_INI_SYSTEM_` | Set to `1` to enable the per-request handle. This handle is kept open between requests, but reset before and after. You can read from this handle via e.g. `var_dump(PerfExt\request_handle()?->read());` |
+| `perf.request.metrics` | `perf::PERF_COUNT_HW_CPU_CYCLES`, `perf::PERF_COUNT_HW_INSTRUCTIONS`  | `PHP_INI_SYSTEM_` | The metrics to monitor with the request handle. |
+
 ## Troubleshooting
 
 **Q:** I get an error `pid greater than zero and CAP_PERFMON not set`
 
-**A:** You need to grant `CAP_PERFMON` when monitoring a process besides the
+**A:** You need to grant `CAP_PERFMON` when monitoring a process other than the
 current process, for example:
 
 ```bash
@@ -133,6 +142,19 @@ sudo capsh --caps="cap_perfmon,cap_setgid,cap_setuid,cap_setpcap+eip" \
 ```bash
 sudo sysctl -w kernel.perf_event_paranoid=1
 ```
+
+**Q:** I get an error like
+`perf_event_open() failed for perf::PERF_COUNT_SW_DUMMY: Operation not permitted`
+when running inside of docker.
+
+**A:** You may need to run your docker container with CAP_PERFMON:
+
+```bash
+docker run --rm -ti --cap-add CAP_PERFMON
+```
+
+If it still doesn't work, and you're running an older release of docker, see
+[this issue](https://github.com/docker/cli/issues/3960).
 
 **Q:** I get an error like
 `perf_event_open() failed for perf::PERF_COUNT_HW_INSTRUCTIONS: No such file or directory`

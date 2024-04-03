@@ -99,6 +99,13 @@
             clang-format.files = "\\.(c|h)$";
             markdownlint.enable = true;
             markdownlint.excludes = ["LICENSE\.md"];
+            markdownlint.settings.configuration = {
+              MD013 = {
+                line_length = 1488;
+                # this doesn't seem to work
+                table = false;
+              };
+            };
             shellcheck.enable = true;
           };
         };
