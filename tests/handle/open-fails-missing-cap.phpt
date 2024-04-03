@@ -3,7 +3,7 @@ PerfExt\Handle (open fails with missing cap)
 --EXTENSIONS--
 perf
 --SKIPIF--
-<?php if (get_current_user() === 'root') die("Skipped: would fail as root"); ?>
+<?php if (get_current_user() === 'root') die("skip: would fail as root"); ?>
 --FILE--
 <?php
 // Note: this test will fail if run with CAP_PERFMON (e.g. as root)
