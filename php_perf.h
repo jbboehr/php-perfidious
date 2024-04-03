@@ -77,6 +77,13 @@ ZEND_TSRMLS_CACHE_EXTERN();
 
 struct perfidious_handle;
 
+enum perfidious_error_mode
+{
+    PERFIDIOUS_ERROR_MODE_THROW = 0,
+    PERFIDIOUS_ERROR_MODE_WARNING = 1,
+    PERFIDIOUS_ERROR_MODE_SILENT = 2,
+};
+
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_exception_interface_ce;
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_pmu_not_found_exception_ce;
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_pmu_event_not_found_exception_ce;
@@ -94,6 +101,8 @@ ZEND_BEGIN_MODULE_GLOBALS(perf)
     zend_bool request_enable;
     zend_string *request_metrics;
     struct perfidious_handle *request_handle;
+
+    enum perfidious_error_mode error_mode;
 ZEND_END_MODULE_GLOBALS(perf)
 
 ZEND_EXTERN_MODULE_GLOBALS(perf);
@@ -102,19 +111,19 @@ ZEND_EXTERN_MODULE_GLOBALS(perf);
 
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
-void perfidious_handle_reset(struct perfidious_handle *handle);
+zend_result perfidious_handle_reset(struct perfidious_handle *handle);
 
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
-void perfidious_handle_enable(struct perfidious_handle *handle);
+zend_result perfidious_handle_enable(struct perfidious_handle *handle);
 
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
-void perfidious_handle_disable(struct perfidious_handle *handle);
+zend_result perfidious_handle_disable(struct perfidious_handle *handle);
 
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
-void perfidious_handle_close(struct perfidious_handle *handle);
+zend_result perfidious_handle_close(struct perfidious_handle *handle);
 
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL

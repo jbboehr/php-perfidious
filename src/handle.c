@@ -45,7 +45,7 @@ static zend_object_handlers perfidious_handle_obj_handlers;
 
 static void perfidious_handle_ioctl_error(void)
 {
-    zend_throw_exception_ex(perfidious_io_exception_ce, errno, "ioctl failed: %s", strerror(errno));
+    perfidious_error_helper(perfidious_io_exception_ce, errno, "ioctl failed: %s", strerror(errno));
 }
 
 PERFIDIOUS_ATTR_NONNULL_ALL
@@ -77,66 +77,78 @@ static zend_object *perfidious_handle_obj_create(zend_class_entry *ce)
 
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
-void perfidious_handle_reset(struct perfidious_handle *handle)
+zend_result perfidious_handle_reset(struct perfidious_handle *handle)
 {
     int err;
 
     if (UNEXPECTED(handle->metrics_count <= 0)) {
-        return;
+        return FAILURE;
     }
 
     err = ioctl(handle->metrics[0].fd, PERF_EVENT_IOC_RESET, PERF_IOC_FLAG_GROUP);
     if (UNEXPECTED(err == -1)) {
         perfidious_handle_ioctl_error();
+        return FAILURE;
     }
+
+    return SUCCESS;
 }
 
 ZEND_HOT
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
-void perfidious_handle_enable(struct perfidious_handle *handle)
+zend_result perfidious_handle_enable(struct perfidious_handle *handle)
 {
     int err;
 
     if (UNEXPECTED(handle->metrics_count <= 0)) {
-        return;
+        return FAILURE;
     }
 
     err = ioctl(handle->metrics[0].fd, PERF_EVENT_IOC_ENABLE, PERF_IOC_FLAG_GROUP);
     if (UNEXPECTED(err == -1)) {
         perfidious_handle_ioctl_error();
+        return FAILURE;
     }
 
     handle->enabled = true;
+
+    return SUCCESS;
 }
 
 ZEND_HOT
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
-void perfidious_handle_disable(struct perfidious_handle *handle)
+zend_result perfidious_handle_disable(struct perfidious_handle *handle)
 {
     int err;
 
     if (UNEXPECTED(handle->metrics_count <= 0)) {
-        return;
+        return FAILURE;
     }
 
     err = ioctl(handle->metrics[0].fd, PERF_EVENT_IOC_DISABLE, PERF_IOC_FLAG_GROUP);
     if (UNEXPECTED(err == -1)) {
         perfidious_handle_ioctl_error();
+        return FAILURE;
     }
 
     handle->enabled = false;
+
+    return SUCCESS;
 }
 
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
-void perfidious_handle_close(struct perfidious_handle *handle)
+zend_result perfidious_handle_close(struct perfidious_handle *handle)
 {
+    zend_result rv = SUCCESS;
+
     for (ssize_t i = (ssize_t) handle->metrics_count - 1; i >= 0; i--) {
         int err = close(handle->metrics[i].fd);
         if (err == -1) {
             zend_throw_exception_ex(perfidious_io_exception_ce, errno, "close failed: %s", strerror(errno));
+            rv = FAILURE;
             // continue even if it fails
         }
         if (EXPECTED(handle->metrics[i].name)) {
@@ -145,6 +157,8 @@ void perfidious_handle_close(struct perfidious_handle *handle)
     }
 
     handle->metrics_count = 0;
+
+    return rv;
 }
 
 ZEND_HOT
@@ -156,7 +170,9 @@ zend_result perfidious_handle_read_to_array(struct perfidious_handle *handle, zv
     bool orig_enabled = handle->enabled;
 
     if (orig_enabled) {
-        perfidious_handle_disable(handle);
+        if (SUCCESS != perfidious_handle_disable(handle)) {
+            return FAILURE;
+        }
     }
 
     size_t size = sizeof(struct perfidious_read_format) +
@@ -168,7 +184,7 @@ zend_result perfidious_handle_read_to_array(struct perfidious_handle *handle, zv
     if (bytes_read == -1) {
         rv = FAILURE;
         ZVAL_UNDEF(return_value);
-        zend_throw_exception_ex(perfidious_io_exception_ce, errno, "failed to read: %s", strerror(errno));
+        perfidious_error_helper(perfidious_io_exception_ce, errno, "failed to read: %s", strerror(errno));
         goto done;
     }
 
@@ -198,8 +214,12 @@ zend_result perfidious_handle_read_to_array(struct perfidious_handle *handle, zv
 
         if (EXPECTED(e->name != NULL)) {
             if (UNEXPECTED(data->values[i].value > (uint64_t) ZEND_LONG_MAX)) {
-                zend_throw_exception_ex(
-                    perfidious_overflow_exception_ce, 0, "counter truncation for %.*s", (int) e->name->len, e->name->val
+                perfidious_error_helper(
+                    perfidious_overflow_exception_ce,
+                    errno,
+                    "counter truncation for %.*s",
+                    (int) e->name->len,
+                    e->name->val
                 );
                 ZVAL_UNDEF(return_value);
                 rv = FAILURE;
@@ -212,7 +232,9 @@ zend_result perfidious_handle_read_to_array(struct perfidious_handle *handle, zv
 
 done:
     if (orig_enabled) {
-        perfidious_handle_enable(handle);
+        if (SUCCESS != perfidious_handle_enable(handle)) {
+            return FAILURE;
+        }
     }
 
     return rv;
@@ -257,7 +279,7 @@ perfidious_handle_open_ex(zend_string **event_names, size_t event_names_length, 
         };
         fd = (int) perf_event_open(&attr, pid, cpu, -1, 0);
         if (UNEXPECTED(fd == -1)) {
-            zend_throw_exception_ex(
+            perfidious_error_helper(
                 perfidious_io_exception_ce,
                 errno,
                 "perf_event_open() failed for perf::PERF_COUNT_SW_DUMMY: %s",

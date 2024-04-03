@@ -95,6 +95,8 @@ static struct perfidious_handle *split_and_open(zend_string *metrics, bool persi
     zval z_metrics = {0};
     struct perfidious_handle *handle;
 
+    PERF_G(error_mode) = PERFIDIOUS_ERROR_MODE_WARNING;
+
     do {
         zend_string *delim = zend_string_init_fast(ZEND_STRL(","));
         array_init(&z_metrics);
@@ -104,6 +106,7 @@ static struct perfidious_handle *split_and_open(zend_string *metrics, bool persi
 
     if (Z_TYPE(z_metrics) != IS_ARRAY) {
         zval_dtor(&z_metrics);
+        PERF_G(error_mode) = PERFIDIOUS_ERROR_MODE_THROW;
         return NULL;
     }
 
@@ -129,6 +132,8 @@ static struct perfidious_handle *split_and_open(zend_string *metrics, bool persi
 
     zval_dtor(&z_metrics);
     pefree(arr, persist);
+
+    PERF_G(error_mode) = PERFIDIOUS_ERROR_MODE_THROW;
 
     return handle;
 }
@@ -259,6 +264,7 @@ static PHP_GINIT_FUNCTION(perf)
     ZEND_TSRMLS_CACHE_UPDATE();
 #endif
     memset(perf_globals, 0, sizeof(zend_perf_globals));
+    perf_globals->error_mode = PERFIDIOUS_ERROR_MODE_THROW;
 }
 
 // clang-format off

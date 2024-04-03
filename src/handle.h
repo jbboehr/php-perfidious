@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <Zend/zend_portability.h>
+#include "php_perf.h"
 
 struct perfidious_metric
 {
@@ -79,5 +80,30 @@ ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_handle_reset_arginfo, 0, 0, Pe
 ZEND_END_ARG_INFO()
 
 static const uint64_t PHP_PERF_HANDLE_MARKER = 0x327b23c66b8b4567;
+
+ZEND_ATTRIBUTE_UNUSED
+ZEND_ATTRIBUTE_FORMAT(printf, 3, 4)
+static void perfidious_error_helper(zend_class_entry *exception_ce, zend_long code, const char *format, ...)
+{
+    char buffer[512];
+    int bytes = 0;
+    va_list args;
+
+    va_start(args, format);
+    bytes = vsnprintf(buffer, sizeof(buffer) - 1, format, args);
+    va_end(args);
+
+    switch (PERF_G(error_mode)) {
+        case PERFIDIOUS_ERROR_MODE_SILENT:
+            break;
+        case PERFIDIOUS_ERROR_MODE_WARNING:
+            php_error_docref(NULL, E_WARNING, "%.*s", bytes, buffer);
+            break;
+        default:
+        case PERFIDIOUS_ERROR_MODE_THROW:
+            zend_throw_exception_ex(exception_ce, code, "%.*s", bytes, buffer);
+            break;
+    }
+}
 
 #endif /* PHP_PERF_HANDLE_H */
