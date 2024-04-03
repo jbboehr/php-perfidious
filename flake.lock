@@ -56,6 +56,22 @@
         "type": "github"
       }
     },
+    "libpfm4-unstable-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1709277811,
+        "narHash": "sha256-d5sAp5A9qcgpPNyKjXpj5AtxqYwRFOAOCPWrhgX1uME=",
+        "ref": "refs/heads/master",
+        "rev": "33513ef78f0d81edb277e0d0fd16411abb161297",
+        "revCount": 1216,
+        "type": "git",
+        "url": "https://git.code.sf.net/p/perfmon2/libpfm4"
+      },
+      "original": {
+        "type": "git",
+        "url": "https://git.code.sf.net/p/perfmon2/libpfm4"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1707514827,
@@ -106,6 +122,7 @@
       "inputs": {
         "flake-utils": "flake-utils",
         "gitignore": "gitignore",
+        "libpfm4-unstable-src": "libpfm4-unstable-src",
         "nixpkgs": "nixpkgs",
         "pre-commit-hooks": "pre-commit-hooks",
         "systems": "systems"

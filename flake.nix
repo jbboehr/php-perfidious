@@ -19,6 +19,10 @@
       inputs.flake-utils.follows = "flake-utils";
       inputs.gitignore.follows = "gitignore";
     };
+    libpfm4-unstable-src = {
+      url = "git+https://git.code.sf.net/p/perfmon2/libpfm4";
+      flake = false;
+    };
   };
 
   outputs = {
@@ -27,6 +31,7 @@
     flake-utils,
     gitignore,
     pre-commit-hooks,
+    libpfm4-unstable-src,
     ...
   } @ args:
     flake-utils.lib.eachDefaultSystem (
@@ -37,6 +42,11 @@
         src' = gitignore.lib.gitignoreSource ./.;
 
         iwyu = pkgs.callPackage ./nix/iwyu.nix {};
+
+        libpfm-unstable = pkgs.libpfm.overrideAttrs (o: {
+          version = "${o.version}+git-master";
+          src = libpfm4-unstable-src;
+        });
 
         src = pkgs.lib.cleanSourceWith {
           name = "php-perf-source";
@@ -59,29 +69,17 @@
           };
         };
 
-        makePhp = {php}:
-          php.buildEnv {
-            extensions = {
-              enabled,
-              all,
-            }:
-              enabled ++ [all.opcache];
-          };
-
         makePackage = {
-          stdenv,
-          php,
-        }: let
-        in
+          stdenv ? pkgs.stdenv,
+          php ? pkgs.php,
+          libpfm ? pkgs.libpfm,
+        }:
           pkgs.callPackage ./nix/derivation.nix {
-            php = makePhp {
-              inherit php;
-            };
+            inherit src;
+            inherit stdenv php libpfm;
             buildPecl = pkgs.callPackage (nixpkgs + "/pkgs/build-support/php/build-pecl.nix") {
               inherit php stdenv;
             };
-            inherit stdenv;
-            inherit src;
           };
 
         makeCheck = package:
@@ -105,7 +103,7 @@
           };
         };
 
-        mkDevShell = package:
+        makeDevShell = package:
           (pkgs.mkShell.override {
             stdenv = package.stdenv;
           }) {
@@ -137,7 +135,7 @@
             '';
           };
 
-        makeVmTest = package: let
+        makeVmCheck = package: let
           php = package.php.buildEnv {
             extensions = {
               enabled,
@@ -171,60 +169,52 @@
               machine.succeed("TEST_PHP_DETAILED=1 NO_INTERACTION=1 REPORT_EXIT_STATUS=1 php run-tests.php || (find tests -name '*.log' | xargs -n1 cat ; exit 1)")
             '';
           };
-      in rec {
+
         packages = rec {
           php81 = makePackage {
             php = pkgs.php81;
-            stdenv = pkgs.stdenv;
           };
           php81-clang = makePackage {
             php = pkgs.php81;
             stdenv = pkgs.clangStdenv;
           };
+          php81-libpfm-unstable = makePackage {
+            php = pkgs.php81;
+            libpfm = libpfm-unstable;
+          };
           php82 = makePackage {
             php = pkgs.php82;
-            stdenv = pkgs.stdenv;
           };
           php82-clang = makePackage {
             php = pkgs.php82;
             stdenv = pkgs.clangStdenv;
           };
+          php82-libpfm-unstable = makePackage {
+            php = pkgs.php82;
+            libpfm = libpfm-unstable;
+          };
           php83 = makePackage {
             php = pkgs.php83;
-            stdenv = pkgs.stdenv;
           };
           php83-clang = makePackage {
             php = pkgs.php83;
             stdenv = pkgs.clangStdenv;
           };
-          default = php81;
+          php83-libpfm-unstable = makePackage {
+            php = pkgs.php83;
+            libpfm = libpfm-unstable;
+          };
+          default = php81-libpfm-unstable;
         };
+      in {
+        inherit packages;
 
-        devShells = rec {
-          php81 = mkDevShell packages.php81;
-          php81-clang = mkDevShell packages.php81-clang;
-          php82 = mkDevShell packages.php82;
-          php82-clang = mkDevShell packages.php82-clang;
-          php83 = mkDevShell packages.php83;
-          php83-clang = mkDevShell packages.php83-clang;
-          default = php81;
-        };
+        devShells = builtins.mapAttrs (name: package: makeDevShell package) packages;
 
-        checks = rec {
-          inherit pre-commit-check;
-          php81 = makeCheck packages.php81;
-          php81-clang = makeCheck packages.php81-clang;
-          php82 = makeCheck packages.php82;
-          php82-clang = makeCheck packages.php82-clang;
-          php83 = makeCheck packages.php83;
-          php83-clang = makeCheck packages.php83-clang;
-          vm81 = makeVmTest packages.php81;
-          vm81-clang = makeVmTest packages.php81-clang;
-          vm82 = makeVmTest packages.php82;
-          vm82-clang = makeVmTest packages.php82-clang;
-          vm83 = makeVmTest packages.php83;
-          vm83-clang = makeVmTest packages.php83-clang;
-        };
+        checks =
+          {inherit pre-commit-check;}
+          // (builtins.mapAttrs (name: package: makeCheck package) packages)
+          // (builtins.mapAttrs (name: package: makeVmCheck package) packages);
 
         formatter = pkgs.alejandra;
       }
