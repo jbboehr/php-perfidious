@@ -177,44 +177,66 @@
             '';
           };
 
-        packages = rec {
-          php81 = makePackage {
-            php = pkgs.php81;
+        matrix = with pkgs; {
+          php = {
+            inherit php81 php82 php83;
           };
-          php81-clang = makePackage {
-            php = pkgs.php81;
-            stdenv = pkgs.clangStdenv;
+          stdenv = {
+            gcc = stdenv;
+            clang = clangStdenv;
+            musl = pkgsMusl.stdenv;
           };
-          php81-libpfm-unstable = makePackage {
-            php = pkgs.php81;
-            libpfm = libpfm-unstable;
+          libpfm = {
+            inherit libpfm libpfm-unstable;
           };
-          php82 = makePackage {
-            php = pkgs.php82;
-          };
-          php82-clang = makePackage {
-            php = pkgs.php82;
-            stdenv = pkgs.clangStdenv;
-          };
-          php82-libpfm-unstable = makePackage {
-            php = pkgs.php82;
-            libpfm = libpfm-unstable;
-          };
-          php83 = makePackage {
-            php = pkgs.php83;
-          };
-          php83-clang = makePackage {
-            php = pkgs.php83;
-            stdenv = pkgs.clangStdenv;
-          };
-          php83-libpfm-unstable = makePackage {
-            php = pkgs.php83;
-            libpfm = libpfm-unstable;
-          };
-          default = php81-libpfm-unstable;
         };
+
+        # @see https://github.com/NixOS/nixpkgs/pull/110787
+        buildConfs = lib.cartesianProductOfSets {
+          php = ["php81" "php82" "php83"];
+          stdenv = [
+            "gcc"
+            "clang"
+            # totally broken
+            # "musl"
+          ];
+          libpfm = ["libpfm" "libpfm-unstable"];
+        };
+
+        buildFn = {
+          php,
+          libpfm,
+          stdenv,
+        }:
+          lib.nameValuePair
+          (lib.concatStringsSep "-" (lib.filter (v: v != "") [
+            "${php}"
+            "${stdenv}"
+            #(if stdenv == "gcc" then "" else "${stdenv}")
+            (
+              if libpfm == "libpfm"
+              then ""
+              else "${libpfm}"
+            )
+          ]))
+          (
+            makePackage {
+              php = matrix.php.${php};
+              libpfm = matrix.libpfm.${libpfm};
+              stdenv = matrix.stdenv.${stdenv};
+            }
+          );
+
+        packages = builtins.listToAttrs (builtins.map buildFn buildConfs);
       in {
-        inherit packages;
+        packages =
+          packages
+          // {
+            # php81 = packages.php81-gcc;
+            # php82 = packages.php82-gcc;
+            # php83 = packages.php83-gcc;
+            default = packages.php81-gcc;
+          };
 
         devShells = builtins.mapAttrs (name: package: makeDevShell package) packages;
 
