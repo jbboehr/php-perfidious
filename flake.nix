@@ -19,6 +19,10 @@
       inputs.flake-utils.follows = "flake-utils";
       inputs.gitignore.follows = "gitignore";
     };
+    nix-github-actions = {
+      url = "github:nix-community/nix-github-actions";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     libpfm4-unstable-src = {
       url = "git+https://git.code.sf.net/p/perfmon2/libpfm4";
       flake = false;
@@ -31,6 +35,8 @@
     flake-utils,
     gitignore,
     pre-commit-hooks,
+    systems,
+    nix-github-actions,
     libpfm4-unstable-src,
     ...
   } @ args:
@@ -227,25 +233,39 @@
             }
           );
 
-        packages = builtins.listToAttrs (builtins.map buildFn buildConfs);
-      in {
+        packages' = builtins.listToAttrs (builtins.map buildFn buildConfs);
         packages =
-          packages
+          packages'
           // {
             # php81 = packages.php81-gcc;
             # php82 = packages.php82-gcc;
             # php83 = packages.php83-gcc;
             default = packages.php81-gcc;
           };
+      in {
+        inherit packages;
 
         devShells = builtins.mapAttrs (name: package: makeDevShell package) packages;
 
         checks =
           {inherit pre-commit-check;}
           // (builtins.mapAttrs (name: package: makeCheck package) packages)
-          // (builtins.mapAttrs (name: package: makeVmCheck package) packages);
+          // (lib.mapAttrs' (name: value: lib.nameValuePair (name + "-vmtest") (makeVmCheck value)) packages);
 
         formatter = pkgs.alejandra;
       }
-    );
+    )
+    // {
+      # prolly gonna break at some point
+      githubActions.matrix.include = let
+        cleanFn = v: v // {name = builtins.replaceStrings ["githubActions." "checks." "x86_64-linux."] ["" "" ""] v.attr;};
+      in
+        builtins.map cleanFn
+        (nix-github-actions.lib.mkGithubMatrix {
+          attrPrefix = "checks";
+          checks = nixpkgs.lib.getAttrs ["x86_64-linux"] self.checks;
+        })
+        .matrix
+        .include;
+    };
 }

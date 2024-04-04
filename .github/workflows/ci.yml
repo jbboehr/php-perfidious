@@ -132,8 +132,26 @@ jobs:
                 with:
                     parallel-finished: true
 
-    nix:
+    nix-matrix:
         runs-on: ubuntu-latest
+        outputs:
+            matrix: ${{ steps.set-matrix.outputs.matrix }}
+        steps:
+            - uses: actions/checkout@v4
+            - uses: cachix/install-nix-action@v26
+            - id: set-matrix
+              name: Generate Nix Matrix
+              run: |
+                  set -Eeu
+                  matrix="$(nix eval --json '.#githubActions.matrix')"
+                  echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+    nix:
+        name: "nix (${{ matrix.name }})"
+        runs-on: ${{ matrix.os }}
+        needs: nix-matrix
+        strategy:
+            matrix: ${{fromJSON(needs.nix-matrix.outputs.matrix)}}
         steps:
             -   uses: actions/checkout@v4
 
@@ -142,10 +160,13 @@ jobs:
                 id: nix-cache
                 with:
                     path: /tmp/nix-store.nar
-                    key: nix-store.nar-${{ runner.os }}-${{ hashFiles('flake.nix', 'flake.lock') }}
-                    restore-keys: nix-store.nar-${{ runner.os }}-
+                    key: nix-store.nar-${{ runner.os }}-${{ hashFiles('flake.lock') }}-${{ matrix.attr }}
+                    restore-keys: |
+                        nix-store.nar-${{ runner.os }}-${{ hashFiles('flake.lock') }}-${{ matrix.attr }}
+                        nix-store.nar-${{ runner.os }}-${{ hashFiles('flake.lock') }}-
+                        nix-store.nar-${{ runner.os }}-
 
-            -   uses: cachix/install-nix-action@v25
+            -   uses: cachix/install-nix-action@v26
                 with:
                     nix_path: nixpkgs=channel:nixos-23.11
                     extra_nix_config: "system-features = nixos-test benchmark big-parallel kvm"
@@ -155,25 +176,17 @@ jobs:
                 run: |
                     nix-store --import < /tmp/nix-store.nar
 
-            -   name: nix build -L
-                run: |
-                    nix eval .#packages --impure --raw --apply '(import ./.github/attrs.nix { prefix = ".#packages"; })' \
-                        | xargs nix build -L
-
             -   run: sudo sysctl -w kernel.perf_event_paranoid=1
 
-            -   run: nix flake check -L
+            -   run: nix build -L ".#${{ matrix.attr }}"
+
+#            -   run: nix flake check -L
 
             -   name: Export Nix Store Cache
                 shell: bash
                 run: |
-                    packages=
-                    packages+=$(nix eval .#packages --impure --raw --apply '(import ./.github/attrs.nix { prefix = ".#packages"; })')
-                    packages+=$'\n'
-                    packages+=$(nix eval .#checks --impure --raw --apply '(import ./.github/attrs.nix { prefix = ".#checks"; })')
-                    echo "$packages" \
+                    echo ".#${{ matrix.attr }}" \
                         | xargs -I{} bash -c 'nix eval --raw {} && echo' \
-                        | grep -v pre-commit-run \
                         | xargs nix-store -qR \
                         | xargs nix-store --export > /tmp/nix-store.nar
 
