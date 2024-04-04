@@ -184,11 +184,15 @@ jobs:
 
             -   name: Export Nix Store Cache
                 shell: bash
+                # partially based on https://github.com/NixOS/nix/issues/1245#issuecomment-282586759
                 run: |
-                    echo ".#${{ matrix.attr }}" \
-                        | xargs -I{} bash -c 'nix eval --raw {} && echo' \
-                        | xargs nix-store -qR \
-                        | xargs nix-store --export > /tmp/nix-store.nar
+                    drv="$(nix-store -qd "$(readlink result)")"
+                    drvRefs="$( echo "$drv" | xargs nix-store -q --references )"
+                    ( echo "$drvRefs" | grep '[.]drv$' | xargs nix-store -q --outputs ;
+                      echo "$drvRefs" | grep -v '[.]drv$' ) | \
+                        xargs nix-store -r | \
+                        xargs nix-store -qR |
+                        xargs nix-store --export > /tmp/nix-store.nar
 
     docker:
         runs-on: ubuntu-latest
