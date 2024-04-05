@@ -17,11 +17,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef PHP_PERF_FUNCTIONS_H
-#define PHP_PERF_FUNCTIONS_H
+#ifndef PERFIDIOUS_FUNCTIONS_H
+#define PERFIDIOUS_FUNCTIONS_H
 
 #include <stdbool.h>
-#include "Zend/zend_API.h"
+#include <Zend/zend_API.h>
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_get_pmu_info_arginfo, false, 1, PerfExt\\PmuInfo, false)
     ZEND_ARG_TYPE_INFO(false, pmu, IS_LONG, false)
@@ -53,4 +53,4 @@ PERFIDIOUS_LOCAL extern ZEND_FUNCTION(perfidious_list_pmu_events);
 PERFIDIOUS_LOCAL extern ZEND_FUNCTION(perfidious_open);
 PERFIDIOUS_LOCAL extern ZEND_FUNCTION(perfidious_request_handle);
 
-#endif /* PHP_PERF_FUNCTIONS_H */
+#endif /* PERFIDIOUS_FUNCTIONS_H */

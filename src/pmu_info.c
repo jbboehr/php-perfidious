@@ -22,8 +22,8 @@
 #endif
 
 #include <perfmon/pfmlib.h>
-#include "Zend/zend_API.h"
-#include "Zend/zend_enum.h"
+#include <Zend/zend_API.h>
+#include <Zend/zend_exceptions.h>
 #include "php_perf.h"
 
 PERFIDIOUS_LOCAL zend_string *PERFIDIOUS_INTERNED_NAME;
@@ -33,6 +33,67 @@ PERFIDIOUS_LOCAL zend_string *PERFIDIOUS_INTERNED_TYPE;
 PERFIDIOUS_LOCAL zend_string *PERFIDIOUS_INTERNED_NEVENTS;
 PERFIDIOUS_LOCAL zend_string *PERFIDIOUS_INTERNED_IS_PRESENT;
 PERFIDIOUS_PUBLIC zend_class_entry *perfidious_pmu_info_ce;
+
+ZEND_COLD
+PERFIDIOUS_ATTR_NONNULL_ALL
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
+static inline zend_result perfidious_pmu_info_ctor(pfm_pmu_info_t *pmu_info, zval *restrict return_value)
+{
+    zval tmp = {0};
+
+    if (UNEXPECTED(FAILURE == object_init_ex(return_value, perfidious_pmu_info_ce))) {
+        return FAILURE;
+    }
+
+    ZVAL_STRING(&tmp, pmu_info->name);
+    zend_update_property_ex(Z_OBJCE_P(return_value), Z_OBJ_P(return_value), PERFIDIOUS_INTERNED_NAME, &tmp);
+    zval_ptr_dtor(&tmp);
+
+    ZVAL_STRING(&tmp, pmu_info->desc);
+    zend_update_property_ex(Z_OBJCE_P(return_value), Z_OBJ_P(return_value), PERFIDIOUS_INTERNED_DESC, &tmp);
+    zval_ptr_dtor(&tmp);
+
+    ZVAL_LONG(&tmp, (zend_long) pmu_info->pmu);
+    zend_update_property_ex(Z_OBJCE_P(return_value), Z_OBJ_P(return_value), PERFIDIOUS_INTERNED_PMU, &tmp);
+
+    ZVAL_LONG(&tmp, (zend_long) pmu_info->type);
+    zend_update_property_ex(Z_OBJCE_P(return_value), Z_OBJ_P(return_value), PERFIDIOUS_INTERNED_TYPE, &tmp);
+
+    ZVAL_LONG(&tmp, (zend_long) pmu_info->nevents);
+    zend_update_property_ex(Z_OBJCE_P(return_value), Z_OBJ_P(return_value), PERFIDIOUS_INTERNED_NEVENTS, &tmp);
+
+    ZVAL_BOOL(&tmp, (zend_bool) pmu_info->is_present);
+    zend_update_property_ex(Z_OBJCE_P(return_value), Z_OBJ_P(return_value), PERFIDIOUS_INTERNED_IS_PRESENT, &tmp);
+
+    return SUCCESS;
+}
+
+ZEND_COLD
+PERFIDIOUS_LOCAL
+PERFIDIOUS_ATTR_NONNULL_ALL
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
+zend_result perfidious_get_pmu_info(zend_long pmu, zval *restrict return_value, bool silent)
+{
+    pfm_pmu_info_t pmu_info = {0};
+    pmu_info.size = sizeof(pmu_info);
+
+    int pfm_err = pfm_get_pmu_info(pmu, &pmu_info);
+
+    if (UNEXPECTED(pfm_err != PFM_SUCCESS)) {
+        if (!silent) {
+            zend_throw_exception_ex(
+                perfidious_pmu_not_found_exception_ce,
+                pfm_err,
+                "cannot get pmu info for %lu: %s",
+                pmu,
+                pfm_strerror(pfm_err)
+            );
+        }
+        return FAILURE;
+    }
+
+    return perfidious_pmu_info_ctor(&pmu_info, return_value);
+}
 
 PERFIDIOUS_ATTR_RETURNS_NONNULL
 PERFIDIOUS_ATTR_WARN_UNUSED_RESULT

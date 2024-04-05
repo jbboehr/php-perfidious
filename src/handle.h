@@ -17,15 +17,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef PHP_PERF_HANDLE_H
-#define PHP_PERF_HANDLE_H
+#ifndef PERFIDIOUS_HANDLE_H
+#define PERFIDIOUS_HANDLE_H
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdint.h>
+#include <Zend/zend_exceptions.h>
 #include <Zend/zend_portability.h>
 #include "php_perf.h"
 
-static const uint64_t PHP_PERF_HANDLE_MARKER = 0x327b23c66b8b4567;
+static const uint64_t PERFIDIOUS_HANDLE_MARKER = 0x327b23c66b8b4567;
 
 struct perfidious_metric
 {
@@ -43,16 +45,18 @@ struct perfidious_handle
     struct perfidious_metric metrics[];
 };
 
+struct perfidious_read_format_value
+{
+    uint64_t value;
+    uint64_t id;
+};
+
 struct perfidious_read_format
 {
     uint64_t nr;
     uint64_t time_enabled;
     uint64_t time_running;
-    struct
-    {
-        uint64_t value;
-        uint64_t id;
-    } values[];
+    struct perfidious_read_format_value values[];
 };
 
 struct perfidious_handle_obj
@@ -88,13 +92,37 @@ ZEND_END_ARG_INFO()
 
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
 zend_result perfidious_handle_read_to_array(struct perfidious_handle *handle, zval *return_value);
 
 ZEND_HOT
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
 zend_result perfidious_handle_read_to_array_with_times(
-    struct perfidious_handle *handle, zval *return_value, uint64_t *time_enabled, uint64_t *time_running
+    struct perfidious_handle *restrict handle,
+    zval *restrict return_value,
+    uint64_t *restrict time_enabled,
+    uint64_t *restrict time_running
 );
 
-#endif /* PHP_PERF_HANDLE_H */
+ZEND_HOT
+PERFIDIOUS_ATTR_NONNULL_ALL
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
+static zend_always_inline zend_result perfidious_handle_marker_assert(struct perfidious_handle *restrict handle)
+{
+    if (UNEXPECTED(handle->marker != PERFIDIOUS_HANDLE_MARKER)) {
+        zend_throw_exception_ex(
+            perfidious_overflow_exception_ce,
+            0,
+            "Assertion failed: marker mismatch: %" PRIu64 " != %" PRIu64,
+            handle->marker,
+            PERFIDIOUS_HANDLE_MARKER
+        );
+        return FAILURE;
+    }
+
+    return SUCCESS;
+}
+
+#endif /* PERFIDIOUS_HANDLE_H */

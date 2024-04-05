@@ -34,53 +34,6 @@
 #include "private.h"
 
 ZEND_COLD
-PERFIDIOUS_ATTR_NONNULL_ALL
-PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
-static zend_result perfidious_get_pmu_info(zend_long pmu, zval *rv, bool silent)
-{
-    pfm_pmu_info_t pmu_info = {0};
-    int ret;
-    zval tmp = {0};
-
-    pmu_info.size = sizeof(pmu_info);
-
-    ret = pfm_get_pmu_info(pmu, &pmu_info);
-    if (ret != PFM_SUCCESS) {
-        if (!silent) {
-            zend_throw_exception_ex(
-                perfidious_pmu_not_found_exception_ce, ret, "cannot get pmu info for %lu: %s", pmu, pfm_strerror(ret)
-            );
-        }
-        return FAILURE;
-    }
-
-    ZVAL_UNDEF(rv);
-    object_init_ex(rv, perfidious_pmu_info_ce);
-
-    ZVAL_STRING(&tmp, pmu_info.name);
-    zend_update_property_ex(Z_OBJCE_P(rv), Z_OBJ_P(rv), PERFIDIOUS_INTERNED_NAME, &tmp);
-    zval_ptr_dtor(&tmp);
-
-    ZVAL_STRING(&tmp, pmu_info.desc);
-    zend_update_property_ex(Z_OBJCE_P(rv), Z_OBJ_P(rv), PERFIDIOUS_INTERNED_DESC, &tmp);
-    zval_ptr_dtor(&tmp);
-
-    ZVAL_LONG(&tmp, (zend_long) pmu_info.pmu);
-    zend_update_property_ex(Z_OBJCE_P(rv), Z_OBJ_P(rv), PERFIDIOUS_INTERNED_PMU, &tmp);
-
-    ZVAL_LONG(&tmp, (zend_long) pmu_info.type);
-    zend_update_property_ex(Z_OBJCE_P(rv), Z_OBJ_P(rv), PERFIDIOUS_INTERNED_TYPE, &tmp);
-
-    ZVAL_LONG(&tmp, (zend_long) pmu_info.nevents);
-    zend_update_property_ex(Z_OBJCE_P(rv), Z_OBJ_P(rv), PERFIDIOUS_INTERNED_NEVENTS, &tmp);
-
-    ZVAL_BOOL(&tmp, (zend_bool) pmu_info.is_present);
-    zend_update_property_ex(Z_OBJCE_P(rv), Z_OBJ_P(rv), PERFIDIOUS_INTERNED_IS_PRESENT, &tmp);
-
-    return SUCCESS;
-}
-
-ZEND_COLD
 PERFIDIOUS_LOCAL
 PHP_FUNCTION(perfidious_get_pmu_info)
 {
@@ -101,12 +54,12 @@ PHP_FUNCTION(perfidious_global_handle)
 {
     ZEND_PARSE_PARAMETERS_NONE();
 
-    if (PERF_G(global_enable) && PERF_G(global_handle)) {
+    if (EXPECTED(PERFIDIOUS_G(global_enable) && PERFIDIOUS_G(global_handle))) {
         object_init_ex(return_value, perfidious_handle_ce);
 
         struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(return_value));
         obj->no_auto_close = true;
-        obj->handle = PERF_G(global_handle);
+        obj->handle = PERFIDIOUS_G(global_handle);
     } else {
         RETURN_NULL();
     }
@@ -116,7 +69,8 @@ ZEND_COLD
 PERFIDIOUS_LOCAL
 PHP_FUNCTION(perfidious_list_pmus)
 {
-    unsigned long index = 0;
+    zend_long index;
+    zval tmp = {0};
 
     ZEND_PARSE_PARAMETERS_NONE();
 
@@ -124,12 +78,9 @@ PHP_FUNCTION(perfidious_list_pmus)
 
     pfm_for_all_pmus(index)
     {
-        zval tmp = {0};
-        zend_result result = perfidious_get_pmu_info((zend_long) index, &tmp, true);
-        if (result == SUCCESS) {
+        if (SUCCESS == perfidious_get_pmu_info(index, &tmp, true)) {
             add_next_index_zval(return_value, &tmp);
         }
-        ZVAL_UNDEF(&tmp);
     }
 }
 
@@ -144,74 +95,33 @@ PHP_FUNCTION(perfidious_list_pmu_events)
     ZEND_PARSE_PARAMETERS_END();
 
     pfm_pmu_t pmu = pmu_id;
-    pfm_event_info_t info = {0};
-    pfm_pmu_info_t pinfo = {0};
-    int ret;
+    pfm_pmu_info_t pmu_info = {0};
+    pfm_err_t pfm_err;
+    zval tmp = {0};
+
+    pmu_info.size = sizeof(pmu_info);
+
+    pfm_err = pfm_get_pmu_info(pmu, &pmu_info);
+    if (pfm_err != PFM_SUCCESS) {
+        zend_throw_exception_ex(
+            perfidious_pmu_not_found_exception_ce,
+            pfm_err,
+            "libpfm: cannot get pmu info for %lu: %s",
+            (zend_long) pmu,
+            pfm_strerror(pfm_err)
+        );
+        RETURN_NULL();
+    }
 
     array_init(return_value);
 
-    info.size = sizeof(info);
-    pinfo.size = sizeof(pinfo);
-
-    ret = pfm_get_pmu_info(pmu, &pinfo);
-    if (ret != PFM_SUCCESS) {
-        zend_throw_exception_ex(
-            perfidious_pmu_not_found_exception_ce,
-            ret,
-            "libpfm: cannot get pmu info for %lu: %s",
-            (zend_long) pmu,
-            pfm_strerror(ret)
-        );
-        return;
-    }
-
-    for (int i = pinfo.first_event; i != -1; i = pfm_get_event_next(i)) {
-        ret = pfm_get_event_info(i, PFM_OS_PERF_EVENT, &info);
-        if (ret != PFM_SUCCESS) {
-            ZVAL_UNDEF(return_value);
-            zend_throw_exception_ex(
-                perfidious_pmu_event_not_found_exception_ce,
-                ret,
-                "libpfm: cannot get event info for %lu: %s",
-                (zend_long) i,
-                pfm_strerror(ret)
-            );
-            return;
+    for (int i = pmu_info.first_event; i != -1; i = pfm_get_event_next(i)) {
+        if (UNEXPECTED(FAILURE == perfidious_get_pmu_event_info(&pmu_info, i, &tmp))) {
+            zval_ptr_dtor(return_value);
+            RETURN_NULL();
         }
 
-        char buf[512];
-        zval arr = {0};
-        zval tmp = {0};
-
-        array_init(&arr);
-
-        object_init_ex(&arr, perfidious_pmu_event_info_ce);
-
-        size_t buf_len = snprintf(buf, sizeof(buf), "%s::%s", pinfo.name, info.name);
-
-        ZVAL_STRINGL(&tmp, buf, buf_len);
-        zend_update_property_ex(Z_OBJCE(arr), Z_OBJ(arr), PERFIDIOUS_INTERNED_NAME, &tmp);
-        zval_ptr_dtor(&tmp);
-
-        ZVAL_STRING(&tmp, info.desc);
-        zend_update_property_ex(Z_OBJCE(arr), Z_OBJ(arr), PERFIDIOUS_INTERNED_DESC, &tmp);
-        zval_ptr_dtor(&tmp);
-
-        if (info.equiv != NULL) {
-            ZVAL_STRING(&tmp, info.equiv);
-        } else {
-            ZVAL_NULL(&tmp);
-        }
-        zend_update_property_ex(Z_OBJCE(arr), Z_OBJ(arr), PERFIDIOUS_INTERNED_EQUIV, &tmp);
-        zval_ptr_dtor(&tmp);
-
-        ZVAL_LONG(&tmp, (zend_long) info.pmu);
-        zend_update_property_ex(Z_OBJCE(arr), Z_OBJ(arr), PERFIDIOUS_INTERNED_PMU, &tmp);
-
-        ZVAL_BOOL(&tmp, pinfo.is_present);
-        zend_update_property_ex(Z_OBJCE(arr), Z_OBJ(arr), PERFIDIOUS_INTERNED_IS_PRESENT, &tmp);
-
-        add_next_index_zval(return_value, &arr);
+        add_next_index_zval(return_value, &tmp);
     }
 }
 
@@ -257,13 +167,15 @@ PHP_FUNCTION(perfidious_open)
     }
 
     // Copy event names into an array
-    zend_string **arr = ecalloc(sizeof(zend_string *), zend_array_count(event_names_ht) + 1);
+    zend_string **arr = alloca(sizeof(zend_string *) * (zend_array_count(event_names_ht) + 1));
     size_t arr_count = 0;
 
     ZEND_HASH_FOREACH_VAL(event_names_ht, z)
     {
-        if (Z_TYPE_P(z) == IS_STRING) {
+        if (EXPECTED(Z_TYPE_P(z) == IS_STRING)) {
             arr[arr_count++] = Z_STR_P(z);
+        } else {
+            zend_type_error("All event names must be strings");
         }
     }
     ZEND_HASH_FOREACH_END();
@@ -271,6 +183,10 @@ PHP_FUNCTION(perfidious_open)
     arr[arr_count] = NULL;
 
     struct perfidious_handle *handle = perfidious_handle_open_ex(arr, arr_count, pid, (int) cpu, false);
+
+    if (UNEXPECTED(NULL == handle)) {
+        RETURN_NULL();
+    }
 
     object_init_ex(return_value, perfidious_handle_ce);
 
@@ -284,12 +200,12 @@ PHP_FUNCTION(perfidious_request_handle)
 {
     ZEND_PARSE_PARAMETERS_NONE();
 
-    if (PERF_G(request_enable) && PERF_G(request_handle)) {
+    if (EXPECTED(PERFIDIOUS_G(request_enable) && PERFIDIOUS_G(request_handle))) {
         object_init_ex(return_value, perfidious_handle_ce);
 
         struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(return_value));
         obj->no_auto_close = true;
-        obj->handle = PERF_G(request_handle);
+        obj->handle = PERFIDIOUS_G(request_handle);
     } else {
         RETURN_NULL();
     }

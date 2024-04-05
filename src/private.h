@@ -81,7 +81,8 @@ static inline bool perfidious_zend_long_to_pid_t(zend_long from, pid_t *restrict
 
 ZEND_ATTRIBUTE_UNUSED
 ZEND_ATTRIBUTE_FORMAT(printf, 3, 4)
-static void perfidious_error_helper(zend_class_entry *exception_ce, zend_long code, const char *format, ...)
+static void
+perfidious_error_helper(zend_class_entry *restrict exception_ce, zend_long code, const char *restrict format, ...)
 {
     char buffer[512];
     int bytes = 0;
@@ -91,7 +92,7 @@ static void perfidious_error_helper(zend_class_entry *exception_ce, zend_long co
     bytes = vsnprintf(buffer, sizeof(buffer) - 1, format, args);
     va_end(args);
 
-    switch (PERF_G(error_mode)) {
+    switch (PERFIDIOUS_G(error_mode)) {
         case PERFIDIOUS_ERROR_MODE_SILENT:
             break;
         case PERFIDIOUS_ERROR_MODE_WARNING:
@@ -103,5 +104,17 @@ static void perfidious_error_helper(zend_class_entry *exception_ce, zend_long co
             break;
     }
 }
+
+ZEND_COLD
+PERFIDIOUS_LOCAL
+PERFIDIOUS_ATTR_NONNULL_ALL
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
+zend_result perfidious_get_pmu_info(zend_long pmu, zval *restrict return_value, bool silent);
+
+ZEND_COLD
+PERFIDIOUS_LOCAL
+PERFIDIOUS_ATTR_NONNULL_ALL
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
+zend_result perfidious_get_pmu_event_info(pfm_pmu_info_t *restrict pmu_info, int idx, zval *restrict return_value);
 
 #endif /* PERFIDIOUS_PRIVATE_H */

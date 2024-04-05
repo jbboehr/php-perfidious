@@ -108,34 +108,36 @@ ZEND_END_MODULE_GLOBALS(perf)
 
 ZEND_EXTERN_MODULE_GLOBALS(perf);
 
-#define PERF_G(v) ZEND_MODULE_GLOBALS_ACCESSOR(perf, v)
+#define PERFIDIOUS_G(v) ZEND_MODULE_GLOBALS_ACCESSOR(perf, v)
 
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
-zend_result perfidious_handle_reset(struct perfidious_handle *handle);
+zend_result perfidious_handle_reset(struct perfidious_handle *restrict handle);
 
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
-zend_result perfidious_handle_enable(struct perfidious_handle *handle);
+zend_result perfidious_handle_enable(struct perfidious_handle *restrict handle);
 
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
-zend_result perfidious_handle_disable(struct perfidious_handle *handle);
+zend_result perfidious_handle_disable(struct perfidious_handle *restrict handle);
 
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
-zend_result perfidious_handle_close(struct perfidious_handle *handle);
-
-PERFIDIOUS_PUBLIC
-PERFIDIOUS_ATTR_NONNULL_ALL
-PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
-struct perfidious_handle *perfidious_handle_open(zend_string **event_names, size_t event_names_length, bool persist);
+zend_result perfidious_handle_close(struct perfidious_handle *restrict handle);
 
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
 PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
 struct perfidious_handle *
-perfidious_handle_open_ex(zend_string **event_names, size_t event_names_length, pid_t pid, int cpu, bool persist);
+perfidious_handle_open(zend_string **restrict event_names, size_t event_names_length, bool persist);
+
+PERFIDIOUS_PUBLIC
+PERFIDIOUS_ATTR_NONNULL_ALL
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
+struct perfidious_handle *perfidious_handle_open_ex(
+    zend_string **restrict event_names, size_t event_names_length, pid_t pid, int cpu, bool persist
+);
 
 ZEND_HOT
 PERFIDIOUS_PUBLIC
