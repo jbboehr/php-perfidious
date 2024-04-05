@@ -46,7 +46,7 @@ static zend_class_entry *register_class_ExceptionInterface(void)
 
 PERFIDIOUS_ATTR_RETURNS_NONNULL
 PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
-static zend_class_entry *register_class_OverflowException(zend_class_entry *iface)
+static zend_class_entry *register_class_OverflowException(zend_class_entry *restrict iface)
 {
     zend_class_entry ce;
     zend_class_entry *class_entry;
@@ -61,7 +61,7 @@ static zend_class_entry *register_class_OverflowException(zend_class_entry *ifac
 
 PERFIDIOUS_ATTR_RETURNS_NONNULL
 PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
-static zend_class_entry *register_class_PmuNotFoundException(zend_class_entry *iface)
+static zend_class_entry *register_class_PmuNotFoundException(zend_class_entry *restrict iface)
 {
     zend_class_entry ce;
     zend_class_entry *class_entry;
@@ -76,7 +76,7 @@ static zend_class_entry *register_class_PmuNotFoundException(zend_class_entry *i
 
 PERFIDIOUS_ATTR_RETURNS_NONNULL
 PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
-static zend_class_entry *register_class_PmuEventNotFoundException(zend_class_entry *iface)
+static zend_class_entry *register_class_PmuEventNotFoundException(zend_class_entry *restrict iface)
 {
     zend_class_entry ce;
     zend_class_entry *class_entry;
@@ -91,7 +91,7 @@ static zend_class_entry *register_class_PmuEventNotFoundException(zend_class_ent
 
 PERFIDIOUS_ATTR_RETURNS_NONNULL
 PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
-static zend_class_entry *register_class_IOException(zend_class_entry *iface)
+static zend_class_entry *register_class_IOException(zend_class_entry *restrict iface)
 {
     zend_class_entry ce;
     zend_class_entry *class_entry;
@@ -105,7 +105,7 @@ static zend_class_entry *register_class_IOException(zend_class_entry *iface)
 }
 
 PERFIDIOUS_LOCAL
-zend_result perfidious_exceptions_minit(void)
+void perfidious_exceptions_minit(void)
 {
     perfidious_exception_interface_ce = register_class_ExceptionInterface();
     perfidious_overflow_exception_ce = register_class_OverflowException(perfidious_exception_interface_ce);
@@ -113,6 +113,4 @@ zend_result perfidious_exceptions_minit(void)
     perfidious_pmu_event_not_found_exception_ce =
         register_class_PmuEventNotFoundException(perfidious_exception_interface_ce);
     perfidious_io_exception_ce = register_class_IOException(perfidious_exception_interface_ce);
-
-    return SUCCESS;
 }

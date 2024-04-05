@@ -12,10 +12,10 @@ for ($i = 0; $i < 100; $i++) {
     usleep(1);
 }
 $rv->disable();
-$orig = $rv->read();
+$orig = $rv->readArray();
 $same = 0;
 for ($i = 0; $i < 1000; $i++) {
-    $same += (int) ($orig == $rv->read());
+    $same += (int) ($orig == $rv->readArray());
 }
 var_dump($same);
 --EXPECT--

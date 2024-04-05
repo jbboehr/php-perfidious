@@ -12,6 +12,7 @@ set(SOURCE_FILES
     src/handle.c
     src/pmu_event_info.c
     src/pmu_info.c
+    src/read_result.c
 )
 
 add_compile_definitions(HAVE_CONFIG_H=1)

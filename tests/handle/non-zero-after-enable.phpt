@@ -11,7 +11,7 @@ $rv->enable();
 for ($i = 0; $i < 100; $i++) {
     usleep(1);
 }
-$value = $rv->read();
+$value = $rv->readArray();
 var_dump($value > 0);
 --EXPECT--
 bool(true)

@@ -42,12 +42,15 @@ if test "$PHP_PERF" != "no"; then
     ])
 
     AC_CHECK_SIZEOF(pid_t)
+    AC_CHECK_SIZEOF(uint64_t)
 
     CFLAGS="$WARN_CFLAGS $CFLAGS"
     LDFLAGS="$WARN_LDFLAGS $LDFLAGS"
 
     if test "$PHP_PERF_DEBUG" == "yes"; then
         AC_DEFINE([PERF_DEBUG], [1], [Enable vyrtue debug support])
+    else
+        AC_DEFINE([NDEBUG], [1], [Disable debug support])
     fi
 
     PHP_ADD_LIBRARY(cap, , PERF_SHARED_LIBADD)
@@ -60,6 +63,7 @@ if test "$PHP_PERF" != "no"; then
         src/handle.c
         src/pmu_event_info.c
         src/pmu_info.c
+        src/read_result.c
     ])
 
     PHP_ADD_BUILD_DIR(src)

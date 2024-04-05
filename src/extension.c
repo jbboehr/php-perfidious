@@ -36,17 +36,20 @@
 #include "main/php_ini.h"
 #include "ext/standard/info.h"
 #include "ext/standard/php_string.h"
+
 #include "php_perf.h"
-#include "./functions.h"
+#include "functions.h"
+#include "handle.h"
 
 #define DEFAULT_METRICS "perf::PERF_COUNT_HW_CPU_CYCLES,perf::PERF_COUNT_HW_INSTRUCTIONS"
 
 ZEND_DECLARE_MODULE_GLOBALS(perf);
 
-PERFIDIOUS_LOCAL zend_result perfidious_exceptions_minit(void);
-PERFIDIOUS_LOCAL zend_result perfidious_handle_minit(void);
-PERFIDIOUS_LOCAL zend_result perfidious_pmu_event_info_minit(void);
-PERFIDIOUS_LOCAL zend_result perfidious_pmu_info_minit(void);
+PERFIDIOUS_LOCAL void perfidious_exceptions_minit(void);
+PERFIDIOUS_LOCAL void perfidious_handle_minit(void);
+PERFIDIOUS_LOCAL void perfidious_pmu_event_info_minit(void);
+PERFIDIOUS_LOCAL void perfidious_pmu_info_minit(void);
+PERFIDIOUS_LOCAL void perfidious_read_result_minit(void);
 
 #if PHP_VERSION_ID < 80200
 static ZEND_INI_MH(OnUpdateStr)
@@ -153,21 +156,11 @@ static PHP_MINIT_FUNCTION(perf)
 
     REGISTER_STRING_CONSTANT(PHP_PERF_NAMESPACE "\\VERSION", (char *) PHP_PERF_VERSION, flags);
 
-    if (SUCCESS != perfidious_exceptions_minit()) {
-        return FAILURE;
-    }
-
-    if (SUCCESS != perfidious_handle_minit()) {
-        return FAILURE;
-    }
-
-    if (SUCCESS != perfidious_pmu_event_info_minit()) {
-        return FAILURE;
-    }
-
-    if (SUCCESS != perfidious_pmu_info_minit()) {
-        return FAILURE;
-    }
+    perfidious_exceptions_minit();
+    perfidious_handle_minit();
+    perfidious_pmu_event_info_minit();
+    perfidious_pmu_info_minit();
+    perfidious_read_result_minit();
 
     if (PERF_G(global_enable) && PERF_G(global_metrics) != NULL) {
         struct perfidious_handle *handle = NULL;

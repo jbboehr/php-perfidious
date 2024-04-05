@@ -9,7 +9,7 @@ perf.request.metrics=perf::PERF_COUNT_SW_CPU_CLOCK,perf::PERF_COUNT_SW_PAGE_FAUL
 <?php
 $handle = PerfExt\request_handle();
 var_dump(get_class($handle));
-var_dump($handle->read());
+var_dump($handle->readArray());
 --EXPECTF--
 string(14) "PerfExt\Handle"
 array(3) {

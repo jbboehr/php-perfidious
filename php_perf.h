@@ -92,6 +92,7 @@ PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_io_exception_ce;
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_pmu_event_info_ce;
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_pmu_info_ce;
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_handle_ce;
+PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_read_result_ce;
 
 ZEND_BEGIN_MODULE_GLOBALS(perf)
     zend_bool global_enable;
@@ -136,8 +137,16 @@ PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
 struct perfidious_handle *
 perfidious_handle_open_ex(zend_string **event_names, size_t event_names_length, pid_t pid, int cpu, bool persist);
 
+ZEND_HOT
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
-zend_result perfidious_handle_read_to_array(struct perfidious_handle *handle, zval *return_value);
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
+size_t perfidious_handle_read_buffer_size(struct perfidious_handle *restrict handle);
+
+ZEND_HOT
+PERFIDIOUS_PUBLIC
+PERFIDIOUS_ATTR_NONNULL_ALL
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
+zend_result perfidious_handle_read_raw(struct perfidious_handle *restrict handle, size_t size, void *restrict buffer);
 
 #endif /* PHP_PERF_H */

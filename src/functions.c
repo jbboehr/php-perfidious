@@ -29,8 +29,9 @@
 #include <Zend/zend_portability.h>
 #include "main/php.h"
 #include "php_perf.h"
-#include "./functions.h"
-#include "./handle.h"
+#include "functions.h"
+#include "handle.h"
+#include "private.h"
 
 ZEND_COLD
 PERFIDIOUS_ATTR_NONNULL_ALL
@@ -39,6 +40,7 @@ static zend_result perfidious_get_pmu_info(zend_long pmu, zval *rv, bool silent)
 {
     pfm_pmu_info_t pmu_info = {0};
     int ret;
+    zval tmp = {0};
 
     pmu_info.size = sizeof(pmu_info);
 
@@ -55,14 +57,25 @@ static zend_result perfidious_get_pmu_info(zend_long pmu, zval *rv, bool silent)
     ZVAL_UNDEF(rv);
     object_init_ex(rv, perfidious_pmu_info_ce);
 
-    zend_update_property_string(Z_OBJCE_P(rv), Z_OBJ_P(rv), "name", sizeof("name") - 1, pmu_info.name);
-    zend_update_property_string(Z_OBJCE_P(rv), Z_OBJ_P(rv), "desc", sizeof("desc") - 1, pmu_info.desc);
-    zend_update_property_long(Z_OBJCE_P(rv), Z_OBJ_P(rv), "pmu", sizeof("pmu") - 1, (zend_long) pmu_info.pmu);
-    zend_update_property_long(Z_OBJCE_P(rv), Z_OBJ_P(rv), "type", sizeof("type") - 1, (zend_long) pmu_info.type);
-    zend_update_property_long(
-        Z_OBJCE_P(rv), Z_OBJ_P(rv), "nevents", sizeof("nevents") - 1, (zend_long) pmu_info.nevents
-    );
-    zend_update_property_bool(Z_OBJCE_P(rv), Z_OBJ_P(rv), "is_present", sizeof("is_present") - 1, pmu_info.is_present);
+    ZVAL_STRING(&tmp, pmu_info.name);
+    zend_update_property_ex(Z_OBJCE_P(rv), Z_OBJ_P(rv), PERFIDIOUS_INTERNED_NAME, &tmp);
+    zval_ptr_dtor(&tmp);
+
+    ZVAL_STRING(&tmp, pmu_info.desc);
+    zend_update_property_ex(Z_OBJCE_P(rv), Z_OBJ_P(rv), PERFIDIOUS_INTERNED_DESC, &tmp);
+    zval_ptr_dtor(&tmp);
+
+    ZVAL_LONG(&tmp, (zend_long) pmu_info.pmu);
+    zend_update_property_ex(Z_OBJCE_P(rv), Z_OBJ_P(rv), PERFIDIOUS_INTERNED_PMU, &tmp);
+
+    ZVAL_LONG(&tmp, (zend_long) pmu_info.type);
+    zend_update_property_ex(Z_OBJCE_P(rv), Z_OBJ_P(rv), PERFIDIOUS_INTERNED_TYPE, &tmp);
+
+    ZVAL_LONG(&tmp, (zend_long) pmu_info.nevents);
+    zend_update_property_ex(Z_OBJCE_P(rv), Z_OBJ_P(rv), PERFIDIOUS_INTERNED_NEVENTS, &tmp);
+
+    ZVAL_BOOL(&tmp, (zend_bool) pmu_info.is_present);
+    zend_update_property_ex(Z_OBJCE_P(rv), Z_OBJ_P(rv), PERFIDIOUS_INTERNED_IS_PRESENT, &tmp);
 
     return SUCCESS;
 }
@@ -167,24 +180,38 @@ PHP_FUNCTION(perfidious_list_pmu_events)
         }
 
         char buf[512];
+        zval arr = {0};
         zval tmp = {0};
-        array_init(&tmp);
+
+        array_init(&arr);
+
+        object_init_ex(&arr, perfidious_pmu_event_info_ce);
 
         size_t buf_len = snprintf(buf, sizeof(buf), "%s::%s", pinfo.name, info.name);
 
-        object_init_ex(&tmp, perfidious_pmu_event_info_ce);
+        ZVAL_STRINGL(&tmp, buf, buf_len);
+        zend_update_property_ex(Z_OBJCE(arr), Z_OBJ(arr), PERFIDIOUS_INTERNED_NAME, &tmp);
+        zval_ptr_dtor(&tmp);
 
-        zend_update_property_stringl(Z_OBJCE(tmp), Z_OBJ(tmp), "name", sizeof("name") - 1, buf, buf_len);
-        zend_update_property_string(Z_OBJCE(tmp), Z_OBJ(tmp), "desc", sizeof("desc") - 1, info.desc);
-        if (info.equiv) {
-            zend_update_property_string(Z_OBJCE(tmp), Z_OBJ(tmp), "equiv", sizeof("equiv") - 1, info.equiv);
+        ZVAL_STRING(&tmp, info.desc);
+        zend_update_property_ex(Z_OBJCE(arr), Z_OBJ(arr), PERFIDIOUS_INTERNED_DESC, &tmp);
+        zval_ptr_dtor(&tmp);
+
+        if (info.equiv != NULL) {
+            ZVAL_STRING(&tmp, info.equiv);
         } else {
-            zend_update_property_null(Z_OBJCE(tmp), Z_OBJ(tmp), "equiv", sizeof("equiv") - 1);
+            ZVAL_NULL(&tmp);
         }
-        zend_update_property_long(Z_OBJCE(tmp), Z_OBJ(tmp), "pmu", sizeof("pmu") - 1, (zend_long) info.pmu);
-        zend_update_property_bool(Z_OBJCE(tmp), Z_OBJ(tmp), "is_present", sizeof("is_present") - 1, pinfo.is_present);
+        zend_update_property_ex(Z_OBJCE(arr), Z_OBJ(arr), PERFIDIOUS_INTERNED_EQUIV, &tmp);
+        zval_ptr_dtor(&tmp);
 
-        add_next_index_zval(return_value, &tmp);
+        ZVAL_LONG(&tmp, (zend_long) info.pmu);
+        zend_update_property_ex(Z_OBJCE(arr), Z_OBJ(arr), PERFIDIOUS_INTERNED_PMU, &tmp);
+
+        ZVAL_BOOL(&tmp, pinfo.is_present);
+        zend_update_property_ex(Z_OBJCE(arr), Z_OBJ(arr), PERFIDIOUS_INTERNED_IS_PRESENT, &tmp);
+
+        add_next_index_zval(return_value, &arr);
     }
 }
 
@@ -193,25 +220,21 @@ PERFIDIOUS_LOCAL
 PHP_FUNCTION(perfidious_open)
 {
     HashTable *event_names_ht;
-    zend_long pid = 0;
+    zend_long pid_zl = 0;
     zend_long cpu = -1;
     zval *z;
+    pid_t pid;
 
     ZEND_PARSE_PARAMETERS_START(1, 3)
         Z_PARAM_ARRAY_HT(event_names_ht);
         Z_PARAM_OPTIONAL
-        Z_PARAM_LONG(pid)
+        Z_PARAM_LONG(pid_zl)
         Z_PARAM_LONG(cpu)
     ZEND_PARSE_PARAMETERS_END();
 
-#if SIZEOF_ZEND_LONG > SIZEOF_PID_T
-    // Check pid for overflow
-    const zend_long PID_MAX = (((zend_long) 1) << ((SIZEOF_PID_T * 8) - 1)) - 1;
-    if (pid > PID_MAX) {
-        zend_throw_exception_ex(perfidious_overflow_exception_ce, 0, "pid too large: %ld > %ld", pid, PID_MAX);
-        return;
+    if (false == perfidious_zend_long_to_pid_t(pid_zl, &pid)) {
+        RETURN_NULL();
     }
-#endif
 
     // Check capability if pid > 0
     if (pid > 0) {
@@ -247,7 +270,7 @@ PHP_FUNCTION(perfidious_open)
 
     arr[arr_count] = NULL;
 
-    struct perfidious_handle *handle = perfidious_handle_open_ex(arr, arr_count, (pid_t) pid, (int) cpu, false);
+    struct perfidious_handle *handle = perfidious_handle_open_ex(arr, arr_count, pid, (int) cpu, false);
 
     object_init_ex(return_value, perfidious_handle_ce);
 

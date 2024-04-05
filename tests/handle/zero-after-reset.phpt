@@ -13,7 +13,7 @@ for ($i = 0; $i < 100; $i++) {
 }
 $rv->disable();
 $rv->reset();
-var_dump($rv->read());
+var_dump($rv->readArray());
 --EXPECT--
 array(1) {
   ["perf::PERF_COUNT_SW_CPU_CLOCK"]=>

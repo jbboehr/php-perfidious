@@ -29,11 +29,17 @@ $handle->enable();
 
 while (true) {
     $stats = $handle->read();
+    $percent_running = $stats->timeEnabled > 0 ? 100 * $stats->timeRunning / $stats->timeEnabled : 0;
 
     printf("cpu=%d pid=%d\n", $cpu, $pid);
-    foreach ($stats as $k => $v) {
+    printf("time_enabled=%d time_running=%d percent_running=%d%%\n", $stats->timeEnabled, $stats->timeRunning, $percent_running);
+    foreach ($stats->values as $k => $v) {
         printf("%s=%d\n", $k, $v);
     }
 
     usleep($interval);
+}
+
+foreach ($tmp as $k => $v) {
+    echo $k;
 }

@@ -37,9 +37,12 @@
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_portability.h>
 #include "main/php.h"
-#include "php_perf.h"
-#include "./handle.h"
 
+#include "php_perf.h"
+#include "handle.h"
+#include "private.h"
+
+PERFIDIOUS_LOCAL zend_string *PERFIDIOUS_INTERNED_PERF_COUNT_SW_DUMMY;
 PERFIDIOUS_PUBLIC zend_class_entry *perfidious_handle_ce;
 static zend_object_handlers perfidious_handle_obj_handlers;
 
@@ -164,29 +167,46 @@ zend_result perfidious_handle_close(struct perfidious_handle *handle)
 ZEND_HOT
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
-zend_result perfidious_handle_read_to_array(struct perfidious_handle *handle, zval *return_value)
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
+size_t perfidious_handle_read_buffer_size(struct perfidious_handle *restrict handle)
 {
-    zend_result rv = SUCCESS;
-    bool orig_enabled = handle->enabled;
+    return sizeof(struct perfidious_read_format) +
+           sizeof(((struct perfidious_read_format){0}).values[0]) * handle->metrics_count;
+}
 
-    if (orig_enabled) {
-        if (SUCCESS != perfidious_handle_disable(handle)) {
-            return FAILURE;
-        }
-    }
-
-    size_t size = sizeof(struct perfidious_read_format) +
-                  sizeof(((struct perfidious_read_format){0}).values[0]) * handle->metrics_count;
-    struct perfidious_read_format *data = alloca(size);
-
-    ssize_t bytes_read = read(handle->metrics[0].fd, (void *) data, size);
+ZEND_HOT
+PERFIDIOUS_PUBLIC
+PERFIDIOUS_ATTR_NONNULL_ALL
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
+zend_result perfidious_handle_read_raw(struct perfidious_handle *restrict handle, size_t size, void *restrict buffer)
+{
+    ssize_t bytes_read = read(handle->metrics[0].fd, buffer, size);
 
     if (bytes_read == -1) {
-        rv = FAILURE;
+        return FAILURE;
+    } else {
+        return SUCCESS;
+    }
+}
+
+ZEND_HOT
+PERFIDIOUS_PUBLIC
+PERFIDIOUS_ATTR_NONNULL_ALL
+zend_result perfidious_handle_read_to_array_with_times(
+    struct perfidious_handle *handle, zval *return_value, uint64_t *time_enabled, uint64_t *time_running
+)
+{
+    size_t size = perfidious_handle_read_buffer_size(handle);
+    struct perfidious_read_format *data = alloca(size);
+
+    if (SUCCESS != perfidious_handle_read_raw(handle, size, data)) {
         ZVAL_UNDEF(return_value);
         perfidious_error_helper(perfidious_io_exception_ce, errno, "failed to read: %s", strerror(errno));
-        goto done;
+        return FAILURE;
     }
+
+    *time_enabled = data->time_enabled;
+    *time_running = data->time_running;
 
     array_init(return_value);
 
@@ -222,22 +242,66 @@ zend_result perfidious_handle_read_to_array(struct perfidious_handle *handle, zv
                     e->name->val
                 );
                 ZVAL_UNDEF(return_value);
-                rv = FAILURE;
-                goto done;
+                return FAILURE;
             }
 
             add_assoc_long_ex(return_value, e->name->val, e->name->len, (zend_long) data->values[i].value);
         }
     }
 
-done:
-    if (orig_enabled) {
-        if (SUCCESS != perfidious_handle_enable(handle)) {
-            return FAILURE;
-        }
+    return SUCCESS;
+}
+
+ZEND_HOT
+PERFIDIOUS_PUBLIC
+PERFIDIOUS_ATTR_NONNULL_ALL
+zend_result perfidious_handle_read_to_array(struct perfidious_handle *handle, zval *return_value)
+{
+    uint64_t time_enabled;
+    uint64_t time_running;
+    return perfidious_handle_read_to_array_with_times(handle, return_value, &time_enabled, &time_running);
+}
+
+ZEND_HOT
+PERFIDIOUS_PUBLIC
+PERFIDIOUS_ATTR_NONNULL_ALL
+zend_result perfidious_handle_read_to_result(struct perfidious_handle *handle, zval *return_value)
+{
+    uint64_t time_enabled;
+    uint64_t time_running;
+    zval arr = {0};
+    zval tmp = {0};
+
+    zend_result err = perfidious_handle_read_to_array_with_times(handle, &arr, &time_enabled, &time_running);
+    if (err == FAILURE) {
+        return FAILURE;
     }
 
-    return rv;
+    zend_long time_enabled_zl;
+    if (false == perfidious_uint64_t_to_zend_long(time_enabled, &time_enabled_zl)) {
+        zval_ptr_dtor(&arr);
+        return FAILURE;
+    }
+
+    zend_long time_running_zl;
+    if (false == perfidious_uint64_t_to_zend_long(time_running, &time_running_zl)) {
+        zval_ptr_dtor(&arr);
+        return FAILURE;
+    }
+
+    object_init_ex(return_value, perfidious_read_result_ce);
+
+    ZVAL_LONG(&tmp, time_enabled_zl);
+    zend_update_property_ex(Z_OBJCE_P(return_value), Z_OBJ_P(return_value), PERFIDIOUS_INTERNED_TIME_ENABLED, &tmp);
+
+    ZVAL_LONG(&tmp, time_running_zl);
+    zend_update_property_ex(Z_OBJCE_P(return_value), Z_OBJ_P(return_value), PERFIDIOUS_INTERNED_TIME_RUNNING, &tmp);
+
+    zend_update_property_ex(Z_OBJCE_P(return_value), Z_OBJ_P(return_value), PERFIDIOUS_INTERNED_VALUES, &arr);
+
+    zval_ptr_dtor(&arr); // fear
+
+    return SUCCESS;
 }
 
 PERFIDIOUS_PUBLIC
@@ -258,6 +322,8 @@ perfidious_handle_open_ex(zend_string **event_names, size_t event_names_length, 
     uint64_t id;
     int group_fd;
     int err;
+    uint64_t format =
+        PERF_FORMAT_GROUP | PERF_FORMAT_ID | PERF_FORMAT_TOTAL_TIME_RUNNING | PERF_FORMAT_TOTAL_TIME_ENABLED;
 
     struct perfidious_handle *handle = pecalloc(
         sizeof(struct perfidious_handle) + sizeof(struct perfidious_metric) * (event_names_length + 1), 1, persist
@@ -275,7 +341,7 @@ perfidious_handle_open_ex(zend_string **event_names, size_t event_names_length, 
             .watermark = 0,
             .exclude_kernel = 1,
             .exclude_hv = 1,
-            .read_format = PERF_FORMAT_GROUP | PERF_FORMAT_ID,
+            .read_format = format,
         };
         fd = (int) perf_event_open(&attr, pid, cpu, -1, 0);
         if (UNEXPECTED(fd == -1)) {
@@ -302,7 +368,7 @@ perfidious_handle_open_ex(zend_string **event_names, size_t event_names_length, 
         handle->metrics[handle->metrics_count++] = (struct perfidious_metric){
             .fd = fd,
             .id = id,
-            .name = zend_string_init(ZEND_STRL("PERF_COUNT_SW_DUMMY"), persist),
+            .name = PERFIDIOUS_INTERNED_PERF_COUNT_SW_DUMMY,
         };
         group_fd = fd;
     } while (false);
@@ -333,7 +399,7 @@ perfidious_handle_open_ex(zend_string **event_names, size_t event_names_length, 
         attr.watermark = 0;
         attr.exclude_kernel = 1;
         attr.exclude_hv = 1;
-        attr.read_format = PERF_FORMAT_GROUP | PERF_FORMAT_ID;
+        attr.read_format = format;
 
         fd = (int) perf_event_open(&attr, pid, cpu, group_fd, 0);
 
@@ -421,7 +487,41 @@ static PHP_METHOD(Handle, read)
 
     ZEND_ASSERT(obj->handle->marker == PHP_PERF_HANDLE_MARKER);
 
+    bool orig_enabled = obj->handle->enabled;
+
+    if (orig_enabled) {
+        perfidious_handle_disable(obj->handle);
+    }
+
+    perfidious_handle_read_to_result(obj->handle, return_value);
+
+    if (orig_enabled) {
+        perfidious_handle_enable(obj->handle);
+    }
+}
+
+ZEND_HOT
+static PHP_METHOD(Handle, readArray)
+{
+    zval *self = getThis();
+
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(self));
+
+    ZEND_ASSERT(obj->handle->marker == PHP_PERF_HANDLE_MARKER);
+
+    bool orig_enabled = obj->handle->enabled;
+
+    if (orig_enabled) {
+        perfidious_handle_disable(obj->handle);
+    }
+
     perfidious_handle_read_to_array(obj->handle, return_value);
+
+    if (orig_enabled) {
+        perfidious_handle_enable(obj->handle);
+    }
 }
 
 static PHP_METHOD(Handle, reset)
@@ -441,10 +541,11 @@ static PHP_METHOD(Handle, reset)
 
 // clang-format off
 static zend_function_entry perfidious_handle_methods[] = {
-    PHP_ME(Handle, disable, perfidious_handle_disable_arginfo, ZEND_ACC_PUBLIC)
-    PHP_ME(Handle, enable, perfidious_handle_enable_arginfo, ZEND_ACC_PUBLIC)
-    PHP_ME(Handle, read, perfidious_handle_read_arginfo, ZEND_ACC_PUBLIC)
-    PHP_ME(Handle, reset, perfidious_handle_reset_arginfo, ZEND_ACC_PUBLIC)
+    PHP_ME(Handle, disable, perfidious_handle_disable_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
+    PHP_ME(Handle, enable, perfidious_handle_enable_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
+    PHP_ME(Handle, read, perfidious_handle_read_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
+    PHP_ME(Handle, readArray, perfidious_handle_read_array_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
+    PHP_ME(Handle, reset, perfidious_handle_reset_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
     PHP_FE_END
 };
 // clang-format on
@@ -471,9 +572,9 @@ static zend_always_inline zend_class_entry *register_class_Handle(void)
 }
 
 PERFIDIOUS_LOCAL
-zend_result perfidious_handle_minit(void)
+void perfidious_handle_minit(void)
 {
-    perfidious_handle_ce = register_class_Handle();
+    PERFIDIOUS_INTERNED_PERF_COUNT_SW_DUMMY = zend_string_init_interned(ZEND_STRL("perf::PERF_COUNT_SW_DUMMY"), 1);
 
-    return SUCCESS;
+    perfidious_handle_ce = register_class_Handle();
 }

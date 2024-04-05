@@ -27,8 +27,8 @@ gc_disable();
 
 for ($i = 0; $i < $count; $i++) {
     $handle->reset();
-    $left = $handle->read();
-    $right = $handle->read();
+    $left = $handle->readArray();
+    $right = $handle->readArray();
     foreach ($left as $k => $lv) {
         $rv = $right[$k];
         $delta = abs($lv - $rv);

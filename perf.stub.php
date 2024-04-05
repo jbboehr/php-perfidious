@@ -71,23 +71,37 @@ final class Handle
     /**
      * @throws IOException
      */
-    public function enable(): self {}
+    final public function enable(): self {}
 
     /**
      * @throws IOException
      */
-    public function disable(): self {}
+    final public function disable(): self {}
 
     /**
      * @return array<string, int>
      * @throws OverflowException|IOException
      */
-    public function read(): array {}
+    final public function read(): ReadResult {}
+
+    /**
+     * @return array<string, int>
+     * @throws OverflowException|IOException
+     */
+    final public function readArray(): array {}
 
     /**
      * @throws IOException
      */
-    public function reset(): self {}
+    final public function reset(): self {}
+}
+
+final class ReadResult
+{
+    public readonly int $timeEnabled;
+    public readonly int $timeRunning;
+    /** @var array<string, int> **/
+    public readonly array $values;
 }
 
 /**

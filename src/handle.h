@@ -25,6 +25,8 @@
 #include <Zend/zend_portability.h>
 #include "php_perf.h"
 
+static const uint64_t PHP_PERF_HANDLE_MARKER = 0x327b23c66b8b4567;
+
 struct perfidious_metric
 {
     int fd;
@@ -44,6 +46,8 @@ struct perfidious_handle
 struct perfidious_read_format
 {
     uint64_t nr;
+    uint64_t time_enabled;
+    uint64_t time_running;
     struct
     {
         uint64_t value;
@@ -73,37 +77,24 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_handle_enable_arginfo, 0, 0, PerfExt\\Handle, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perfidious_handle_read_arginfo, IS_ARRAY, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_handle_read_arginfo, 0, 0, PerfExt\\ReadResult, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perfidious_handle_read_array_arginfo, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_handle_reset_arginfo, 0, 0, PerfExt\\Handle, 0)
 ZEND_END_ARG_INFO()
 
-static const uint64_t PHP_PERF_HANDLE_MARKER = 0x327b23c66b8b4567;
+PERFIDIOUS_PUBLIC
+PERFIDIOUS_ATTR_NONNULL_ALL
+zend_result perfidious_handle_read_to_array(struct perfidious_handle *handle, zval *return_value);
 
-ZEND_ATTRIBUTE_UNUSED
-ZEND_ATTRIBUTE_FORMAT(printf, 3, 4)
-static void perfidious_error_helper(zend_class_entry *exception_ce, zend_long code, const char *format, ...)
-{
-    char buffer[512];
-    int bytes = 0;
-    va_list args;
-
-    va_start(args, format);
-    bytes = vsnprintf(buffer, sizeof(buffer) - 1, format, args);
-    va_end(args);
-
-    switch (PERF_G(error_mode)) {
-        case PERFIDIOUS_ERROR_MODE_SILENT:
-            break;
-        case PERFIDIOUS_ERROR_MODE_WARNING:
-            php_error_docref(NULL, E_WARNING, "%.*s", bytes, buffer);
-            break;
-        default:
-        case PERFIDIOUS_ERROR_MODE_THROW:
-            zend_throw_exception_ex(exception_ce, code, "%.*s", bytes, buffer);
-            break;
-    }
-}
+ZEND_HOT
+PERFIDIOUS_PUBLIC
+PERFIDIOUS_ATTR_NONNULL_ALL
+zend_result perfidious_handle_read_to_array_with_times(
+    struct perfidious_handle *handle, zval *return_value, uint64_t *time_enabled, uint64_t *time_running
+);
 
 #endif /* PHP_PERF_HANDLE_H */
