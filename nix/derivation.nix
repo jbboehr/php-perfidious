@@ -5,11 +5,13 @@
   libcap,
   libpfm,
   pkg-config,
+  valgrind,
   autoreconfHook,
   buildPecl,
   src,
   checkSupport ? false,
-  WerrorSupport ? false,
+  WerrorSupport ? checkSupport,
+  valgrindSupport ? true,
 }:
 buildPecl rec {
   pname = "perfidious";
@@ -19,7 +21,9 @@ buildPecl rec {
   inherit src;
 
   buildInputs = [libcap libpfm];
-  nativeBuildInputs = [php.unwrapped.dev pkg-config];
+  nativeBuildInputs =
+    [php.unwrapped.dev pkg-config]
+    ++ lib.optional valgrindSupport valgrind;
 
   passthru = {
     inherit php libpfm stdenv;
@@ -34,9 +38,13 @@ buildPecl rec {
   outputs = ["out" "dev"];
 
   doCheck = checkSupport;
+  checkPhase =
+    ''
+      NO_INTERACTON=yes REPORT_EXIT_STATUS=yes make test
+    ''
+    + (lib.optionalString valgrindSupport ''
+      USE_ZEND_ALLOC=0 NO_INTERACTON=yes REPORT_EXIT_STATUS=yes make test TEST_PHP_ARGS=-m
+    '');
 
   #TEST_PHP_DETAILED = 1;
-  NO_INTERACTION = 1;
-  REPORT_EXIT_STATUS = 1;
-  TEST_PHP_ARGS = "-c ${php.phpIni}";
 }
