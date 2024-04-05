@@ -467,6 +467,21 @@ static PHP_METHOD(PerfidousHandle, enable)
     RETURN_ZVAL(ZEND_THIS, 1, 0);
 }
 
+ZEND_COLD
+static PHP_METHOD(PerfidousHandle, rawStream)
+{
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(ZEND_THIS));
+
+    if (UNEXPECTED(FAILURE == perfidious_handle_marker_assert(obj->handle))) {
+        RETURN_NULL();
+    }
+
+    php_stream *stream = php_stream_fopen_from_fd(obj->handle->metrics[0].fd, "r", NULL);
+    php_stream_to_zval(stream, return_value);
+}
+
 ZEND_HOT
 static PHP_METHOD(PerfidousHandle, read)
 {
@@ -537,6 +552,7 @@ static PHP_METHOD(PerfidousHandle, reset)
 static zend_function_entry perfidious_handle_methods[] = {
     PHP_ME(PerfidousHandle, disable, perfidious_handle_disable_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
     PHP_ME(PerfidousHandle, enable, perfidious_handle_enable_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
+    PHP_ME(PerfidousHandle, rawStream, perfidious_handle_raw_stream_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
     PHP_ME(PerfidousHandle, read, perfidious_handle_read_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
     PHP_ME(PerfidousHandle, readArray, perfidious_handle_read_array_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
     PHP_ME(PerfidousHandle, reset, perfidious_handle_reset_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)

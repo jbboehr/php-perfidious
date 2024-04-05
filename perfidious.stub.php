@@ -79,6 +79,13 @@ final class Handle
     final public function disable(): self {}
 
     /**
+     * Get a raw byte stream from the handle's file descriptor
+     * @note closing this resource will cause subsequent calls to read to fail
+     * @return resource
+     */
+    final public function rawStream() {}
+
+    /**
      * @return array<string, int>
      * @throws OverflowException|IOException
      */
