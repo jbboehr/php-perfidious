@@ -43,16 +43,21 @@ struct perfidious_handle
     struct perfidious_metric metrics[];
 };
 
+struct perfidious_read_format_value
+{
+    uint64_t value;
+    uint64_t id;
+#ifdef HAVE_PERF_FORMAT_LOST
+    uint64_t lost;
+#endif
+};
+
 struct perfidious_read_format
 {
     uint64_t nr;
     uint64_t time_enabled;
     uint64_t time_running;
-    struct
-    {
-        uint64_t value;
-        uint64_t id;
-    } values[];
+    struct perfidious_read_format_value values[];
 };
 
 struct perfidious_handle_obj
@@ -92,9 +97,13 @@ zend_result perfidious_handle_read_to_array(struct perfidious_handle *handle, zv
 
 ZEND_HOT
 PERFIDIOUS_PUBLIC
-PERFIDIOUS_ATTR_NONNULL_ALL
-zend_result perfidious_handle_read_to_array_with_times(
-    struct perfidious_handle *handle, zval *return_value, uint64_t *time_enabled, uint64_t *time_running
+PERFIDIOUS_ATTR_NONNULL(1, 2, 4, 5)
+zend_result perfidious_handle_read_to_array_ex(
+    struct perfidious_handle *restrict handle,
+    zval *restrict values,
+    zval *restrict lost_values,
+    uint64_t *restrict time_enabled,
+    uint64_t *restrict time_running
 );
 
 #endif /* PHP_PERF_HANDLE_H */

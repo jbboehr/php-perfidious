@@ -28,6 +28,7 @@
 PERFIDIOUS_LOCAL zend_string *PERFIDIOUS_INTERNED_TIME_ENABLED;
 PERFIDIOUS_LOCAL zend_string *PERFIDIOUS_INTERNED_TIME_RUNNING;
 PERFIDIOUS_LOCAL zend_string *PERFIDIOUS_INTERNED_VALUES;
+PERFIDIOUS_LOCAL zend_string *PERFIDIOUS_INTERNED_LOST_VALUES;
 PERFIDIOUS_PUBLIC zend_class_entry *perfidious_read_result_ce;
 
 PERFIDIOUS_ATTR_RETURNS_NONNULL
@@ -79,6 +80,19 @@ static zend_always_inline zend_class_entry *register_class_PerfidiousReadResult(
         );
     } while (false);
 
+    do {
+        zval default_value = {0};
+        ZVAL_UNDEF(&default_value);
+        zend_declare_typed_property(
+            class_entry,
+            PERFIDIOUS_INTERNED_LOST_VALUES,
+            &default_value,
+            ZEND_ACC_PUBLIC | ZEND_ACC_READONLY,
+            NULL,
+            (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY /*_OF_LONG*/)
+        );
+    } while (false);
+
     class_entry->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NO_DYNAMIC_PROPERTIES;
 
     return class_entry;
@@ -90,6 +104,7 @@ void perfidious_read_result_minit(void)
     PERFIDIOUS_INTERNED_TIME_ENABLED = zend_string_init_interned(ZEND_STRL("timeEnabled"), 1);
     PERFIDIOUS_INTERNED_TIME_RUNNING = zend_string_init_interned(ZEND_STRL("timeRunning"), 1);
     PERFIDIOUS_INTERNED_VALUES = zend_string_init_interned(ZEND_STRL("values"), 1);
+    PERFIDIOUS_INTERNED_LOST_VALUES = zend_string_init_interned(ZEND_STRL("lostValues"), 1);
 
     perfidious_read_result_ce = register_class_PerfidiousReadResult();
 }

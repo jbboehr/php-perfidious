@@ -41,8 +41,11 @@ if test "$PHP_PERF" != "no"; then
         -Wno-cast-align -Wno-error=cast-align \
     ])
 
+    AC_CHECK_HEADER([linux/perf_event.h], [], AC_MSG_ERROR([Could not find <linux/perf_event.h>]))
+
     AC_CHECK_SIZEOF(pid_t)
     AC_CHECK_SIZEOF(uint64_t)
+    AC_CHECK_DECL(PERF_FORMAT_LOST, [AC_DEFINE([HAVE_PERF_FORMAT_LOST], [1], [Whether or not we have PERF_FORMAT_LOST])], [], [#include <linux/perf_event.h>])
 
     CFLAGS="$WARN_CFLAGS $CFLAGS"
     LDFLAGS="$WARN_LDFLAGS $LDFLAGS"

@@ -191,16 +191,20 @@ zend_result perfidious_handle_read_raw(struct perfidious_handle *restrict handle
 
 ZEND_HOT
 PERFIDIOUS_PUBLIC
-PERFIDIOUS_ATTR_NONNULL_ALL
-zend_result perfidious_handle_read_to_array_with_times(
-    struct perfidious_handle *handle, zval *return_value, uint64_t *time_enabled, uint64_t *time_running
+PERFIDIOUS_ATTR_NONNULL(1, 2, 4, 5)
+zend_result perfidious_handle_read_to_array_ex(
+    struct perfidious_handle *handle,
+    zval *restrict values,
+    zval *restrict lost_values,
+    uint64_t *restrict time_enabled,
+    uint64_t *restrict time_running
 )
 {
     size_t size = perfidious_handle_read_buffer_size(handle);
     struct perfidious_read_format *data = alloca(size);
+    zval tmp = {0};
 
     if (SUCCESS != perfidious_handle_read_raw(handle, size, data)) {
-        ZVAL_UNDEF(return_value);
         perfidious_error_helper(perfidious_io_exception_ce, errno, "failed to read: %s", strerror(errno));
         return FAILURE;
     }
@@ -208,23 +212,27 @@ zend_result perfidious_handle_read_to_array_with_times(
     *time_enabled = data->time_enabled;
     *time_running = data->time_running;
 
-    array_init(return_value);
+    array_init(values);
+    if (lost_values) {
+        array_init(lost_values);
+    }
 
     for (size_t i = 0; i < data->nr; i++) {
-        struct perfidious_metric *e = &handle->metrics[i];
+        struct perfidious_metric *metric = &handle->metrics[i];
+        struct perfidious_read_format_value *value = &data->values[i];
 
-        if (UNEXPECTED(e->id != data->values[i].id)) {
-            e = NULL;
+        if (UNEXPECTED(metric->id != value->id)) {
+            metric = NULL;
 
             // skip the first entry - it should be the dummy
             for (size_t j = 1; j < handle->metrics_count; j++) {
-                if (handle->metrics[j].id == data->values[i].id) {
-                    e = &handle->metrics[j];
+                if (handle->metrics[j].id == value->id) {
+                    metric = &handle->metrics[j];
                     break;
                 }
             }
 
-            if (UNEXPECTED(e == NULL)) {
+            if (UNEXPECTED(metric == NULL)) {
                 continue;
             }
         } else if (i == 0) {
@@ -232,20 +240,33 @@ zend_result perfidious_handle_read_to_array_with_times(
             continue;
         }
 
-        if (EXPECTED(e->name != NULL)) {
-            if (UNEXPECTED(data->values[i].value > (uint64_t) ZEND_LONG_MAX)) {
+        if (EXPECTED(metric->name != NULL)) {
+            if (UNEXPECTED(value->value > (uint64_t) ZEND_LONG_MAX)) {
                 perfidious_error_helper(
                     perfidious_overflow_exception_ce,
                     errno,
                     "counter truncation for %.*s",
-                    (int) e->name->len,
-                    e->name->val
+                    (int) ZSTR_LEN(metric->name),
+                    ZSTR_VAL(metric->name)
                 );
-                ZVAL_UNDEF(return_value);
+                zval_ptr_dtor(values);
+                ZVAL_UNDEF(values);
+                if (lost_values) {
+                    zval_ptr_dtor(lost_values);
+                    ZVAL_UNDEF(lost_values);
+                }
                 return FAILURE;
             }
 
-            add_assoc_long_ex(return_value, e->name->val, e->name->len, (zend_long) data->values[i].value);
+            ZVAL_LONG(&tmp, value->value);
+            zend_symtable_update(Z_ARRVAL_P(values), metric->name, &tmp);
+
+#ifdef HAVE_PERF_FORMAT_LOST
+            if (lost_values) {
+                ZVAL_LONG(&tmp, value->lost);
+                zend_symtable_update(Z_ARRVAL_P(lost_values), metric->name, &tmp);
+            }
+#endif
         }
     }
 
@@ -259,7 +280,7 @@ zend_result perfidious_handle_read_to_array(struct perfidious_handle *handle, zv
 {
     uint64_t time_enabled;
     uint64_t time_running;
-    return perfidious_handle_read_to_array_with_times(handle, return_value, &time_enabled, &time_running);
+    return perfidious_handle_read_to_array_ex(handle, return_value, NULL, &time_enabled, &time_running);
 }
 
 ZEND_HOT
@@ -270,9 +291,10 @@ zend_result perfidious_handle_read_to_result(struct perfidious_handle *handle, z
     uint64_t time_enabled;
     uint64_t time_running;
     zval arr = {0};
+    zval lost = {0};
     zval tmp = {0};
 
-    zend_result err = perfidious_handle_read_to_array_with_times(handle, &arr, &time_enabled, &time_running);
+    zend_result err = perfidious_handle_read_to_array_ex(handle, &arr, &lost, &time_enabled, &time_running);
     if (err == FAILURE) {
         return FAILURE;
     }
@@ -280,12 +302,14 @@ zend_result perfidious_handle_read_to_result(struct perfidious_handle *handle, z
     zend_long time_enabled_zl;
     if (false == perfidious_uint64_t_to_zend_long(time_enabled, &time_enabled_zl)) {
         zval_ptr_dtor(&arr);
+        zval_ptr_dtor(&lost);
         return FAILURE;
     }
 
     zend_long time_running_zl;
     if (false == perfidious_uint64_t_to_zend_long(time_running, &time_running_zl)) {
         zval_ptr_dtor(&arr);
+        zval_ptr_dtor(&lost);
         return FAILURE;
     }
 
@@ -299,7 +323,10 @@ zend_result perfidious_handle_read_to_result(struct perfidious_handle *handle, z
 
     zend_update_property_ex(Z_OBJCE_P(return_value), Z_OBJ_P(return_value), PERFIDIOUS_INTERNED_VALUES, &arr);
 
-    zval_ptr_dtor(&arr); // fear
+    zend_update_property_ex(Z_OBJCE_P(return_value), Z_OBJ_P(return_value), PERFIDIOUS_INTERNED_LOST_VALUES, &lost);
+
+    zval_ptr_dtor(&arr);  // fear
+    zval_ptr_dtor(&lost); // fear
 
     return SUCCESS;
 }
@@ -324,6 +351,9 @@ perfidious_handle_open_ex(zend_string **event_names, size_t event_names_length, 
     int err;
     uint64_t format =
         PERF_FORMAT_GROUP | PERF_FORMAT_ID | PERF_FORMAT_TOTAL_TIME_RUNNING | PERF_FORMAT_TOTAL_TIME_ENABLED;
+#ifdef HAVE_PERF_FORMAT_LOST
+    format |= PERF_FORMAT_LOST;
+#endif
 
     struct perfidious_handle *handle = pecalloc(
         sizeof(struct perfidious_handle) + sizeof(struct perfidious_metric) * (event_names_length + 1), 1, persist

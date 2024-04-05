@@ -14,7 +14,7 @@ for ($i = 0; $i < 100; $i++) {
 $value = $rv->read();
 var_dump($value);
 --EXPECTF--
-object(PerfExt\ReadResult)#%d (3) {
+object(PerfExt\ReadResult)#%d (4) {
   ["timeEnabled"]=>
   int(%d)
   ["timeRunning"]=>
@@ -24,4 +24,6 @@ object(PerfExt\ReadResult)#%d (3) {
     ["perf::PERF_COUNT_SW_CPU_CLOCK"]=>
     int(%d)
   }
+  ["lostValues"]=>
+  %A
 }
