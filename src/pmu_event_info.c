@@ -39,9 +39,7 @@ perfidious_pmu_event_info_ctor(pfm_pmu_info_t *pmu_info, pfm_event_info_t *info,
     char buf[512];
     zval tmp = {0};
 
-    if (UNEXPECTED(FAILURE == object_init_ex(return_value, perfidious_pmu_event_info_ce))) {
-        return FAILURE;
-    }
+    PERFIDIOUS_ASSERT_RETURN(SUCCESS == object_init_ex(return_value, perfidious_pmu_event_info_ce));
 
     size_t buf_len = snprintf(buf, sizeof(buf), "%s::%s", pmu_info->name, info->name);
 

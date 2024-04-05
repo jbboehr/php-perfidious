@@ -46,6 +46,18 @@ PERFIDIOUS_LOCAL extern zend_string *PERFIDIOUS_INTERNED_VALUES;
 
 // interned strings for handle
 
+#define PERFIDIOUS_ASSERT_RETURN(expr)                                                                                 \
+    if (UNEXPECTED(!(expr))) {                                                                                         \
+        return FAILURE;                                                                                                \
+    }
+
+#define PERFIDIOUS_ASSERT_RETURN_EX(expr, block)                                                                       \
+    if (UNEXPECTED(!(expr))) {                                                                                         \
+        do                                                                                                             \
+            block while (false);                                                                                       \
+        return FAILURE;                                                                                                \
+    }
+
 static inline bool perfidious_uint64_t_to_zend_long(uint64_t from, zend_long *restrict to)
 {
 #if SIZEOF_UINT64_T >= SIZEOF_ZEND_LONG

@@ -91,9 +91,7 @@ zend_result perfidious_handle_reset(struct perfidious_handle *restrict handle)
 {
     int err;
 
-    if (UNEXPECTED(handle->metrics_count <= 0)) {
-        return FAILURE;
-    }
+    PERFIDIOUS_ASSERT_RETURN(handle->metrics_count > 0);
 
     err = ioctl(handle->metrics[0].fd, PERF_EVENT_IOC_RESET, PERF_IOC_FLAG_GROUP);
     HANDLE_IOCTL_ERROR(err);
@@ -108,9 +106,7 @@ zend_result perfidious_handle_enable(struct perfidious_handle *restrict handle)
 {
     int err;
 
-    if (UNEXPECTED(handle->metrics_count <= 0)) {
-        return FAILURE;
-    }
+    PERFIDIOUS_ASSERT_RETURN(handle->metrics_count > 0);
 
     err = ioctl(handle->metrics[0].fd, PERF_EVENT_IOC_ENABLE, PERF_IOC_FLAG_GROUP);
     HANDLE_IOCTL_ERROR(err);
@@ -127,9 +123,7 @@ zend_result perfidious_handle_disable(struct perfidious_handle *restrict handle)
 {
     int err;
 
-    if (UNEXPECTED(handle->metrics_count <= 0)) {
-        return FAILURE;
-    }
+    PERFIDIOUS_ASSERT_RETURN(handle->metrics_count > 0);
 
     err = ioctl(handle->metrics[0].fd, PERF_EVENT_IOC_DISABLE, PERF_IOC_FLAG_GROUP);
     HANDLE_IOCTL_ERROR(err);
@@ -179,11 +173,9 @@ zend_result perfidious_handle_read_raw(struct perfidious_handle *restrict handle
 {
     ssize_t bytes_read = read(handle->metrics[0].fd, buffer, size);
 
-    if (bytes_read == -1) {
-        return FAILURE;
-    } else {
-        return SUCCESS;
-    }
+    PERFIDIOUS_ASSERT_RETURN(bytes_read == (ssize_t) size);
+
+    return SUCCESS;
 }
 
 ZEND_HOT
@@ -237,11 +229,10 @@ zend_result perfidious_handle_read_to_array_with_times(
             zend_long value_zl = 0;
             zval tmp = {0};
 
-            if (UNEXPECTED(false == perfidious_uint64_t_to_zend_long(value->value, &value_zl))) {
+            PERFIDIOUS_ASSERT_RETURN_EX(perfidious_uint64_t_to_zend_long(value->value, &value_zl), {
                 zval_ptr_dtor(return_value);
                 ZVAL_UNDEF(return_value);
-                return FAILURE;
-            }
+            });
 
             ZVAL_LONG(&tmp, value_zl);
             zend_symtable_update(Z_ARRVAL_P(return_value), metric->name, &tmp);
@@ -273,21 +264,17 @@ zend_result perfidious_handle_read_to_result(struct perfidious_handle *handle, z
     zval tmp = {0};
 
     zend_result err = perfidious_handle_read_to_array_with_times(handle, &arr, &time_enabled, &time_running);
-    if (err == FAILURE) {
-        return FAILURE;
-    }
+    PERFIDIOUS_ASSERT_RETURN(err == SUCCESS);
 
     zend_long time_enabled_zl = 0;
-    if (false == perfidious_uint64_t_to_zend_long(time_enabled, &time_enabled_zl)) {
+    PERFIDIOUS_ASSERT_RETURN_EX(perfidious_uint64_t_to_zend_long(time_enabled, &time_enabled_zl), {
         zval_ptr_dtor(&arr);
-        return FAILURE;
-    }
+    });
 
     zend_long time_running_zl = 0;
-    if (false == perfidious_uint64_t_to_zend_long(time_running, &time_running_zl)) {
+    PERFIDIOUS_ASSERT_RETURN_EX(perfidious_uint64_t_to_zend_long(time_running, &time_running_zl), {
         zval_ptr_dtor(&arr);
-        return FAILURE;
-    }
+    });
 
     object_init_ex(return_value, perfidious_read_result_ce);
 

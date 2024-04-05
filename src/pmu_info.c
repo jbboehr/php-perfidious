@@ -24,7 +24,9 @@
 #include <perfmon/pfmlib.h>
 #include <Zend/zend_API.h>
 #include <Zend/zend_exceptions.h>
+
 #include "php_perfidious.h"
+#include "private.h"
 
 PERFIDIOUS_LOCAL zend_string *PERFIDIOUS_INTERNED_NAME;
 PERFIDIOUS_LOCAL zend_string *PERFIDIOUS_INTERNED_DESC;
@@ -41,9 +43,7 @@ static inline zend_result perfidious_pmu_info_ctor(pfm_pmu_info_t *pmu_info, zva
 {
     zval tmp = {0};
 
-    if (UNEXPECTED(FAILURE == object_init_ex(return_value, perfidious_pmu_info_ce))) {
-        return FAILURE;
-    }
+    PERFIDIOUS_ASSERT_RETURN(SUCCESS == object_init_ex(return_value, perfidious_pmu_info_ce));
 
     ZVAL_STRING(&tmp, pmu_info->name);
     zend_update_property_ex(Z_OBJCE_P(return_value), Z_OBJ_P(return_value), PERFIDIOUS_INTERNED_NAME, &tmp);

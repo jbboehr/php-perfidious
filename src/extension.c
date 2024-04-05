@@ -40,6 +40,7 @@
 #include "php_perfidious.h"
 #include "functions.h"
 #include "handle.h"
+#include "private.h"
 
 #define DEFAULT_METRICS "perf::PERF_COUNT_HW_CPU_CYCLES:u,perf::PERF_COUNT_HW_INSTRUCTIONS:u"
 
