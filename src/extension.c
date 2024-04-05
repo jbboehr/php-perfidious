@@ -41,7 +41,7 @@
 #include "functions.h"
 #include "handle.h"
 
-#define DEFAULT_METRICS "perf::PERF_COUNT_HW_CPU_CYCLES,perf::PERF_COUNT_HW_INSTRUCTIONS"
+#define DEFAULT_METRICS "perf::PERF_COUNT_HW_CPU_CYCLES:u,perf::PERF_COUNT_HW_INSTRUCTIONS:u"
 
 ZEND_DECLARE_MODULE_GLOBALS(perfidious);
 

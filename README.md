@@ -85,7 +85,7 @@ Or you can configure a global or per-request handle:
 // with the following INI settings:
 // perfidious.request.enable=1
 // perfidious.request.metrics=perf::PERF_COUNT_SW_CPU_CLOCK:u,perf::PERF_COUNT_SW_PAGE_FAULTS:u,perf::PERF_COUNT_SW_CONTEXT_SWITCHES:u
-var_dump(Perfidious\request_handle()?->read());
+var_dump(Perfidious\request_handle()?->readArray());
 ```
 
 ```text
@@ -116,9 +116,9 @@ Some notable generic perf events are:
 | Name | Default | Changeable | Description  |
 | --------------------- | -------- | ----------- | ------------ |
 | `perfidious.global.enable` | `0` | `PHP_INI_SYSTEM` | Set to `1` to enable the global handle. This handle is kept open between requests. You can read from this handle via e.g. `var_dump(Perfidious\global_handle()?->read());`. |
-| `perfidious.global.metrics` | `perf::PERF_COUNT_HW_CPU_CYCLES`, `perf::PERF_COUNT_HW_INSTRUCTIONS`  | `PHP_INI_SYSTEM` | The metrics to monitor with the global handle. |
+| `perfidious.global.metrics` | `perf::PERF_COUNT_HW_CPU_CYCLES:u`, `perf::PERF_COUNT_HW_INSTRUCTIONS:u`  | `PHP_INI_SYSTEM` | The metrics to monitor with the global handle. |
 | `perfidious.request.enable` | `0` | `PHP_INI_SYSTEM` | Set to `1` to enable the per-request handle. This handle is kept open between requests, but reset before and after. You can read from this handle via e.g. `var_dump(Perfidious\request_handle()?->read());` |
-| `perfidious.request.metrics` | `perf::PERF_COUNT_HW_CPU_CYCLES`, `perf::PERF_COUNT_HW_INSTRUCTIONS`  | `PHP_INI_SYSTEM` | The metrics to monitor with the request handle. |
+| `perfidious.request.metrics` | `perf::PERF_COUNT_HW_CPU_CYCLES:u`, `perf::PERF_COUNT_HW_INSTRUCTIONS:u`  | `PHP_INI_SYSTEM` | The metrics to monitor with the request handle. |
 
 ## Troubleshooting
 
