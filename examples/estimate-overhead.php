@@ -12,8 +12,8 @@ $pos_args = array_slice($argv, $rest_index);
 
 if (count($pos_args) <= 0) {
     $pos_args = [
-        'perf::PERF_COUNT_HW_CPU_CYCLES',
-        'perf::PERF_COUNT_HW_INSTRUCTIONS',
+        'perf::PERF_COUNT_HW_CPU_CYCLES:u',
+        'perf::PERF_COUNT_HW_INSTRUCTIONS:u',
     ];
 }
 

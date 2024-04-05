@@ -55,7 +55,7 @@ See also the [`examples`](./examples) directory and the [`stub`](./perfidious.st
 For example, you can programmatically open and access the counters.
 
 ```php
-$handle = Perfidious\open(["perf::PERF_COUNT_SW_CPU_CLOCK"]);
+$handle = Perfidious\open(["perf::PERF_COUNT_SW_CPU_CLOCK:u"]);
 $handle->enable();
 
 for ($i = 0; $i < 3; $i++) {
@@ -66,15 +66,15 @@ for ($i = 0; $i < 3; $i++) {
 
 ```text
 array(1) {
-  ["perf::PERF_COUNT_SW_CPU_CLOCK"]=>
+  ["perf::PERF_COUNT_SW_CPU_CLOCK:u"]=>
   int(3190)
 }
 array(1) {
-  ["perf::PERF_COUNT_SW_CPU_CLOCK"]=>
+  ["perf::PERF_COUNT_SW_CPU_CLOCK:u"]=>
   int(51270)
 }
 array(1) {
-  ["perf::PERF_COUNT_SW_CPU_CLOCK"]=>
+  ["perf::PERF_COUNT_SW_CPU_CLOCK:u"]=>
   int(86560)
 }
 ```
@@ -84,17 +84,17 @@ Or you can configure a global or per-request handle:
 ```php
 // with the following INI settings:
 // perfidious.request.enable=1
-// perfidious.request.metrics=perf::PERF_COUNT_SW_CPU_CLOCK,perf::PERF_COUNT_SW_PAGE_FAULTS,perf::PERF_COUNT_SW_CONTEXT_SWITCHES
+// perfidious.request.metrics=perf::PERF_COUNT_SW_CPU_CLOCK:u,perf::PERF_COUNT_SW_PAGE_FAULTS:u,perf::PERF_COUNT_SW_CONTEXT_SWITCHES:u
 var_dump(Perfidious\request_handle()?->read());
 ```
 
 ```text
 array(3) {
-  ["perf::PERF_COUNT_SW_CPU_CLOCK"]=>
+  ["perf::PERF_COUNT_SW_CPU_CLOCK:u"]=>
   int(120880)
-  ["perf::PERF_COUNT_SW_PAGE_FAULTS"]=>
+  ["perf::PERF_COUNT_SW_PAGE_FAULTS:u"]=>
   int(64)
-  ["perf::PERF_COUNT_SW_CONTEXT_SWITCHES"]=>
+  ["perf::PERF_COUNT_SW_CONTEXT_SWITCHES:u"]=>
   int(0)
 }
 ```
@@ -106,10 +106,10 @@ execute [examples/all-events.php](examples/all-events.php) with the extension lo
 or see the [libpfm4 documentation](https://perfmon2.sourceforge.net/docs_v4.html).
 Some notable generic perf events are:
 
-* `perf::PERF_COUNT_HW_CPU_CYCLES`
-* `perf::PERF_COUNT_HW_INSTRUCTIONS`
-* `perf::PERF_COUNT_SW_PAGE_FAULTS`
-* `perf::PERF_COUNT_SW_CONTEXT_SWITCHES`
+* `perf::PERF_COUNT_HW_CPU_CYCLES:u`
+* `perf::PERF_COUNT_HW_INSTRUCTIONS:u`
+* `perf::PERF_COUNT_SW_PAGE_FAULTS:u`
+* `perf::PERF_COUNT_SW_CONTEXT_SWITCHES:u`
 
 ## Configuration
 
