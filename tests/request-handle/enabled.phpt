@@ -1,10 +1,10 @@
 --TEST--
 Perfidious\request_handle() - enabled
 --EXTENSIONS--
-perf
+perfidious
 --INI--
-perf.request.enable=1
-perf.request.metrics=perf::PERF_COUNT_SW_CPU_CLOCK,perf::PERF_COUNT_SW_PAGE_FAULTS,perf::PERF_COUNT_SW_CONTEXT_SWITCHES
+perfidious.request.enable=1
+perfidious.request.metrics=perf::PERF_COUNT_SW_CPU_CLOCK,perf::PERF_COUNT_SW_PAGE_FAULTS,perf::PERF_COUNT_SW_CONTEXT_SWITCHES
 --FILE--
 <?php
 $handle = Perfidious\request_handle();

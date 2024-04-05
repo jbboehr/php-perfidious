@@ -1,7 +1,7 @@
 /**
  * Copyright (C) 2024 John Boehr & contributors
  *
- * This file is part of php-perf.
+ * This file is part of php-perfidious.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -28,7 +28,7 @@
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_portability.h>
 #include "main/php.h"
-#include "php_perf.h"
+#include "php_perfidious.h"
 #include "functions.h"
 #include "handle.h"
 #include "private.h"

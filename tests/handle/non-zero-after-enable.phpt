@@ -1,7 +1,7 @@
 --TEST--
 Perfidious\Handle (non-zero after enable)
 --EXTENSIONS--
-perf
+perfidious
 --FILE--
 <?php
 $rv = Perfidious\open([

@@ -1,21 +1,21 @@
 --TEST--
 info
 --EXTENSIONS--
-perf
+perfidious
 --FILE--
 <?php
 phpinfo(INFO_MODULES);
 --EXPECTF--
 %A
-perf
+perfidious
 %A
 Version => %A
 Released => %A
 Authors => %A
 %A
 Directive => Local Value => Master Value
-perf.global.enable => 0 => 0
-perf.global.metrics => %s => %s
-perf.request.enable => 0 => 0
-perf.request.metrics => %s => %s
+perfidious.global.enable => 0 => 0
+perfidious.global.metrics => %s => %s
+perfidious.request.enable => 0 => 0
+perfidious.request.metrics => %s => %s
 %A

@@ -1,7 +1,7 @@
 *
 !config.m4
 !m4/*.m4
-!php_perf.h
+!php_perfidious.h
 !src/*.c
 !src/*.h
 !tests/*.phpt

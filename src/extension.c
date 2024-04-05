@@ -1,7 +1,7 @@
 /**
  * Copyright (C) 2024 John Boehr & contributors
  *
- * This file is part of php-perf.
+ * This file is part of php-perfidious.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -37,13 +37,13 @@
 #include "ext/standard/info.h"
 #include "ext/standard/php_string.h"
 
-#include "php_perf.h"
+#include "php_perfidious.h"
 #include "functions.h"
 #include "handle.h"
 
 #define DEFAULT_METRICS "perf::PERF_COUNT_HW_CPU_CYCLES,perf::PERF_COUNT_HW_INSTRUCTIONS"
 
-ZEND_DECLARE_MODULE_GLOBALS(perf);
+ZEND_DECLARE_MODULE_GLOBALS(perfidious);
 
 PERFIDIOUS_LOCAL void perfidious_exceptions_minit(void);
 PERFIDIOUS_LOCAL void perfidious_handle_minit(void);
@@ -62,16 +62,16 @@ static ZEND_INI_MH(OnUpdateStr)
 
 // clang-format off
 PHP_INI_BEGIN()
-    STD_PHP_INI_ENTRY("perf.global.enable", "0", PHP_INI_SYSTEM, OnUpdateBool, global_enable, zend_perf_globals, perf_globals)
-    STD_PHP_INI_ENTRY("perf.global.metrics", DEFAULT_METRICS, PHP_INI_SYSTEM, OnUpdateStr, global_metrics, zend_perf_globals, perf_globals)
-    STD_PHP_INI_ENTRY("perf.request.enable", "0", PHP_INI_SYSTEM, OnUpdateBool, request_enable, zend_perf_globals, perf_globals)
-    STD_PHP_INI_ENTRY("perf.request.metrics", DEFAULT_METRICS, PHP_INI_SYSTEM, OnUpdateStr, request_metrics, zend_perf_globals, perf_globals)
+    STD_PHP_INI_ENTRY(PHP_PERFIDIOUS_NAME ".global.enable", "0", PHP_INI_SYSTEM, OnUpdateBool, global_enable, zend_perfidious_globals, perfidious_globals)
+    STD_PHP_INI_ENTRY(PHP_PERFIDIOUS_NAME ".global.metrics", DEFAULT_METRICS, PHP_INI_SYSTEM, OnUpdateStr, global_metrics, zend_perfidious_globals, perfidious_globals)
+    STD_PHP_INI_ENTRY(PHP_PERFIDIOUS_NAME ".request.enable", "0", PHP_INI_SYSTEM, OnUpdateBool, request_enable, zend_perfidious_globals, perfidious_globals)
+    STD_PHP_INI_ENTRY(PHP_PERFIDIOUS_NAME ".request.metrics", DEFAULT_METRICS, PHP_INI_SYSTEM, OnUpdateStr, request_metrics, zend_perfidious_globals, perfidious_globals)
 PHP_INI_END()
 // clang-format on
 
-static PHP_RINIT_FUNCTION(perf)
+static PHP_RINIT_FUNCTION(perfidious)
 {
-#if defined(COMPILE_DL_PERF) && defined(ZTS)
+#if defined(COMPILE_DL_PERFIDIOUS) && defined(ZTS)
     ZEND_TSRMLS_CACHE_UPDATE();
 #endif
 
@@ -83,7 +83,7 @@ static PHP_RINIT_FUNCTION(perf)
     return SUCCESS;
 }
 
-static PHP_RSHUTDOWN_FUNCTION(perf)
+static PHP_RSHUTDOWN_FUNCTION(perfidious)
 {
     if (PERFIDIOUS_G(request_handle)) {
         perfidious_handle_reset(PERFIDIOUS_G(request_handle));
@@ -141,20 +141,20 @@ done:
     return handle;
 }
 
-static PHP_MINIT_FUNCTION(perf)
+static PHP_MINIT_FUNCTION(perfidious)
 {
     const int flags = CONST_CS | CONST_PERSISTENT;
 
     // Initialize pfm
     int pfm_ret = pfm_initialize();
     if (pfm_ret != PFM_SUCCESS) {
-        php_error_docref(NULL, E_WARNING, PHP_PERF_NAME ": cannot initialize libpfm: %s", pfm_strerror(pfm_ret));
+        php_error_docref(NULL, E_WARNING, PHP_PERFIDIOUS_NAME ": cannot initialize libpfm: %s", pfm_strerror(pfm_ret));
         return FAILURE;
     }
 
     REGISTER_INI_ENTRIES();
 
-    REGISTER_STRING_CONSTANT(PHP_PERF_NAMESPACE "\\VERSION", (char *) PHP_PERF_VERSION, flags);
+    REGISTER_STRING_CONSTANT(PHP_PERFIDIOUS_NAMESPACE "\\VERSION", (char *) PHP_PERFIDIOUS_VERSION, flags);
 
     perfidious_exceptions_minit();
     perfidious_handle_minit();
@@ -187,7 +187,7 @@ static PHP_MINIT_FUNCTION(perf)
     return SUCCESS;
 }
 
-static PHP_MSHUTDOWN_FUNCTION(perf)
+static PHP_MSHUTDOWN_FUNCTION(perfidious)
 {
     if (PERFIDIOUS_G(request_handle)) {
         perfidious_handle_close(PERFIDIOUS_G(request_handle));
@@ -228,12 +228,12 @@ static zend_always_inline void minfo_handle_metrics(struct perfidious_handle *re
     zval_ptr_dtor(&z_metrics);
 }
 
-static PHP_MINFO_FUNCTION(perf)
+static PHP_MINFO_FUNCTION(perfidious)
 {
     php_info_print_table_start();
-    php_info_print_table_row(2, "Version", PHP_PERF_VERSION);
-    php_info_print_table_row(2, "Released", PHP_PERF_RELEASE);
-    php_info_print_table_row(2, "Authors", PHP_PERF_AUTHORS);
+    php_info_print_table_row(2, "Version", PHP_PERFIDIOUS_VERSION);
+    php_info_print_table_row(2, "Released", PHP_PERFIDIOUS_RELEASE);
+    php_info_print_table_row(2, "Authors", PHP_PERFIDIOUS_AUTHORS);
     php_info_print_table_end();
 
     DISPLAY_INI_ENTRIES();
@@ -253,57 +253,57 @@ static PHP_MINFO_FUNCTION(perf)
     }
 }
 
-static PHP_GINIT_FUNCTION(perf)
+static PHP_GINIT_FUNCTION(perfidious)
 {
 #if defined(COMPILE_DL_PERF) && defined(ZTS)
     ZEND_TSRMLS_CACHE_UPDATE();
 #endif
-    memset(perf_globals, 0, sizeof(zend_perf_globals));
-    perf_globals->error_mode = PERFIDIOUS_ERROR_MODE_THROW;
+    memset(perfidious_globals, 0, sizeof(zend_perfidious_globals));
+    perfidious_globals->error_mode = PERFIDIOUS_ERROR_MODE_THROW;
 }
 
 // clang-format off
 PERFIDIOUS_LOCAL
 const zend_function_entry perfidious_functions[] = {
-    ZEND_RAW_FENTRY(PHP_PERF_NAMESPACE "\\get_pmu_info", ZEND_FN(perfidious_get_pmu_info), perfidious_get_pmu_info_arginfo, 0)
-    ZEND_RAW_FENTRY(PHP_PERF_NAMESPACE "\\global_handle", ZEND_FN(perfidious_global_handle), perfidious_global_handle_arginfo, 0)
-    ZEND_RAW_FENTRY(PHP_PERF_NAMESPACE "\\list_pmus", ZEND_FN(perfidious_list_pmus), perfidious_list_pmus_arginfo, 0)
-    ZEND_RAW_FENTRY(PHP_PERF_NAMESPACE "\\list_pmu_events", ZEND_FN(perfidious_list_pmu_events), perfidious_list_pmu_events_arginfo, 0)
-    ZEND_RAW_FENTRY(PHP_PERF_NAMESPACE "\\open", ZEND_FN(perfidious_open), perfidious_open_arginfo, 0)
-    ZEND_RAW_FENTRY(PHP_PERF_NAMESPACE "\\request_handle", ZEND_FN(perfidious_request_handle), perfidious_request_handle_arginfo, 0)
+    ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\get_pmu_info", ZEND_FN(perfidious_get_pmu_info), perfidious_get_pmu_info_arginfo, 0)
+    ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\global_handle", ZEND_FN(perfidious_global_handle), perfidious_global_handle_arginfo, 0)
+    ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\list_pmus", ZEND_FN(perfidious_list_pmus), perfidious_list_pmus_arginfo, 0)
+    ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\list_pmu_events", ZEND_FN(perfidious_list_pmu_events), perfidious_list_pmu_events_arginfo, 0)
+    ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\open", ZEND_FN(perfidious_open), perfidious_open_arginfo, 0)
+    ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\request_handle", ZEND_FN(perfidious_request_handle), perfidious_request_handle_arginfo, 0)
     PHP_FE_END
 };
 // clang-format on
 
-static const zend_module_dep perf_deps[] = {
+static const zend_module_dep perfidious_deps[] = {
     {"spl",     NULL, NULL, MODULE_DEP_REQUIRED},
     {"opcache", NULL, NULL, MODULE_DEP_OPTIONAL},
     ZEND_MOD_END,
 };
 
-zend_module_entry perf_module_entry = {
+zend_module_entry perfidious_module_entry = {
     STANDARD_MODULE_HEADER_EX,
     NULL,
-    perf_deps,                /* Deps */
-    PHP_PERF_NAME,            /* Name */
-    perfidious_functions,     /* Functions */
-    PHP_MINIT(perf),          /* MINIT */
-    PHP_MSHUTDOWN(perf),      /* MSHUTDOWN */
-    PHP_RINIT(perf),          /* RINIT */
-    PHP_RSHUTDOWN(perf),      /* RSHUTDOWN */
-    PHP_MINFO(perf),          /* MINFO */
-    PHP_PERF_VERSION,         /* Version */
-    PHP_MODULE_GLOBALS(perf), /* Globals */
-    PHP_GINIT(perf),          /* GINIT */
+    perfidious_deps,                /* Deps */
+    PHP_PERFIDIOUS_NAME,            /* Name */
+    perfidious_functions,           /* Functions */
+    PHP_MINIT(perfidious),          /* MINIT */
+    PHP_MSHUTDOWN(perfidious),      /* MSHUTDOWN */
+    PHP_RINIT(perfidious),          /* RINIT */
+    PHP_RSHUTDOWN(perfidious),      /* RSHUTDOWN */
+    PHP_MINFO(perfidious),          /* MINFO */
+    PHP_PERFIDIOUS_VERSION,         /* Version */
+    PHP_MODULE_GLOBALS(perfidious), /* Globals */
+    PHP_GINIT(perfidious),          /* GINIT */
     NULL,
     NULL,
     STANDARD_MODULE_PROPERTIES_EX,
 };
 
-#ifdef COMPILE_DL_PERF
+#ifdef COMPILE_DL_PERFIDIOUS
 #if defined(ZTS)
 ZEND_TSRMLS_CACHE_DEFINE()
 #endif
 ZEND_DLEXPORT zend_module_entry *get_module(void);
-ZEND_GET_MODULE(perf) // Common for all PHP extensions which are build as shared modules
+ZEND_GET_MODULE(perfidious) // Common for all PHP extensions which are build as shared modules
 #endif

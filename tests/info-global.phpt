@@ -1,26 +1,26 @@
 --TEST--
 info
 --EXTENSIONS--
-perf
+perfidious
 --INI--
-perf.global.enable=1
-perf.global.metrics=perf::PERF_COUNT_SW_CPU_CLOCK,perf::PERF_COUNT_SW_PAGE_FAULTS,perf::PERF_COUNT_SW_CONTEXT_SWITCHES
+perfidious.global.enable=1
+perfidious.global.metrics=perf::PERF_COUNT_SW_CPU_CLOCK,perf::PERF_COUNT_SW_PAGE_FAULTS,perf::PERF_COUNT_SW_CONTEXT_SWITCHES
 --FILE--
 <?php
 phpinfo(INFO_MODULES);
 --EXPECTF--
 %A
-perf
+perfidious
 %A
 Version => %A
 Released => %A
 Authors => %A
 %A
 Directive => Local Value => Master Value
-perf.global.enable => 1 => 1
-perf.global.metrics => perf::PERF_COUNT_SW_CPU_CLOCK,perf::PERF_COUNT_SW_PAGE_FAULTS,perf::PERF_COUNT_SW_CONTEXT_SWITCHES => perf::PERF_COUNT_SW_CPU_CLOCK,perf::PERF_COUNT_SW_PAGE_FAULTS,perf::PERF_COUNT_SW_CONTEXT_SWITCHES
-perf.request.enable => 0 => 0
-perf.request.metrics => %s => %s
+perfidious.global.enable => 1 => 1
+perfidious.global.metrics => perf::PERF_COUNT_SW_CPU_CLOCK,perf::PERF_COUNT_SW_PAGE_FAULTS,perf::PERF_COUNT_SW_CONTEXT_SWITCHES => perf::PERF_COUNT_SW_CPU_CLOCK,perf::PERF_COUNT_SW_PAGE_FAULTS,perf::PERF_COUNT_SW_CONTEXT_SWITCHES
+perfidious.request.enable => 0 => 0
+perfidious.request.metrics => %s => %s
 %A
 %sGlobal Metrics%s
 perf::PERF_COUNT_SW_CPU_CLOCK => %d

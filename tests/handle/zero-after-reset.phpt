@@ -1,7 +1,7 @@
 --TEST--
 Perfidious\Handle (zero after reset)
 --EXTENSIONS--
-perf
+perfidious
 --FILE--
 <?php
 $rv = Perfidious\open([

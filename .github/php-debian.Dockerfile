@@ -19,5 +19,5 @@ FROM ${BASE_IMAGE}
 ENV BIN_PACKAGES="libcap2 libpfm4"
 RUN apt-get update && apt-get install -y ${BIN_PACKAGES}
 COPY --from=0 /usr/local/lib/php/extensions /usr/local/lib/php/extensions
-RUN docker-php-ext-enable perf
+RUN docker-php-ext-enable perfidious
 ENTRYPOINT ["docker-php-entrypoint"]

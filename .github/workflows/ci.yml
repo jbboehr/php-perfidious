@@ -39,7 +39,7 @@ jobs:
                     php-version: "${{ matrix.php-version }}"
                     tools: composer:v2
 
-            -   run: php -l perf.stub.php && php perf.stub.php
+            -   run: php -l perfidious.stub.php && php perfidious.stub.php
 
             -   run: phpize
 
@@ -218,7 +218,7 @@ jobs:
                     cache-from: type=gha
                     cache-to: type=gha,mode=max
                     build-args: PHP_VERSION=${{ matrix.PHP_VERSION }}
-                    tags: php-perf-${{ matrix.DOCKER_NAME }}
+                    tags: php-perfidious-${{ matrix.DOCKER_NAME }}
             -   name: I am tired of writing this shit in YAML and learning a new DSL for every CI service so I am putting everything in a FSCKING BASH SCRIPT
                 env:
                     PHP_VERSION: ${{ matrix.PHP_VERSION }}
@@ -244,7 +244,7 @@ jobs:
                     file: .github/php-${{ matrix.DOCKER_NAME }}.Dockerfile
                     cache-from: type=gha
                     cache-to: type=gha,mode=max
-                    tags: php-perf-${{ matrix.DOCKER_NAME }}
+                    tags: php-perfidious-${{ matrix.DOCKER_NAME }}
             -   name: I am tired of writing this shit in YAML and learning a new DSL for every CI service so I am putting everything in a FSCKING BASH SCRIPT
                 env:
                     DOCKER_NAME: ${{ matrix.DOCKER_NAME }}

@@ -1,5 +1,5 @@
 
-# php-perf
+# php-perfidious
 
 [![ci](https://github.com/jbboehr/php-perf/actions/workflows/ci.yml/badge.svg)](https://github.com/jbboehr/php-perf/actions/workflows/ci.yml)
 [![Coverage Status](https://coveralls.io/repos/github/jbboehr/php-perf/badge.svg?branch=master)](https://coveralls.io/github/jbboehr/php-perf?branch=master)
@@ -43,14 +43,14 @@ sudo make install
 Add the extension to your *php.ini*:
 
 ```ini
-echo extension=perf.so | tee -a /path/to/your/php.ini
+echo extension=perfidious.so | tee -a /path/to/your/php.ini
 ```
 
 Finally, *restart the web server*.
 
 ## Usage
 
-See also the [`examples`](./examples) directory and the [`stub`](./perf.stub.php).
+See also the [`examples`](./examples) directory and the [`stub`](./perfidious.stub.php).
 
 For example, you can programmatically open and access the counters.
 
@@ -83,8 +83,8 @@ Or you can configure a global or per-request handle:
 
 ```php
 // with the following INI settings:
-// perf.request.enable=1
-// perf.request.metrics=perf::PERF_COUNT_SW_CPU_CLOCK,perf::PERF_COUNT_SW_PAGE_FAULTS,perf::PERF_COUNT_SW_CONTEXT_SWITCHES
+// perfidious.request.enable=1
+// perfidious.request.metrics=perf::PERF_COUNT_SW_CPU_CLOCK,perf::PERF_COUNT_SW_PAGE_FAULTS,perf::PERF_COUNT_SW_CONTEXT_SWITCHES
 var_dump(Perfidious\request_handle()?->read());
 ```
 
@@ -115,10 +115,10 @@ Some notable generic perf events are:
 
 | Name | Default | Changeable | Description  |
 | --------------------- | -------- | ----------- | ------------ |
-| `perf.global.enable` | `0` | `PHP_INI_SYSTEM_` | Set to `1` to enable the global handle. This handle is kept open between requests. You can read from this handle via e.g. `var_dump(Perfidious\global_handle()?->read());`. |
-| `perf.global.metrics` | `perf::PERF_COUNT_HW_CPU_CYCLES`, `perf::PERF_COUNT_HW_INSTRUCTIONS`  | `PHP_INI_SYSTEM_` | The metrics to monitor with the global handle. |
-| `perf.request.enable` | `0` | `PHP_INI_SYSTEM_` | Set to `1` to enable the per-request handle. This handle is kept open between requests, but reset before and after. You can read from this handle via e.g. `var_dump(Perfidious\request_handle()?->read());` |
-| `perf.request.metrics` | `perf::PERF_COUNT_HW_CPU_CYCLES`, `perf::PERF_COUNT_HW_INSTRUCTIONS`  | `PHP_INI_SYSTEM_` | The metrics to monitor with the request handle. |
+| `perfidious.global.enable` | `0` | `PHP_INI_SYSTEM` | Set to `1` to enable the global handle. This handle is kept open between requests. You can read from this handle via e.g. `var_dump(Perfidious\global_handle()?->read());`. |
+| `perfidious.global.metrics` | `perf::PERF_COUNT_HW_CPU_CYCLES`, `perf::PERF_COUNT_HW_INSTRUCTIONS`  | `PHP_INI_SYSTEM` | The metrics to monitor with the global handle. |
+| `perfidious.request.enable` | `0` | `PHP_INI_SYSTEM` | Set to `1` to enable the per-request handle. This handle is kept open between requests, but reset before and after. You can read from this handle via e.g. `var_dump(Perfidious\request_handle()?->read());` |
+| `perfidious.request.metrics` | `perf::PERF_COUNT_HW_CPU_CYCLES`, `perf::PERF_COUNT_HW_INSTRUCTIONS`  | `PHP_INI_SYSTEM` | The metrics to monitor with the request handle. |
 
 ## Troubleshooting
 
@@ -131,7 +131,7 @@ current process, for example:
 sudo capsh --caps="cap_perfmon,cap_setgid,cap_setuid,cap_setpcap+eip" \
   --user=`whoami` \
   --addamb='cap_perfmon' \
-  -- -c 'php -d extension=modules/perf.so examples/watch.php --interval 2 --pid 1'
+  -- -c 'php -d extension=modules/perfidious.so examples/watch.php --interval 2 --pid 1'
 ```
 
 **Q:** I get an error like

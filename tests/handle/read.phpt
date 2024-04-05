@@ -1,7 +1,7 @@
 --TEST--
 Perfidious\Handle::read()
 --EXTENSIONS--
-perf
+perfidious
 --FILE--
 <?php
 $rv = Perfidious\open([

@@ -1,7 +1,7 @@
 --TEST--
 Perfidious\list_pmus()
 --EXTENSIONS--
-perf
+perfidious
 --FILE--
 <?php
 $pmus = Perfidious\list_pmus();

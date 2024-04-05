@@ -1,7 +1,7 @@
 /**
  * Copyright (C) 2024 John Boehr & contributors
  *
- * This file is part of php-perf.
+ * This file is part of php-perfidious.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -23,7 +23,7 @@
 
 #include <perfmon/pfmlib.h>
 #include "Zend/zend_API.h"
-#include "php_perf.h"
+#include "php_perfidious.h"
 
 PERFIDIOUS_LOCAL zend_string *PERFIDIOUS_INTERNED_TIME_ENABLED;
 PERFIDIOUS_LOCAL zend_string *PERFIDIOUS_INTERNED_TIME_RUNNING;
@@ -37,7 +37,7 @@ static zend_always_inline zend_class_entry *register_class_PerfidiousReadResult(
     zend_class_entry ce;
     zend_class_entry *class_entry;
 
-    INIT_CLASS_ENTRY(ce, PHP_PERF_NAMESPACE "\\ReadResult", NULL);
+    INIT_CLASS_ENTRY(ce, PHP_PERFIDIOUS_NAMESPACE "\\ReadResult", NULL);
     class_entry = zend_register_internal_class(&ce);
 
     do {

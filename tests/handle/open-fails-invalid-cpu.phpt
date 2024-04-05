@@ -1,7 +1,7 @@
 --TEST--
 Perfidious\Handle (open fails with invalid cpu)
 --EXTENSIONS--
-perf
+perfidious
 --FILE--
 <?php
 $rv = Perfidious\open([

@@ -1,7 +1,7 @@
 --TEST--
 Perfidious\get_pmu_info()
 --EXTENSIONS--
-perf
+perfidious
 --FILE--
 <?php
 $pmu = Perfidious\get_pmu_info(51);

@@ -1,7 +1,7 @@
 /**
  * Copyright (C) 2024 John Boehr & contributors
  *
- * This file is part of php-perf.
+ * This file is part of php-perfidious.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -37,7 +37,7 @@
 #include <Zend/zend_portability.h>
 #include "main/php.h"
 
-#include "php_perf.h"
+#include "php_perfidious.h"
 #include "handle.h"
 #include "private.h"
 
@@ -569,7 +569,7 @@ static zend_always_inline zend_class_entry *register_class_Handle(void)
     perfidious_handle_obj_handlers.free_obj = perfidious_handle_obj_free;
     perfidious_handle_obj_handlers.clone_obj = NULL;
 
-    INIT_CLASS_ENTRY(ce, PHP_PERF_NAMESPACE "\\Handle", perfidious_handle_methods);
+    INIT_CLASS_ENTRY(ce, PHP_PERFIDIOUS_NAMESPACE "\\Handle", perfidious_handle_methods);
     class_entry = zend_register_internal_class(&ce);
 
     class_entry->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NO_DYNAMIC_PROPERTIES | ZEND_ACC_NOT_SERIALIZABLE;

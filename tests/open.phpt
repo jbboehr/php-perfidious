@@ -1,7 +1,7 @@
 --TEST--
 Perfidious\open()
 --EXTENSIONS--
-perf
+perfidious
 --FILE--
 <?php
 (function () {

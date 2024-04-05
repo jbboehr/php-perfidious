@@ -28,7 +28,7 @@ RUN make install
 FROM ${BASE_IMAGE}
 RUN dnf install php-cli libcap libpfm -y
 # this probably won't work on other arches
-COPY --from=0 /usr/lib64/php/modules/perf.so /usr/lib64/php/modules/perf.so
+COPY --from=0 /usr/lib64/php/modules/perfidious.so /usr/lib64/php/modules/perfidious.so
 # please forgive me
 COPY --from=0 /usr/lib64/php/build/run-tests.php /usr/local/lib/php/build/run-tests.php
-RUN echo extension=perf.so | sudo tee /etc/php.d/90-perf.ini
+RUN echo extension=perfidious.so | sudo tee /etc/php.d/90-perfidious.ini

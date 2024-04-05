@@ -1,7 +1,7 @@
 /**
  * Copyright (C) 2024 John Boehr & contributors
  *
- * This file is part of php-perf.
+ * This file is part of php-perfidious.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -17,17 +17,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef PHP_PERF_H
-#define PHP_PERF_H
+#ifndef PHP_PERFIDIOUS_H
+#define PHP_PERFIDIOUS_H
 
 #include <sys/types.h>
 #include "main/php.h"
 
-#define PHP_PERF_NAME "perf"
-#define PHP_PERF_VERSION "0.1.0"
-#define PHP_PERF_RELEASE "2024-03-24"
-#define PHP_PERF_AUTHORS "John Boehr <jbboehr@gmail.com> (lead)"
-#define PHP_PERF_NAMESPACE "Perfidious"
+#define PHP_PERFIDIOUS_NAME "perfidious"
+#define PHP_PERFIDIOUS_VERSION "0.1.0"
+#define PHP_PERFIDIOUS_RELEASE "2024-03-24"
+#define PHP_PERFIDIOUS_AUTHORS "John Boehr <jbboehr@gmail.com> (lead)"
+#define PHP_PERFIDIOUS_NAMESPACE "Perfidious"
 
 #if (__GNUC__ >= 4) || defined(__clang__) || defined(HAVE_FUNC_ATTRIBUTE_VISIBILITY)
 #define PERFIDIOUS_PUBLIC __attribute__((visibility("default")))
@@ -64,14 +64,14 @@
 #endif
 #endif
 
-extern zend_module_entry perf_module_entry;
-#define phpext_perf_ptr &perf_module_entry
+extern zend_module_entry perfidious_module_entry;
+#define phpext_perfidious_ptr &perfidious_module_entry
 
 #if defined(ZTS) && ZTS
 #include "TSRM.h"
 #endif
 
-#if defined(ZTS) && defined(COMPILE_DL_PERF)
+#if defined(ZTS) && defined(COMPILE_DL_PERFIDIOUS)
 ZEND_TSRMLS_CACHE_EXTERN();
 #endif
 
@@ -94,7 +94,7 @@ PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_pmu_info_ce;
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_handle_ce;
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_read_result_ce;
 
-ZEND_BEGIN_MODULE_GLOBALS(perf)
+ZEND_BEGIN_MODULE_GLOBALS(perfidious)
     zend_bool global_enable;
     zend_string *global_metrics;
     struct perfidious_handle *global_handle;
@@ -104,11 +104,11 @@ ZEND_BEGIN_MODULE_GLOBALS(perf)
     struct perfidious_handle *request_handle;
 
     enum perfidious_error_mode error_mode;
-ZEND_END_MODULE_GLOBALS(perf)
+ZEND_END_MODULE_GLOBALS(perfidious)
 
-ZEND_EXTERN_MODULE_GLOBALS(perf);
+ZEND_EXTERN_MODULE_GLOBALS(perfidious);
 
-#define PERFIDIOUS_G(v) ZEND_MODULE_GLOBALS_ACCESSOR(perf, v)
+#define PERFIDIOUS_G(v) ZEND_MODULE_GLOBALS_ACCESSOR(perfidious, v)
 
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
@@ -151,4 +151,4 @@ PERFIDIOUS_ATTR_NONNULL_ALL
 PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
 zend_result perfidious_handle_read_raw(struct perfidious_handle *restrict handle, size_t size, void *restrict buffer);
 
-#endif /* PHP_PERF_H */
+#endif /* PHP_PERFIDIOUS_H */

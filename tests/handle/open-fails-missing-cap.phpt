@@ -1,7 +1,7 @@
 --TEST--
 Perfidious\Handle (open fails with missing cap)
 --EXTENSIONS--
-perf
+perfidious
 --SKIPIF--
 <?php if (get_current_user() === 'root') die("skip: would fail as root"); ?>
 --FILE--

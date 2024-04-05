@@ -1,7 +1,7 @@
 --TEST--
 Perfidious\Handle (open fails with non-string event)
 --EXTENSIONS--
-perf
+perfidious
 --FILE--
 <?php
 $rv = Perfidious\open([1]);

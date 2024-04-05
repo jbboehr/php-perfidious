@@ -15,17 +15,17 @@ m4_include(m4/ax_require_defined.m4)
 
 m4_define(AM_LDFLAGS, [LDFLAGS])
 
-PHP_ARG_ENABLE(perf,     whether to enable vyrtue support,
-[AS_HELP_STRING([--enable-perf], [Enable perf support])])
+PHP_ARG_ENABLE(perfidious,     whether to enable perfidious,
+[AS_HELP_STRING([--enable-perfidious], [Enable perfidious])])
 
-PHP_ARG_ENABLE(perf-debug, whether to enable perf debug support,
-[AS_HELP_STRING([--enable-perf-debug], [Enable perf debug support])], [no], [no])
+PHP_ARG_ENABLE(perfidious-debug, whether to enable perfidious debug support,
+[AS_HELP_STRING([--enable-perfidious-debug], [Enable perfidious debug support])], [no], [no])
 
-AC_DEFUN([PHP_PERF_ADD_SOURCES], [
-  PHP_PERF_SOURCES="$PHP_PERF_SOURCES $1"
+AC_DEFUN([PHP_PERFIDIOUS_ADD_SOURCES], [
+  PHP_PERFIDIOUS_SOURCES="$PHP_PERFIDIOUS_SOURCES $1"
 ])
 
-if test "$PHP_PERF" != "no"; then
+if test "$PHP_PERFIDIOUS" != "no"; then
     AX_IS_RELEASE([git-directory])
     AX_CFLAGS_WARN_ALL([WARN_CFLAGS])
 
@@ -47,16 +47,16 @@ if test "$PHP_PERF" != "no"; then
     CFLAGS="$WARN_CFLAGS $CFLAGS"
     LDFLAGS="$WARN_LDFLAGS $LDFLAGS"
 
-    if test "$PHP_PERF_DEBUG" == "yes"; then
-        AC_DEFINE([PERF_DEBUG], [1], [Enable vyrtue debug support])
+    if test "$PHP_PERFIDIOUS_DEBUG" == "yes"; then
+        AC_DEFINE([PERFIDIOUS_DEBUG], [1], [Enable vyrtue debug support])
     else
         AC_DEFINE([NDEBUG], [1], [Disable debug support])
     fi
 
-    PHP_ADD_LIBRARY(cap, , PERF_SHARED_LIBADD)
-    PHP_ADD_LIBRARY(pfm, , PERF_SHARED_LIBADD)
+    PHP_ADD_LIBRARY(cap, , PERFIDIOUS_SHARED_LIBADD)
+    PHP_ADD_LIBRARY(pfm, , PERFIDIOUS_SHARED_LIBADD)
 
-    PHP_PERF_ADD_SOURCES([
+    PHP_PERFIDIOUS_ADD_SOURCES([
         src/extension.c
         src/exceptions.c
         src/functions.c
@@ -67,9 +67,9 @@ if test "$PHP_PERF" != "no"; then
     ])
 
     PHP_ADD_BUILD_DIR(src)
-    PHP_INSTALL_HEADERS([ext/perf], [php_perf.h])
-    PHP_NEW_EXTENSION(perf, $PHP_PERF_SOURCES, $ext_shared, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
-    PHP_ADD_EXTENSION_DEP(perf, spl, false)
-    PHP_ADD_EXTENSION_DEP(perf, opcache, true)
-    PHP_SUBST(PERF_SHARED_LIBADD)
+    PHP_INSTALL_HEADERS([ext/perfidious], [php_perfidious.h])
+    PHP_NEW_EXTENSION(perfidious, $PHP_PERFIDIOUS_SOURCES, $ext_shared, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
+    PHP_ADD_EXTENSION_DEP(perfidious, spl, false)
+    PHP_ADD_EXTENSION_DEP(perfidious, opcache, true)
+    PHP_SUBST(PERFIDIOUS_SHARED_LIBADD)
 fi

@@ -1,10 +1,10 @@
 --TEST--
 Perfidious\global_handle() - stays open
 --EXTENSIONS--
-perf
+perfidious
 --INI--
-perf.global.enable=1
-perf.global.metrics=perf::PERF_COUNT_SW_CPU_CLOCK,perf::PERF_COUNT_SW_PAGE_FAULTS,perf::PERF_COUNT_SW_CONTEXT_SWITCHES
+perfidious.global.enable=1
+perfidious.global.metrics=perf::PERF_COUNT_SW_CPU_CLOCK,perf::PERF_COUNT_SW_PAGE_FAULTS,perf::PERF_COUNT_SW_CONTEXT_SWITCHES
 --FILE--
 <?php
 (function () {

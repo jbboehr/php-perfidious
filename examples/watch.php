@@ -4,7 +4,7 @@
 use function Perfidious\open;
 
 // If specifying pid, you may need to grant cap_perfmon
-// sudo capsh --caps="cap_perfmon,cap_setgid,cap_setuid,cap_setpcap+eip" --user=`whoami` --addamb='cap_perfmon' -- -c 'php -dextension=modules/perf.so examples/watch.php --interval 2 --pid 3319'
+// sudo capsh --caps="cap_perfmon,cap_setgid,cap_setuid,cap_setpcap+eip" --user=`whoami` --addamb='cap_perfmon' -- -c 'php -dextension=modules/perfidious.so examples/watch.php --interval 2 --pid 3319'
 
 $rest_index = null;
 $opts = getopt('', [

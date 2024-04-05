@@ -1,5 +1,5 @@
 {
-  description = "php-perf";
+  description = "php-perfidious";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-23.11";
@@ -55,7 +55,7 @@
         });
 
         src = pkgs.lib.cleanSourceWith {
-          name = "php-perf-source";
+          name = "php-perfidious-source";
           src = src';
           filter = gitignore.lib.gitignoreFilterWith {
             basePath = ./.;
@@ -158,7 +158,7 @@
           };
         in
           pkgs.testers.runNixOSTest {
-            name = "php-perf-vm-test";
+            name = "php-perfidious-vm-test";
             qemu.package = pkgs.qemu_full;
             nodes = {
               machine1 = {
@@ -176,7 +176,7 @@
             };
             testScript = {nodes, ...}: ''
               machine.wait_for_unit("default.target")
-              machine.succeed("php -m | grep -i perf")
+              machine.succeed("php -m && php -m | grep -i perfidious")
               machine.succeed("cp -r --no-preserve=mode,ownership ${src}/* .")
               machine.succeed("cp --no-preserve=mode,ownership ${php.unwrapped}/lib/build/run-tests.php .")
               machine.succeed("TEST_PHP_DETAILED=1 NO_INTERACTION=1 REPORT_EXIT_STATUS=1 php run-tests.php || (find tests -name '*.log' | xargs -n1 cat ; exit 1)")

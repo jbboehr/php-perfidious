@@ -1,7 +1,7 @@
 --TEST--
 Perfidious\Handle (open fails with invalid pid)
 --EXTENSIONS--
-perf
+perfidious
 --FILE--
 <?php
 $rv = Perfidious\open([

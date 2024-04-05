@@ -1,7 +1,7 @@
 --TEST--
 Perfidious\list_pmu_events()
 --EXTENSIONS--
-perf
+perfidious
 --FILE--
 <?php
 $events = Perfidious\list_pmu_events(51);

@@ -1,7 +1,7 @@
 # https://dev.to/jasny/developing-a-php-extension-in-clion-3oo1
 
 cmake_minimum_required(VERSION 3.26)
-project(php_perf C)
+project(php_perfidious C)
 
 set(CMAKE_C_STANDARD 99)
 

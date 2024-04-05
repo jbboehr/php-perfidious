@@ -1,7 +1,7 @@
 --TEST--
 Perfidious\VERSION
 --EXTENSIONS--
-perf
+perfidious
 --INI--
 perf.enable=1
 perf.metrics=PERF_FLAG_SW_CPU_CLOCK,PERF_FLAG_SW_PAGE_FAULTS

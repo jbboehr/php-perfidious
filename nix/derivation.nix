@@ -12,8 +12,8 @@
   WerrorSupport ? false,
 }:
 buildPecl rec {
-  pname = "perf";
-  name = "perf-${version}";
+  pname = "perfidious";
+  name = "perfidious-${version}";
   version = "v0.1.0";
 
   inherit src;
