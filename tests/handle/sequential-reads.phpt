@@ -1,10 +1,10 @@
 --TEST--
-PerfExt\Handle (sequential reads)
+Perfidious\Handle (sequential reads)
 --EXTENSIONS--
 perf
 --FILE--
 <?php
-$rv = PerfExt\open([
+$rv = Perfidious\open([
     "perf::PERF_COUNT_SW_CPU_CLOCK",
 ]);
 $rv->enable();

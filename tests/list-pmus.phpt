@@ -1,10 +1,10 @@
 --TEST--
-PerfExt\list_pmus()
+Perfidious\list_pmus()
 --EXTENSIONS--
 perf
 --FILE--
 <?php
-$pmus = PerfExt\list_pmus();
+$pmus = Perfidious\list_pmus();
 var_dump(count($pmus) > 0);
 var_dump(get_class($pmus[0]));
 foreach ($pmus as $pmu) {
@@ -14,8 +14,8 @@ foreach ($pmus as $pmu) {
 }
 --EXPECTF--
 bool(true)
-string(15) "PerfExt\PmuInfo"
-object(PerfExt\PmuInfo)#%d (6) {
+string(%d) "Perfidious\PmuInfo"
+object(Perfidious\PmuInfo)#%d (6) {
   ["name"]=>
   string(4) "perf"
   ["desc"]=>

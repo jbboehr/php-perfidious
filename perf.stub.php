@@ -1,6 +1,6 @@
 <?php
 
-namespace PerfExt;
+namespace Perfidious;
 
 const VERSION = "0.1.0";
 

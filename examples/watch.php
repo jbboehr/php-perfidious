@@ -1,6 +1,8 @@
 #!/usr/bin/env php
 <?php
 
+use function Perfidious\open;
+
 // If specifying pid, you may need to grant cap_perfmon
 // sudo capsh --caps="cap_perfmon,cap_setgid,cap_setuid,cap_setpcap+eip" --user=`whoami` --addamb='cap_perfmon' -- -c 'php -dextension=modules/perf.so examples/watch.php --interval 2 --pid 3319'
 
@@ -24,7 +26,7 @@ $cpu = $opts['cpu'] ?? -1;
 $interval = (float) ($opts['interval'] ?? 0) ?: 2;
 $interval *= 1000000;
 
-$handle = PerfExt\open($pos_args, $pid, $cpu);
+$handle = open($pos_args, $pid, $cpu);
 $handle->enable();
 
 while (true) {

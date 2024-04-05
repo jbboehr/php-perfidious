@@ -1,11 +1,11 @@
 --TEST--
-PerfExt\Handle::enable()
+Perfidious\Handle::enable()
 --EXTENSIONS--
 perf
 --FILE--
 <?php
-$rv = PerfExt\open([
+$rv = Perfidious\open([
     "blahblahblah",
 ]);
 --EXPECTF--
-%A Uncaught PerfExt\PmuEventNotFoundException: failed to get libpfm event encoding for blahblahblah: event not found %A
+%A Uncaught Perfidious\PmuEventNotFoundException: failed to get libpfm event encoding for blahblahblah: event not found %A

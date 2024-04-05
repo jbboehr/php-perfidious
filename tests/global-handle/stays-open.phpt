@@ -1,5 +1,5 @@
 --TEST--
-PerfExt\global_handle() - stays open
+Perfidious\global_handle() - stays open
 --EXTENSIONS--
 perf
 --INI--
@@ -8,17 +8,17 @@ perf.global.metrics=perf::PERF_COUNT_SW_CPU_CLOCK,perf::PERF_COUNT_SW_PAGE_FAULT
 --FILE--
 <?php
 (function () {
-    $handle = PerfExt\global_handle();
+    $handle = Perfidious\global_handle();
     var_dump(get_class($handle));
     var_dump($handle->readArray());
 })();
 (function () {
-    $handle = PerfExt\global_handle();
+    $handle = Perfidious\global_handle();
     var_dump(get_class($handle));
     var_dump($handle->readArray());
 })();
 --EXPECTF--
-string(14) "PerfExt\Handle"
+string(%d) "Perfidious\Handle"
 array(3) {
   ["perf::PERF_COUNT_SW_CPU_CLOCK"]=>
   int(%d)
@@ -27,7 +27,7 @@ array(3) {
   ["perf::PERF_COUNT_SW_CONTEXT_SWITCHES"]=>
   int(%d)
 }
-string(14) "PerfExt\Handle"
+string(%d%d) "Perfidious\Handle"
 array(3) {
   ["perf::PERF_COUNT_SW_CPU_CLOCK"]=>
   int(%d)

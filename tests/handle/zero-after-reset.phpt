@@ -1,10 +1,10 @@
 --TEST--
-PerfExt\Handle (zero after reset)
+Perfidious\Handle (zero after reset)
 --EXTENSIONS--
 perf
 --FILE--
 <?php
-$rv = PerfExt\open([
+$rv = Perfidious\open([
     "perf::PERF_COUNT_SW_CPU_CLOCK",
 ]);
 $rv->enable();

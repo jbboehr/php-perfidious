@@ -27,7 +27,7 @@
 #define PHP_PERF_VERSION "0.1.0"
 #define PHP_PERF_RELEASE "2024-03-24"
 #define PHP_PERF_AUTHORS "John Boehr <jbboehr@gmail.com> (lead)"
-#define PHP_PERF_NAMESPACE "PerfExt"
+#define PHP_PERF_NAMESPACE "Perfidious"
 
 #if (__GNUC__ >= 4) || defined(__clang__) || defined(HAVE_FUNC_ATTRIBUTE_VISIBILITY)
 #define PERFIDIOUS_PUBLIC __attribute__((visibility("default")))

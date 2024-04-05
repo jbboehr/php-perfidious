@@ -1,12 +1,12 @@
 --TEST--
-PerfExt\Handle::reset()
+Perfidious\Handle::reset()
 --EXTENSIONS--
 perf
 --FILE--
 <?php
-$rv = PerfExt\open([
+$rv = Perfidious\open([
     "perf::PERF_COUNT_SW_CPU_CLOCK",
 ]);
 var_dump(get_class($rv->reset()));
---EXPECT--
-string(14) "PerfExt\Handle"
+--EXPECTF--
+string(%d) "Perfidious\Handle"

@@ -1,5 +1,5 @@
 --TEST--
-PerfExt\global_handle() - enabled
+Perfidious\global_handle() - enabled
 --EXTENSIONS--
 perf
 --INI--
@@ -7,11 +7,11 @@ perf.global.enable=1
 perf.global.metrics=perf::PERF_COUNT_SW_CPU_CLOCK,perf::PERF_COUNT_SW_PAGE_FAULTS,perf::PERF_COUNT_SW_CONTEXT_SWITCHES
 --FILE--
 <?php
-$handle = PerfExt\global_handle();
+$handle = Perfidious\global_handle();
 var_dump(get_class($handle));
 var_dump($handle->readArray());
 --EXPECTF--
-string(14) "PerfExt\Handle"
+string(%d) "Perfidious\Handle"
 array(3) {
   ["perf::PERF_COUNT_SW_CPU_CLOCK"]=>
   int(%d)

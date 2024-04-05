@@ -1,5 +1,5 @@
 --TEST--
-PerfExt\request_handle() - stays open
+Perfidious\request_handle() - stays open
 --EXTENSIONS--
 perf
 --INI--
@@ -8,17 +8,17 @@ perf.request.metrics=perf::PERF_COUNT_SW_CPU_CLOCK,perf::PERF_COUNT_SW_PAGE_FAUL
 --FILE--
 <?php
 (function () {
-    $handle = PerfExt\request_handle();
+    $handle = Perfidious\request_handle();
     var_dump(get_class($handle));
     var_dump($handle->readArray());
 })();
 (function () {
-    $handle = PerfExt\request_handle();
+    $handle = Perfidious\request_handle();
     var_dump(get_class($handle));
     var_dump($handle->readArray());
 })();
 --EXPECTF--
-string(14) "PerfExt\Handle"
+string(%d) "Perfidious\Handle"
 array(3) {
   ["perf::PERF_COUNT_SW_CPU_CLOCK"]=>
   int(%d)
@@ -27,7 +27,7 @@ array(3) {
   ["perf::PERF_COUNT_SW_CONTEXT_SWITCHES"]=>
   int(%d)
 }
-string(14) "PerfExt\Handle"
+string(%d) "Perfidious\Handle"
 array(3) {
   ["perf::PERF_COUNT_SW_CPU_CLOCK"]=>
   int(%d)

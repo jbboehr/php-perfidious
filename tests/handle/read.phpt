@@ -1,10 +1,10 @@
 --TEST--
-PerfExt\Handle::read()
+Perfidious\Handle::read()
 --EXTENSIONS--
 perf
 --FILE--
 <?php
-$rv = PerfExt\open([
+$rv = Perfidious\open([
     "perf::PERF_COUNT_SW_CPU_CLOCK",
 ]);
 $rv->enable();
@@ -14,7 +14,7 @@ for ($i = 0; $i < 100; $i++) {
 $value = $rv->read();
 var_dump($value);
 --EXPECTF--
-object(PerfExt\ReadResult)#%d (3) {
+object(Perfidious\ReadResult)#%d (3) {
   ["timeEnabled"]=>
   int(%d)
   ["timeRunning"]=>

@@ -1,6 +1,8 @@
 #!/usr/bin/env php
 <?php
 
+use function Perfidious\open;
+
 $rest_index = null;
 $opts = getopt('', [
     'verbose',
@@ -17,7 +19,7 @@ if (count($pos_args) <= 0) {
 
 $count = $opts['count'] ?? 10000;
 
-$handle = PerfExt\open($pos_args);
+$handle = open($pos_args);
 $handle->enable();
 
 $stats = [];

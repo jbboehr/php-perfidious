@@ -1,18 +1,18 @@
 --TEST--
-PerfExt\get_pmu_info()
+Perfidious\get_pmu_info()
 --EXTENSIONS--
 perf
 --FILE--
 <?php
-$pmu = PerfExt\get_pmu_info(51);
+$pmu = Perfidious\get_pmu_info(51);
 var_dump($pmu);
 try {
-    PerfExt\get_pmu_info(0);
+    Perfidious\get_pmu_info(0);
 } catch (\Throwable $e) {
     var_dump(get_class($e));
 }
 --EXPECTF--
-object(PerfExt\PmuInfo)#%d (6) {
+object(Perfidious\PmuInfo)#%d (6) {
   ["name"]=>
   string(4) "perf"
   ["desc"]=>
@@ -26,4 +26,4 @@ object(PerfExt\PmuInfo)#%d (6) {
   ["is_present"]=>
   bool(true)
 }
-string(28) "PerfExt\PmuNotFoundException"
+string(%d) "Perfidious\PmuNotFoundException"

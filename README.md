@@ -55,7 +55,7 @@ See also the [`examples`](./examples) directory and the [`stub`](./perf.stub.php
 For example, you can programmatically open and access the counters.
 
 ```php
-$handle = PerfExt\open(["perf::PERF_COUNT_SW_CPU_CLOCK"]);
+$handle = Perfidious\open(["perf::PERF_COUNT_SW_CPU_CLOCK"]);
 $handle->enable();
 
 for ($i = 0; $i < 3; $i++) {
@@ -85,7 +85,7 @@ Or you can configure a global or per-request handle:
 // with the following INI settings:
 // perf.request.enable=1
 // perf.request.metrics=perf::PERF_COUNT_SW_CPU_CLOCK,perf::PERF_COUNT_SW_PAGE_FAULTS,perf::PERF_COUNT_SW_CONTEXT_SWITCHES
-var_dump(PerfExt\request_handle()?->read());
+var_dump(Perfidious\request_handle()?->read());
 ```
 
 ```text
@@ -115,9 +115,9 @@ Some notable generic perf events are:
 
 | Name | Default | Changeable | Description  |
 | --------------------- | -------- | ----------- | ------------ |
-| `perf.global.enable` | `0` | `PHP_INI_SYSTEM_` | Set to `1` to enable the global handle. This handle is kept open between requests. You can read from this handle via e.g. `var_dump(PerfExt\global_handle()?->read());`. |
+| `perf.global.enable` | `0` | `PHP_INI_SYSTEM_` | Set to `1` to enable the global handle. This handle is kept open between requests. You can read from this handle via e.g. `var_dump(Perfidious\global_handle()?->read());`. |
 | `perf.global.metrics` | `perf::PERF_COUNT_HW_CPU_CYCLES`, `perf::PERF_COUNT_HW_INSTRUCTIONS`  | `PHP_INI_SYSTEM_` | The metrics to monitor with the global handle. |
-| `perf.request.enable` | `0` | `PHP_INI_SYSTEM_` | Set to `1` to enable the per-request handle. This handle is kept open between requests, but reset before and after. You can read from this handle via e.g. `var_dump(PerfExt\request_handle()?->read());` |
+| `perf.request.enable` | `0` | `PHP_INI_SYSTEM_` | Set to `1` to enable the per-request handle. This handle is kept open between requests, but reset before and after. You can read from this handle via e.g. `var_dump(Perfidious\request_handle()?->read());` |
 | `perf.request.metrics` | `perf::PERF_COUNT_HW_CPU_CYCLES`, `perf::PERF_COUNT_HW_INSTRUCTIONS`  | `PHP_INI_SYSTEM_` | The metrics to monitor with the request handle. |
 
 ## Troubleshooting

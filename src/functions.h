@@ -23,11 +23,11 @@
 #include <stdbool.h>
 #include <Zend/zend_API.h>
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_get_pmu_info_arginfo, false, 1, PerfExt\\PmuInfo, false)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_get_pmu_info_arginfo, false, 1, Perfidious\\PmuInfo, false)
     ZEND_ARG_TYPE_INFO(false, pmu, IS_LONG, false)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_global_handle_arginfo, false, 0, PerfExt\\Handle, false)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_global_handle_arginfo, false, 0, Perfidious\\Handle, false)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perfidious_list_pmus_arginfo, IS_ARRAY, false)
@@ -37,13 +37,13 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perfidious_list_pmu_events_arginfo, IS_ARRA
     ZEND_ARG_TYPE_INFO(false, pmu, IS_LONG, false)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_open_arginfo, false, 1, PerfExt\\Handle, false)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_open_arginfo, false, 1, Perfidious\\Handle, false)
     ZEND_ARG_TYPE_INFO(false, event_names, IS_ARRAY, false)
     ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(false, pid, IS_LONG, true, "0")
     ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(false, cpu, IS_LONG, true, "-1")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_request_handle_arginfo, false, 0, PerfExt\\Handle, true)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_request_handle_arginfo, false, 0, Perfidious\\Handle, true)
 ZEND_END_ARG_INFO()
 
 PERFIDIOUS_LOCAL extern ZEND_FUNCTION(perfidious_get_pmu_info);
