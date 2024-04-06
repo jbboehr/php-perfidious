@@ -160,7 +160,7 @@ ZEND_HOT
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
 PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
-size_t perfidious_handle_read_buffer_size(struct perfidious_handle *restrict handle)
+size_t perfidious_handle_read_buffer_size(const struct perfidious_handle *restrict handle)
 {
     return sizeof(struct perfidious_read_format) +
            sizeof(((struct perfidious_read_format){0}).values[0]) * handle->metrics_count;
@@ -170,7 +170,8 @@ ZEND_HOT
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
 PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
-zend_result perfidious_handle_read_raw(struct perfidious_handle *restrict handle, size_t size, void *restrict buffer)
+zend_result
+perfidious_handle_read_raw(const struct perfidious_handle *restrict handle, size_t size, void *restrict buffer)
 {
     ssize_t bytes_read = read(handle->metrics[0].fd, buffer, size);
 
@@ -184,16 +185,16 @@ PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
 PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
 zend_result perfidious_handle_read_to_array_with_times(
-    struct perfidious_handle *restrict handle,
+    const struct perfidious_handle *restrict handle,
     zval *restrict return_value,
     uint64_t *restrict time_enabled,
     uint64_t *restrict time_running
 )
 {
     size_t size = perfidious_handle_read_buffer_size(handle);
-    struct perfidious_read_format *data = alloca(size);
+    const struct perfidious_read_format *data = alloca(size);
 
-    if (SUCCESS != perfidious_handle_read_raw(handle, size, data)) {
+    if (SUCCESS != perfidious_handle_read_raw(handle, size, (void *) data)) {
         perfidious_error_helper(perfidious_io_exception_ce, errno, "failed to read: %s", strerror(errno));
         return FAILURE;
     }
@@ -204,8 +205,8 @@ zend_result perfidious_handle_read_to_array_with_times(
     array_init(return_value);
 
     for (size_t i = 0; i < data->nr; i++) {
-        struct perfidious_metric *metric = &handle->metrics[i];
-        struct perfidious_read_format_value *value = &data->values[i];
+        const struct perfidious_metric *metric = &handle->metrics[i];
+        const struct perfidious_read_format_value *value = &data->values[i];
 
         if (UNEXPECTED(metric->id != value->id)) {
             perfidious_error_helper(
@@ -255,7 +256,8 @@ ZEND_HOT
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
 PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
-zend_result perfidious_handle_read_to_array(struct perfidious_handle *handle, zval *return_value)
+zend_result
+perfidious_handle_read_to_array(const struct perfidious_handle *restrict handle, zval *restrict return_value)
 {
     uint64_t time_enabled;
     uint64_t time_running;
@@ -265,7 +267,8 @@ zend_result perfidious_handle_read_to_array(struct perfidious_handle *handle, zv
 ZEND_HOT
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
-zend_result perfidious_handle_read_to_result(struct perfidious_handle *handle, zval *return_value)
+zend_result
+perfidious_handle_read_to_result(const struct perfidious_handle *restrict handle, zval *restrict return_value)
 {
     uint64_t time_enabled;
     uint64_t time_running;

@@ -91,20 +91,4 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_handle_reset_arginfo, 0, 0, Perfidious\\Handle, 0)
 ZEND_END_ARG_INFO()
 
-PERFIDIOUS_PUBLIC
-PERFIDIOUS_ATTR_NONNULL_ALL
-PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
-zend_result perfidious_handle_read_to_array(struct perfidious_handle *handle, zval *return_value);
-
-ZEND_HOT
-PERFIDIOUS_PUBLIC
-PERFIDIOUS_ATTR_NONNULL_ALL
-PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
-zend_result perfidious_handle_read_to_array_with_times(
-    struct perfidious_handle *restrict handle,
-    zval *restrict return_value,
-    uint64_t *restrict time_enabled,
-    uint64_t *restrict time_running
-);
-
 #endif /* PERFIDIOUS_HANDLE_H */

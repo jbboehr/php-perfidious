@@ -211,21 +211,36 @@ static PHP_MSHUTDOWN_FUNCTION(perfidious)
 static zend_always_inline void minfo_handle_metrics(struct perfidious_handle *restrict handle)
 {
     zval z_metrics = {0};
+    uint64_t time_enabled;
+    uint64_t time_running;
 
-    if (UNEXPECTED(FAILURE == perfidious_handle_read_to_array(handle, &z_metrics))) {
-        php_info_print_table_colspan_header(2, "READ ERROR");
+    if (UNEXPECTED(
+            FAILURE == perfidious_handle_read_to_array_with_times(handle, &z_metrics, &time_enabled, &time_running)
+        )) {
+        php_info_print_table_colspan_header(3, "READ ERROR");
         return;
+    }
+
+    uint64_t perc_running = 0;
+    if (time_enabled > 0) {
+        perc_running = 100 * time_running / time_enabled;
     }
 
     zend_string *key;
     zval *val;
-    char buf[512];
+    char buf[128];
+    char buf2[128];
+    char buf3[128];
 
     ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL(z_metrics), key, val)
     {
         if (EXPECTED(key != NULL && Z_TYPE_P(val) == IS_LONG)) {
+            uint64_t scaled = time_running > 0 ? Z_LVAL_P(val) * time_enabled / time_running : 0;
+
             snprintf(buf, sizeof(buf), "%lu", Z_LVAL_P(val));
-            php_info_print_table_row(2, ZSTR_VAL(key), buf);
+            snprintf(buf2, sizeof(buf2), "%" PRIu64, scaled);
+            snprintf(buf3, sizeof(buf3), "%" PRIu64 "%%", perc_running);
+            php_info_print_table_row(4, ZSTR_VAL(key), buf, buf2, buf3);
         }
     }
     ZEND_HASH_FOREACH_END();
@@ -245,14 +260,16 @@ static PHP_MINFO_FUNCTION(perfidious)
 
     if (PERFIDIOUS_G(global_enable) && PERFIDIOUS_G(global_handle) != NULL) {
         php_info_print_table_start();
-        php_info_print_table_colspan_header(2, "Global Metrics");
+        php_info_print_table_colspan_header(4, "Global Metrics");
+        php_info_print_table_header(4, "Event", "Counter", "Scaled", "% Running");
         minfo_handle_metrics(PERFIDIOUS_G(global_handle));
         php_info_print_table_end();
     }
 
     if (PERFIDIOUS_G(request_enable) && PERFIDIOUS_G(request_handle) != NULL) {
         php_info_print_table_start();
-        php_info_print_table_colspan_header(2, "Request Metrics");
+        php_info_print_table_colspan_header(4, "Request Metrics");
+        php_info_print_table_header(4, "Event", "Counter", "Scaled", "% Running");
         minfo_handle_metrics(PERFIDIOUS_G(request_handle));
         php_info_print_table_end();
     }

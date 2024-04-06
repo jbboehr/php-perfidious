@@ -23,7 +23,8 @@ perfidious.request.enable => 0 => 0
 perfidious.request.metrics => %s => %s
 %A
 %sGlobal Metrics%s
-perf::PERF_COUNT_SW_CPU_CLOCK:u => %d
-perf::PERF_COUNT_SW_PAGE_FAULTS:u => %d
-perf::PERF_COUNT_SW_CONTEXT_SWITCHES:u => %d
+Event => Counter => Scaled => % Running
+perf::PERF_COUNT_SW_CPU_CLOCK:u => %d => %d => %d%
+perf::PERF_COUNT_SW_PAGE_FAULTS:u => %d => %d => %d%
+perf::PERF_COUNT_SW_CONTEXT_SWITCHES:u => %d => %d => %d%
 %A

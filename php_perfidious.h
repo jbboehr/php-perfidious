@@ -142,12 +142,36 @@ ZEND_HOT
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
 PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
-size_t perfidious_handle_read_buffer_size(struct perfidious_handle *restrict handle);
+size_t perfidious_handle_read_buffer_size(const struct perfidious_handle *restrict handle);
 
 ZEND_HOT
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
 PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
-zend_result perfidious_handle_read_raw(struct perfidious_handle *restrict handle, size_t size, void *restrict buffer);
+zend_result
+perfidious_handle_read_raw(const struct perfidious_handle *restrict handle, size_t size, void *restrict buffer);
+
+PERFIDIOUS_PUBLIC
+PERFIDIOUS_ATTR_NONNULL_ALL
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
+zend_result
+perfidious_handle_read_to_array(const struct perfidious_handle *restrict handle, zval *restrict return_value);
+
+ZEND_HOT
+PERFIDIOUS_PUBLIC
+PERFIDIOUS_ATTR_NONNULL_ALL
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
+zend_result perfidious_handle_read_to_array_with_times(
+    const struct perfidious_handle *restrict handle,
+    zval *restrict return_value,
+    uint64_t *restrict time_enabled,
+    uint64_t *restrict time_running
+);
+
+ZEND_HOT
+PERFIDIOUS_PUBLIC
+PERFIDIOUS_ATTR_NONNULL_ALL
+zend_result
+perfidious_handle_read_to_result(const struct perfidious_handle *restrict handle, zval *restrict return_value);
 
 #endif /* PHP_PERFIDIOUS_H */
