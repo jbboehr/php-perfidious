@@ -116,6 +116,13 @@ jobs:
                         --compat-libtool \
                         --output-file coverage.info
 
+            -   name: Upload coverage reports to Codecov
+                uses: codecov/codecov-action@v4
+                with:
+                    file: coverage.info
+                    token: ${{ secrets.CODECOV_TOKEN }}
+                    slug: jbboehr/php-perf
+
             -   name: Coveralls
                 uses: coverallsapp/github-action@v2
                 with:
@@ -138,14 +145,14 @@ jobs:
         outputs:
             matrix: ${{ steps.set-matrix.outputs.matrix }}
         steps:
-            - uses: actions/checkout@v4
-            - uses: cachix/install-nix-action@v26
-            - id: set-matrix
-              name: Generate Nix Matrix
-              run: |
-                  set -Eeu
-                  matrix="$(nix eval --json '.#githubActions.matrix')"
-                  echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+            -   uses: actions/checkout@v4
+            -   uses: cachix/install-nix-action@v26
+            -   id: set-matrix
+                name: Generate Nix Matrix
+                run: |
+                    set -Eeu
+                    matrix="$(nix eval --json '.#githubActions.matrix')"
+                    echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
     nix:
         name: "nix (${{ matrix.name }})"
@@ -181,7 +188,7 @@ jobs:
 
             -   run: nix build -L ".#${{ matrix.attr }}"
 
-#            -   run: nix flake check -L
+            #            -   run: nix flake check -L
 
             -   name: Export Nix Store Cache
                 shell: bash
