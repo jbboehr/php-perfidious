@@ -300,6 +300,49 @@ perfidious_handle_open(zend_string **restrict event_names, size_t event_names_le
     return perfidious_handle_open_ex(event_names, event_names_length, 0, -1, persist);
 }
 
+static inline zend_result perfidious_perf_event_open(
+    struct perf_event_attr *restrict attr,
+    const char *restrict event_name,
+    size_t event_name_length,
+    pid_t pid,
+    int cpu,
+    int group_fd,
+    int *restrict fd_out,
+    uint64_t *restrict id_out
+)
+{
+    int id;
+    int fd = (int) perf_event_open(attr, pid, cpu, group_fd, 0);
+    if (UNEXPECTED(fd == -1)) {
+        perfidious_error_helper(
+            perfidious_io_exception_ce,
+            errno,
+            "perf_event_open() failed for %.*s: %s",
+            (int) event_name_length,
+            event_name,
+            strerror(errno)
+        );
+        return FAILURE;
+    }
+
+    if (UNEXPECTED(-1 == ioctl(fd, PERF_EVENT_IOC_ID, &id))) {
+        perfidious_handle_ioctl_error();
+        close(fd);
+        return FAILURE;
+    }
+
+    if (UNEXPECTED(-1 == ioctl(fd, PERF_EVENT_IOC_RESET, fd))) {
+        perfidious_handle_ioctl_error();
+        close(fd);
+        return FAILURE;
+    }
+
+    *fd_out = fd;
+    *id_out = id;
+
+    return SUCCESS;
+}
+
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
 PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
@@ -310,7 +353,7 @@ struct perfidious_handle *perfidious_handle_open_ex(
     int fd;
     uint64_t id;
     int group_fd;
-    int err;
+    zend_result err;
     uint64_t format =
         PERF_FORMAT_GROUP | PERF_FORMAT_ID | PERF_FORMAT_TOTAL_TIME_RUNNING | PERF_FORMAT_TOTAL_TIME_ENABLED;
 
@@ -332,26 +375,8 @@ struct perfidious_handle *perfidious_handle_open_ex(
             .exclude_hv = 1,
             .read_format = format,
         };
-        fd = (int) perf_event_open(&attr, pid, cpu, -1, 0);
-        if (UNEXPECTED(fd == -1)) {
-            perfidious_error_helper(
-                perfidious_io_exception_ce,
-                errno,
-                "perf_event_open() failed for perf::PERF_COUNT_SW_DUMMY: %s",
-                strerror(errno)
-            );
-            goto cleanup;
-        }
-        err = ioctl(fd, PERF_EVENT_IOC_ID, &id);
-        if (err == -1) {
-            perfidious_handle_ioctl_error();
-            close(fd);
-            goto cleanup;
-        }
-        err = ioctl(fd, PERF_EVENT_IOC_RESET, fd);
-        if (err == -1) {
-            perfidious_handle_ioctl_error();
-            close(fd);
+        err = perfidious_perf_event_open(&attr, ZEND_STRL("perf::PERF_COUNT_SW_DUMMY"), pid, cpu, -1, &fd, &id);
+        if (UNEXPECTED(FAILURE == err)) {
             goto cleanup;
         }
         handle->metrics[handle->metrics_count++] = (struct perfidious_metric){
@@ -370,15 +395,15 @@ struct perfidious_handle *perfidious_handle_open_ex(
         arg.attr = &attr;
         arg.size = sizeof(arg);
 
-        err = pfm_get_os_event_encoding(ZSTR_VAL(event_name), PFM_PLM3, PFM_OS_PERF_EVENT, &arg);
-        if (UNEXPECTED(err != PFM_SUCCESS)) {
+        pfm_err_t pfm_err = pfm_get_os_event_encoding(ZSTR_VAL(event_name), PFM_PLM3, PFM_OS_PERF_EVENT, &arg);
+        if (UNEXPECTED(pfm_err != PFM_SUCCESS)) {
             zend_throw_exception_ex(
                 perfidious_pmu_event_not_found_exception_ce,
-                err,
+                pfm_err,
                 "failed to get libpfm event encoding for %.*s: %s",
                 (int) ZSTR_LEN(event_name),
                 ZSTR_VAL(event_name),
-                pfm_strerror(err)
+                pfm_strerror(pfm_err)
             );
             goto cleanup;
         }
@@ -390,31 +415,9 @@ struct perfidious_handle *perfidious_handle_open_ex(
         attr.exclude_hv = 1;
         attr.read_format = format;
 
-        fd = (int) perf_event_open(&attr, pid, cpu, group_fd, 0);
-
-        if (UNEXPECTED(fd == -1)) {
-            zend_throw_exception_ex(
-                perfidious_io_exception_ce,
-                errno,
-                "perf_event_open() failed for %.*s: %s",
-                (int) ZSTR_LEN(event_name),
-                ZSTR_VAL(event_name),
-                strerror(errno)
-            );
-            goto cleanup;
-        }
-
-        err = ioctl(fd, PERF_EVENT_IOC_ID, &id);
-        if (err == -1) {
-            perfidious_handle_ioctl_error();
-            close(fd);
-            goto cleanup;
-        }
-
-        err = ioctl(fd, PERF_EVENT_IOC_RESET, fd);
-        if (err == -1) {
-            perfidious_handle_ioctl_error();
-            close(fd);
+        err =
+            perfidious_perf_event_open(&attr, ZSTR_VAL(event_name), ZSTR_LEN(event_name), pid, cpu, group_fd, &fd, &id);
+        if (UNEXPECTED(FAILURE == err)) {
             goto cleanup;
         }
 
@@ -432,6 +435,7 @@ struct perfidious_handle *perfidious_handle_open_ex(
 
 cleanup:
     perfidious_handle_close(handle);
+    pefree(handle, persist);
     return NULL;
 }
 
