@@ -1,6 +1,9 @@
 #!/usr/bin/env php
 <?php
 
+// ok, these aren't all examples per se
+// this one tries to estimate the overhead of calling Perfidious\Handle::read()
+
 use function Perfidious\open;
 
 $rest_index = null;
