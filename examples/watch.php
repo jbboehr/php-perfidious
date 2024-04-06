@@ -4,7 +4,8 @@
 use function Perfidious\open;
 
 // If specifying pid, you may need to grant cap_perfmon
-// sudo capsh --caps="cap_perfmon,cap_setgid,cap_setuid,cap_setpcap+eip" --user=`whoami` --addamb='cap_perfmon' -- -c 'php -dextension=modules/perfidious.so examples/watch.php --interval 2 --pid 3319'
+// sudo capsh --caps="cap_perfmon,cap_setgid,cap_setuid,cap_setpcap+eip" --user=`whoami` --addamb='cap_perfmon' -- \
+//    -c 'php -dextension=modules/perfidious.so examples/watch.php --interval 2 --pid 3319'
 
 $rest_index = null;
 $opts = getopt('', [
@@ -22,16 +23,22 @@ if (count($pos_args) <= 0) {
 }
 
 $pid = $opts['pid'] ?? 0;
+$pid = is_numeric($pid) ? (int) $opts['pid'] : 0;
 $cpu = $opts['cpu'] ?? -1;
-$interval = (float) ($opts['interval'] ?? 0) ?: 2;
+$cpu = is_numeric($cpu) ? (int) $cpu : -1;
+$interval = $opts['interval'] ?? 2;
+$interval = is_numeric($interval) ? (int) $interval : 2;
 $interval *= 1000000;
 
 $handle = open($pos_args, $pid, $cpu);
 $handle->enable();
 
-while (true) {
+
+while (true) { // @phpstan-ignore-line
     $stats = $handle->read();
     $percent_running = $stats->timeEnabled > 0 ? 100 * $stats->timeRunning / $stats->timeEnabled : 0;
+
+    //\PHPStan\dumpType($stats);
 
     printf("cpu=%d pid=%d\n", $cpu, $pid);
     printf("time_enabled=%d time_running=%d percent_running=%d%%\n", $stats->timeEnabled, $stats->timeRunning, $percent_running);
@@ -40,8 +47,4 @@ while (true) {
     }
 
     usleep($interval);
-}
-
-foreach ($tmp as $k => $v) {
-    echo $k;
 }

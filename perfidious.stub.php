@@ -13,6 +13,9 @@ function get_pmu_info(int $pmu): PmuInfo
 {
 }
 
+/**
+ * @phpstan-return ?Handle<list<string>>
+ */
 function global_handle(): ?Handle
 {
 }
@@ -37,11 +40,18 @@ function list_pmu_events(int $pmu): array
 /**
  * @param list<string> $event_names a list of libpfm event names, see list_pmu_events
  * @throws PmuEventNotFoundException|IOException|OverflowException
+ *
+ * @phpstan-template T of string
+ * @phpstan-param list<T> $event_names
+ * @phpstan-return Handle<list<T>>
  */
 function open(array $event_names, int $pid = 0, int $cpu = -1): Handle
 {
 }
 
+/**
+ * @phpstan-return ?Handle<list<string>>
+ */
 function request_handle(): ?Handle
 {
 }
@@ -66,48 +76,75 @@ final class PmuEventNotFoundException extends \InvalidArgumentException implemen
 {
 }
 
+/**
+ * @phpstan-template T of list<string>
+ */
 final class Handle
 {
     /**
+     * @return $this
      * @throws IOException
      */
-    final public function enable(): self {}
+    final public function enable(): self
+    {
+    }
 
     /**
+     * @return $this
      * @throws IOException
      */
-    final public function disable(): self {}
+    final public function disable(): self
+    {
+    }
 
     /**
      * Get a raw byte stream from the handle's file descriptor
      * @note closing this resource will cause subsequent calls to read to fail
      * @return resource
      */
-    final public function rawStream() {}
+    final public function rawStream()
+    {
+    }
+
+    /**
+     * @throws OverflowException|IOException
+     *
+     * @phpstan-return ReadResult<T>
+     */
+    final public function read(): ReadResult
+    {
+    }
 
     /**
      * @return array<string, int>
      * @throws OverflowException|IOException
+     *
+     * @phpstan-return array<value-of<T>, int>
      */
-    final public function read(): ReadResult {}
+    final public function readArray(): array
+    {
+    }
 
     /**
-     * @return array<string, int>
-     * @throws OverflowException|IOException
-     */
-    final public function readArray(): array {}
-
-    /**
+     * @return $this
      * @throws IOException
      */
-    final public function reset(): self {}
+    final public function reset(): self
+    {
+    }
 }
 
+/**
+ * @phpstan-template T of list<string>
+ */
 final class ReadResult
 {
     public readonly int $timeEnabled;
     public readonly int $timeRunning;
-    /** @var array<string, int> **/
+    /**
+     * @var array<string, int>
+     * @phpstan-var array<value-of<T>, int>
+     */
     public readonly array $values;
 }
 

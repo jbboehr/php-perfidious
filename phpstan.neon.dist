@@ -1,0 +1,9 @@
+includes:
+    - vendor/phpstan/phpstan/conf/bleedingEdge.neon
+parameters:
+    level: max
+    paths:
+        - perfidious.stub.php
+        - examples
+    stubFiles:
+        - perfidious.stub.php

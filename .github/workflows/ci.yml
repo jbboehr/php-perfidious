@@ -14,6 +14,47 @@ permissions:
     contents: read
 
 jobs:
+    lint:
+        runs-on: ubuntu-latest
+        name: "Lint | PHP ${{ matrix.php-version }}"
+        strategy:
+            matrix:
+                php-version:
+                    - "8.1"
+                    - "8.2"
+                    - "8.3"
+        steps:
+            -   uses: actions/checkout@v4
+
+            -   name: Install PHP
+                uses: shivammathur/setup-php@v2
+                with:
+                    coverage: "none"
+                    php-version: "${{ matrix.php-version }}"
+                    tools: composer:v2
+                    extensions: json, opcache
+
+            -   name: Validate composer.json and composer.lock
+                run: composer validate --strict
+
+            -   name: Cache Composer packages
+                id: composer-cache
+                uses: actions/cache@v4
+                with:
+                    path: vendor
+                    key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
+                    restore-keys: |
+                        ${{ runner.os }}-php-
+
+            -   name: Install dependencies
+                run: composer install --prefer-dist --no-progress --ignore-platform-req=php+ --ignore-platform-req=ext-perfidious
+
+            -   name: phpcs
+                run: php vendor/bin/phpcs
+
+            -   name: phpstan
+                run: php vendor/bin/phpstan analyze
+
     test:
         runs-on: ubuntu-latest
         name: "Test | PHP ${{ matrix.php-version }}"

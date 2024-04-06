@@ -51,7 +51,16 @@ foreach ($stats as $k => $data) {
     $stddev = stddev($data);
     $min = min($data);
     $max = max($data);
-    printf("%s\n  samples=%d\n  mean=%g\n  variance=%g\n  stddev=%g\n  min=%g\n  max=%g\n", $k, count($data), $mean, $variance, $stddev, $min, $max);
+    printf(
+        "%s\n  samples=%d\n  mean=%g\n  variance=%g\n  stddev=%g\n  min=%g\n  max=%g\n",
+        $k,
+        count($data),
+        $mean,
+        $variance,
+        $stddev,
+        $min,
+        $max
+    );
 }
 
 /**
@@ -59,7 +68,10 @@ foreach ($stats as $k => $data) {
  * @license https://github.com/phpbench/phpbench/blob/master/LICENSE
  */
 
-function variance(array $values, bool $sample = false)
+/**
+ * @param list<int|float> $values
+ */
+function variance(array $values, bool $sample = false): int|float
 {
     $average = mean($values);
     $sum = 0;
@@ -78,6 +90,9 @@ function variance(array $values, bool $sample = false)
     return $variance;
 }
 
+/**
+ * @param list<int|float> $values
+ */
 function stddev(array $values, bool $sample = false): float
 {
     $variance = variance($values, $sample);
@@ -85,7 +100,10 @@ function stddev(array $values, bool $sample = false): float
     return \sqrt($variance);
 }
 
-function mean(array $values)
+/**
+ * @param list<int|float> $values
+ */
+function mean(array $values): int|float
 {
     if (empty($values)) {
         return 0;

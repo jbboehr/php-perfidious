@@ -13,6 +13,7 @@ $opts = getopt('', [
 ], $rest_index);
 
 $show = $opts['show'] ?? 'present';
+$show = is_string($show) ? $show : 'present';
 
 if (array_key_exists('help', $opts)) {
     fprintf(STDERR, "Usage: " . $argv[0] . PHP_EOL);

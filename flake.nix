@@ -145,6 +145,8 @@
               # opcache isn't getting loaded for tests because tests are run with '-n' and nixos doesn't compile
               # in opcache and relies on mkWrapper to load extensions
               export TEST_PHP_ARGS='-c ${package.php.phpIni}'
+              # php.unwrapped from the buildDeps is overwriting php
+              export PATH="${package.php}/bin:$PATH"
             '';
           };
 

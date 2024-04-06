@@ -21,6 +21,7 @@ if (count($pos_args) <= 0) {
 }
 
 $count = $opts['count'] ?? 2000000;
+$count = is_numeric($opts['count']) ? (int) $opts['count'] : 2000000;
 
 $handle = open($pos_args);
 $handle->enable();
@@ -33,9 +34,12 @@ $stats = $handle->read();
 var_dump($primes);
 var_dump($stats);
 
+/**
+ * @return list<int>
+ */
 function sieve(int $n): array
 {
-    $n2 = ceil($n / 8);
+    $n2 = (int) ceil($n / 8);
     $lut = str_repeat("\0", $n2);
     for ($i = 2; $i < $n; $i++) {
         for ($j = $i + $i; $j < $n; $j += $i) {
