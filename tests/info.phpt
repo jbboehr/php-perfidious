@@ -1,5 +1,5 @@
 --TEST--
-info
+phpinfo
 --EXTENSIONS--
 perfidious
 --FILE--

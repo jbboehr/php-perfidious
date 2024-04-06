@@ -82,7 +82,9 @@ static inline bool perfidious_zend_long_to_pid_t(zend_long from, pid_t *restrict
 #if SIZEOF_ZEND_LONG > SIZEOF_PID_T
     const zend_long PID_MAX = (((zend_long) 1) << ((SIZEOF_PID_T * 8) - 1)) - 1;
     if (UNEXPECTED(from > PID_MAX)) {
-        zend_throw_exception_ex(perfidious_overflow_exception_ce, 0, "pid too large: %ld > %ld", from, PID_MAX);
+        zend_throw_exception_ex(
+            perfidious_overflow_exception_ce, 0, "pid too large: %" ZEND_LONG_FMT_SPEC " > %ld", from, PID_MAX
+        );
         return false;
     }
 #endif
@@ -105,8 +107,6 @@ perfidious_error_helper(zend_class_entry *restrict exception_ce, zend_long code,
     va_end(args);
 
     switch (PERFIDIOUS_G(error_mode)) {
-        case PERFIDIOUS_ERROR_MODE_SILENT:
-            break;
         case PERFIDIOUS_ERROR_MODE_WARNING:
             php_error_docref(NULL, E_WARNING, "%.*s", bytes, buffer);
             break;

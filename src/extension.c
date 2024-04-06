@@ -99,8 +99,6 @@ static struct perfidious_handle *split_and_open(zend_string *restrict metrics, b
     zval z_metrics = {0};
     struct perfidious_handle *handle = NULL;
 
-    PERFIDIOUS_G(error_mode) = PERFIDIOUS_ERROR_MODE_WARNING;
-
     do {
         zend_string *delim = zend_string_init_fast(ZEND_STRL(","));
         array_init(&z_metrics);
@@ -138,13 +136,14 @@ static struct perfidious_handle *split_and_open(zend_string *restrict metrics, b
 
 done:
     zval_dtor(&z_metrics);
-    PERFIDIOUS_G(error_mode) = PERFIDIOUS_ERROR_MODE_THROW;
     return handle;
 }
 
 static PHP_MINIT_FUNCTION(perfidious)
 {
     const int flags = CONST_CS | CONST_PERSISTENT;
+
+    PERFIDIOUS_G(error_mode) = PERFIDIOUS_ERROR_MODE_WARNING;
 
     // Initialize pfm
     int pfm_ret = pfm_initialize();
@@ -185,11 +184,15 @@ static PHP_MINIT_FUNCTION(perfidious)
         }
     }
 
+    PERFIDIOUS_G(error_mode) = PERFIDIOUS_ERROR_MODE_THROW;
+
     return SUCCESS;
 }
 
 static PHP_MSHUTDOWN_FUNCTION(perfidious)
 {
+    PERFIDIOUS_G(error_mode) = PERFIDIOUS_ERROR_MODE_WARNING;
+
     if (PERFIDIOUS_G(request_handle)) {
         perfidious_handle_close(PERFIDIOUS_G(request_handle));
         PERFIDIOUS_G(request_handle) = NULL;
@@ -210,6 +213,7 @@ static zend_always_inline void minfo_handle_metrics(struct perfidious_handle *re
     zval z_metrics = {0};
 
     if (UNEXPECTED(FAILURE == perfidious_handle_read_to_array(handle, &z_metrics))) {
+        php_info_print_table_colspan_header(2, "READ ERROR");
         return;
     }
 

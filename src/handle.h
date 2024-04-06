@@ -27,8 +27,6 @@
 #include <Zend/zend_portability.h>
 #include "php_perfidious.h"
 
-static const uint64_t PERFIDIOUS_HANDLE_MARKER = 0x327b23c66b8b4567;
-
 struct perfidious_metric
 {
     int fd;
@@ -38,7 +36,6 @@ struct perfidious_metric
 
 struct perfidious_handle
 {
-    uint64_t marker;
     size_t metrics_size;
     size_t metrics_count;
     bool enabled;
@@ -82,6 +79,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_handle_enable_arginfo, 0, 0, P
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perfidious_handle_raw_stream_arginfo, IS_RESOURCE, 0)
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(false, idx, IS_LONG, true, "0")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_handle_read_arginfo, 0, 0, Perfidious\\ReadResult, 0)
@@ -108,24 +106,5 @@ zend_result perfidious_handle_read_to_array_with_times(
     uint64_t *restrict time_enabled,
     uint64_t *restrict time_running
 );
-
-ZEND_HOT
-PERFIDIOUS_ATTR_NONNULL_ALL
-PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
-static zend_always_inline zend_result perfidious_handle_marker_assert(struct perfidious_handle *restrict handle)
-{
-    if (UNEXPECTED(handle->marker != PERFIDIOUS_HANDLE_MARKER)) {
-        zend_throw_exception_ex(
-            perfidious_overflow_exception_ce,
-            0,
-            "Assertion failed: marker mismatch: %" PRIu64 " != %" PRIu64,
-            handle->marker,
-            PERFIDIOUS_HANDLE_MARKER
-        );
-        return FAILURE;
-    }
-
-    return SUCCESS;
-}
 
 #endif /* PERFIDIOUS_HANDLE_H */

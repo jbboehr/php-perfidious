@@ -81,7 +81,6 @@ enum perfidious_error_mode
 {
     PERFIDIOUS_ERROR_MODE_THROW = 0,
     PERFIDIOUS_ERROR_MODE_WARNING = 1,
-    PERFIDIOUS_ERROR_MODE_SILENT = 2,
 };
 
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_exception_interface_ce;

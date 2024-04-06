@@ -1,5 +1,5 @@
 --TEST--
-info
+phpinfo global and per-request stats
 --EXTENSIONS--
 perfidious
 --INI--

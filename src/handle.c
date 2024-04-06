@@ -35,7 +35,8 @@
 #include <Zend/zend_API.h>
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_portability.h>
-#include "main/php.h"
+#include <main/php.h>
+#include <ext/spl/spl_exceptions.h>
 
 #include "php_perfidious.h"
 #include "handle.h"
@@ -141,7 +142,7 @@ zend_result perfidious_handle_close(struct perfidious_handle *restrict handle)
 
     for (ssize_t i = (ssize_t) handle->metrics_count - 1; i >= 0; i--) {
         if (UNEXPECTED(-1 == close(handle->metrics[i].fd))) {
-            zend_throw_exception_ex(perfidious_io_exception_ce, errno, "close failed: %s", strerror(errno));
+            perfidious_error_helper(perfidious_io_exception_ce, errno, "close failed: %s", strerror(errno));
             rv = FAILURE;
             // continue even if it fails
         }
@@ -207,6 +208,13 @@ zend_result perfidious_handle_read_to_array_with_times(
         struct perfidious_read_format_value *value = &data->values[i];
 
         if (UNEXPECTED(metric->id != value->id)) {
+            perfidious_error_helper(
+                spl_ce_DomainException, 0, "ID mismatch: %" PRIu64 " != %" PRIu64, metric->id, value->id
+            );
+            zval_ptr_dtor(return_value);
+            ZVAL_UNDEF(return_value);
+            return FAILURE;
+            /*
             metric = NULL;
 
             // skip the first entry - it should be the dummy
@@ -220,6 +228,7 @@ zend_result perfidious_handle_read_to_array_with_times(
             if (UNEXPECTED(metric == NULL)) {
                 continue;
             }
+            */
         } else if (i == 0) {
             // skip the first entry - it should be the dummy
             continue;
@@ -317,7 +326,6 @@ struct perfidious_handle *perfidious_handle_open_ex(
     struct perfidious_handle *handle = pecalloc(
         sizeof(struct perfidious_handle) + sizeof(struct perfidious_metric) * (event_names_length + 1), 1, persist
     );
-    handle->marker = PERFIDIOUS_HANDLE_MARKER;
     handle->metrics_size = event_names_length + 1;
 
     // Open a dummy event to hold the group
@@ -372,7 +380,7 @@ struct perfidious_handle *perfidious_handle_open_ex(
 
         err = pfm_get_os_event_encoding(ZSTR_VAL(event_name), PFM_PLM3, PFM_OS_PERF_EVENT, &arg);
         if (UNEXPECTED(err != PFM_SUCCESS)) {
-            zend_throw_exception_ex(
+            perfidious_error_helper(
                 perfidious_pmu_event_not_found_exception_ce,
                 err,
                 "failed to get libpfm event encoding for %.*s: %s",
@@ -393,7 +401,7 @@ struct perfidious_handle *perfidious_handle_open_ex(
         fd = (int) perf_event_open(&attr, pid, cpu, group_fd, 0);
 
         if (UNEXPECTED(fd == -1)) {
-            zend_throw_exception_ex(
+            perfidious_error_helper(
                 perfidious_io_exception_ce,
                 errno,
                 "perf_event_open() failed for %.*s: %s",
@@ -442,10 +450,6 @@ static PHP_METHOD(PerfidousHandle, disable)
 
     struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(ZEND_THIS));
 
-    if (UNEXPECTED(FAILURE == perfidious_handle_marker_assert(obj->handle))) {
-        RETURN_NULL();
-    }
-
     perfidious_handle_disable(obj->handle);
 
     RETURN_ZVAL(ZEND_THIS, 1, 0);
@@ -458,10 +462,6 @@ static PHP_METHOD(PerfidousHandle, enable)
 
     struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(ZEND_THIS));
 
-    if (UNEXPECTED(FAILURE == perfidious_handle_marker_assert(obj->handle))) {
-        RETURN_NULL();
-    }
-
     perfidious_handle_enable(obj->handle);
 
     RETURN_ZVAL(ZEND_THIS, 1, 0);
@@ -470,15 +470,20 @@ static PHP_METHOD(PerfidousHandle, enable)
 ZEND_COLD
 static PHP_METHOD(PerfidousHandle, rawStream)
 {
-    ZEND_PARSE_PARAMETERS_NONE();
+    zend_long idx = 0;
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(idx)
+    ZEND_PARSE_PARAMETERS_END();
 
     struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(ZEND_THIS));
 
-    if (UNEXPECTED(FAILURE == perfidious_handle_marker_assert(obj->handle))) {
+    if (UNEXPECTED((size_t) idx >= obj->handle->metrics_count)) {
         RETURN_NULL();
     }
 
-    php_stream *stream = php_stream_fopen_from_fd(obj->handle->metrics[0].fd, "r", NULL);
+    php_stream *stream = php_stream_fopen_from_fd(obj->handle->metrics[idx].fd, "r", NULL);
     php_stream_to_zval(stream, return_value);
 }
 
@@ -488,10 +493,6 @@ static PHP_METHOD(PerfidousHandle, read)
     ZEND_PARSE_PARAMETERS_NONE();
 
     struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(ZEND_THIS));
-
-    if (UNEXPECTED(FAILURE == perfidious_handle_marker_assert(obj->handle))) {
-        RETURN_NULL();
-    }
 
     bool orig_enabled = obj->handle->enabled;
 
@@ -512,10 +513,6 @@ static PHP_METHOD(PerfidousHandle, readArray)
     ZEND_PARSE_PARAMETERS_NONE();
 
     struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(ZEND_THIS));
-
-    if (UNEXPECTED(FAILURE == perfidious_handle_marker_assert(obj->handle))) {
-        RETURN_NULL();
-    }
 
     bool orig_enabled = obj->handle->enabled;
 
@@ -538,10 +535,6 @@ static PHP_METHOD(PerfidousHandle, reset)
     ZEND_PARSE_PARAMETERS_NONE();
 
     struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(ZEND_THIS));
-
-    if (UNEXPECTED(FAILURE == perfidious_handle_marker_assert(obj->handle))) {
-        RETURN_NULL();
-    }
 
     perfidious_handle_reset(obj->handle);
 
