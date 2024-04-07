@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package packagerversion="1.10.1" version="2.0" xmlns="http://pear.php.net/dtd/package-2.0" xmlns:tasks="http://pear.php.net/dtd/tasks-1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://pear.php.net/dtd/tasks-1.0 http://pear.php.net/dtd/tasks-1.0.xsd http://pear.php.net/dtd/package-2.0 http://pear.php.net/dtd/package-2.0.xsd">
+ <name>perfidious</name>
+ <channel>pecl.php.net</channel>
+ <summary>Access perf_events PMU counters</summary>
+ <description>This extension provides access to the performance monitoring counters exposed by the Linux perf_events kernel API.</description>
+ <lead>
+  <name>John Boehr</name>
+  <user>jbboehr</user>
+  <email>jbboehr@gmail.com</email>
+  <active>yes</active>
+ </lead>
+ <date>2024-04-07</date>
+ <version>
+  <release>0.1.0</release>
+  <api>0.1.0</api>
+ </version>
+ <stability>
+  <release>beta</release>
+  <api>beta</api>
+ </stability>
+ <license uri="https://www.gnu.org/licenses/agpl-3.0.en.html">AGPL-3.0-or-later</license>
+ <notes>
+  - Initial release
+ </notes>
+ <contents>
+  <dir name="/">
+   <file name="CHANGELOG.md" role="doc" />
+   <file name="LICENSE.md" role="doc" />
+   <file name="README.md" role="doc" />
+   <file name="config.m4" role="src" />
+
+   <file name="php_perfidious.h" role="src" />
+   <file name="src/private.h" role="src" />
+   <file name="src/handle.h" role="src" />
+   <file name="src/read_result.c" role="src" />
+   <file name="src/handle.c" role="src" />
+   <file name="src/functions.c" role="src" />
+   <file name="src/exceptions.c" role="src" />
+   <file name="src/pmu_info.c" role="src" />
+   <file name="src/extension.c" role="src" />
+   <file name="src/pmu_event_info.c" role="src" />
+
+   <file name="examples/sieve2.php" role="doc" />
+   <file name="examples/watch.php" role="doc" />
+   <file name="examples/all-events.php" role="doc" />
+   <file name="examples/memory.php" role="doc" />
+   <file name="examples/three-sw-clock.php" role="doc" />
+   <file name="examples/estimate-overhead.php" role="doc" />
+   <file name="examples/sieve.php" role="doc" />
+
+   <file name="m4/ax_compiler_flags_cxxflags.m4" role="src" />
+   <file name="m4/ax_compiler_flags.m4" role="src" />
+   <file name="m4/ax_require_defined.m4" role="src" />
+   <file name="m4/ax_compiler_flags_ldflags.m4" role="src" />
+   <file name="m4/ax_is_release.m4" role="src" />
+   <file name="m4/ax_compiler_flags_cflags.m4" role="src" />
+   <file name="m4/ax_compiler_vendor.m4" role="src" />
+   <file name="m4/ax_check_link_flag.m4" role="src" />
+   <file name="m4/ax_append_flag.m4" role="src" />
+   <file name="m4/ax_append_link_flags.m4" role="src" />
+   <file name="m4/ax_append_compile_flags.m4" role="src" />
+   <file name="m4/ax_prepend_flag.m4" role="src" />
+   <file name="m4/ax_cflags_warn_all.m4" role="src" />
+   <file name="m4/ax_compiler_flags_gir.m4" role="src" />
+
+   <file name="tests/info-request-closed.phpt" role="test" />
+   <file name="tests/info-request.phpt" role="test" />
+   <file name="tests/info-request-invalid.phpt" role="test" />
+   <file name="tests/get-pmu-info.phpt" role="test" />
+   <file name="tests/global-handle/enabled.phpt" role="test" />
+   <file name="tests/global-handle/stays-open.phpt" role="test" />
+   <file name="tests/global-handle/disabled.phpt" role="test" />
+   <file name="tests/open.phpt" role="test" />
+   <file name="tests/list-pmu-events.phpt" role="test" />
+   <file name="tests/get-pmu-event-info.phpt" role="test" />
+   <file name="tests/list-pmu-events-unknown-pmu.phpt" role="test" />
+   <file name="tests/handle/debug-corrupt-metric-ids.phpt" role="test" />
+   <file name="tests/handle/dirty-3.phpt" role="test" />
+   <file name="tests/handle/zero-after-reset.phpt" role="test" />
+   <file name="tests/handle/open-fails-missing-cap-debug.phpt" role="test" />
+   <file name="tests/handle/open-fails-non-string-event.phpt" role="test" />
+   <file name="tests/handle/non-zero-after-enable.phpt" role="test" />
+   <file name="tests/handle/raw-stream.phpt" role="test" />
+   <file name="tests/handle/dirty.phpt" role="test" />
+   <file name="tests/handle/sequential-reads.phpt" role="test" />
+   <file name="tests/handle/read.phpt" role="test" />
+   <file name="tests/handle/invalid-event-name-2.phpt" role="test" />
+   <file name="tests/handle/raw-stream-invalid-idx.phpt" role="test" />
+   <file name="tests/handle/open-fails-invalid-pid.phpt" role="test" />
+   <file name="tests/handle/disable.phpt" role="test" />
+   <file name="tests/handle/invalid-event-name.phpt" role="test" />
+   <file name="tests/handle/enable.phpt" role="test" />
+   <file name="tests/handle/dirty-4.phpt" role="test" />
+   <file name="tests/handle/open-fails-invalid-cpu.phpt" role="test" />
+   <file name="tests/handle/open-fails-missing-cap.phpt" role="test" />
+   <file name="tests/handle/reset.phpt" role="test" />
+   <file name="tests/handle/dirty-2.phpt" role="test" />
+   <file name="tests/info-global.phpt" role="test" />
+   <file name="tests/request-handle/enabled.phpt" role="test" />
+   <file name="tests/request-handle/stays-open.phpt" role="test" />
+   <file name="tests/request-handle/disabled.phpt" role="test" />
+   <file name="tests/info-global-closed.phpt" role="test" />
+   <file name="tests/list-pmus.phpt" role="test" />
+   <file name="tests/info-both.phpt" role="test" />
+   <file name="tests/info.phpt" role="test" />
+   <file name="tests/info-global-invalid.phpt" role="test" />
+   <file name="tests/overflow/throw.phpt" role="test" />
+   <file name="tests/overflow/whoops.phpt" role="test" />
+   <file name="tests/overflow/saturate.phpt" role="test" />
+   <file name="tests/overflow/warn.phpt" role="test" />
+   <file name="tests/overflow/wrap.phpt" role="test" />
+   <file name="tests/version.phpt" role="test" />
+  </dir>
+ </contents>
+ <dependencies>
+  <required>
+   <php>
+    <min>7.2.0</min>
+   </php>
+   <pearinstaller>
+    <min>1.4.1</min>
+   </pearinstaller>
+   <extension>
+    <name>spl</name>
+   </extension>
+  </required>
+ </dependencies>
+ <providesextension>perfidious</providesextension>
+ <extsrcrelease />
+</package>

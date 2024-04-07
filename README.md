@@ -5,9 +5,9 @@
 [![Codecov](https://codecov.io/gh/jbboehr/php-perfidious/graph/badge.svg?token=DSLDXIWHC5)](https://codecov.io/gh/jbboehr/php-perfidious)
 [![Coveralls](https://coveralls.io/repos/github/jbboehr/php-perfidious/badge.svg?branch=master)](https://coveralls.io/github/jbboehr/php-perfidious?branch=master)
 [![License: AGPL v3+](https://img.shields.io/badge/License-AGPL_v3%2b-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
-![stability-experimental](https://img.shields.io/badge/stability-experimental-orange.svg)
 ![Language](https://img.shields.io/github/languages/top/jbboehr/php-perfidious)
 ![Tag](https://img.shields.io/github/v/tag/jbboehr/php-perfidious)
+![stability-experimental](https://img.shields.io/badge/stability-experimental-orange.svg)
 
 This extension provides access to the performance monitoring *counters* exposed
 by the Linux `perf_events` kernel API.
@@ -88,17 +88,24 @@ Or you can configure a global or per-request handle:
 // with the following INI settings:
 // perfidious.request.enable=1
 // perfidious.request.metrics=perf::PERF_COUNT_SW_CPU_CLOCK:u,perf::PERF_COUNT_SW_PAGE_FAULTS:u,perf::PERF_COUNT_SW_CONTEXT_SWITCHES:u
-var_dump(Perfidious\request_handle()?->readArray());
+var_dump(Perfidious\request_handle()?->read());
 ```
 
 ```text
-array(3) {
-  ["perf::PERF_COUNT_SW_CPU_CLOCK:u"]=>
-  int(120880)
-  ["perf::PERF_COUNT_SW_PAGE_FAULTS:u"]=>
-  int(64)
-  ["perf::PERF_COUNT_SW_CONTEXT_SWITCHES:u"]=>
-  int(0)
+object(Perfidious\ReadResult)#%d (%d) {
+  ["timeEnabled"]=>
+  int(260840)
+  ["timeRunning"]=>
+  int(260840)
+  ["values"]=>
+  array(3) {
+    ["perf::PERF_COUNT_SW_CPU_CLOCK:u"]=>
+    int(142740)
+    ["perf::PERF_COUNT_SW_PAGE_FAULTS:u"]=>
+    int(64)
+    ["perf::PERF_COUNT_SW_CONTEXT_SWITCHES:u"]=>
+    int(0)
+  }
 }
 ```
 
@@ -118,9 +125,9 @@ Some notable generic perf events are:
 
 | Name | Default | Changeable | Description  |
 | --------------------- | -------- | ----------- | ------------ |
-| `perfidious.overflow_mode` | `0` | `PHP_INI_SYSTEM` | Sets the overflow behavior when casting counters from `uint64_t` to `zend_long`. See the constants `Perfidious\OVERFLOW_*` for other values. Note that when set to `Perfidious\OVERFLOW_WARN`, `read` and `readArray` may return `NULL`, despite their type signatures indicating otherwise. |
 | `perfidious.global.enable` | `0` | `PHP_INI_SYSTEM` | Set to `1` to enable the global handle. This handle is kept open between requests. You can read from this handle via e.g. `var_dump(Perfidious\global_handle()?->read());`. |
 | `perfidious.global.metrics` | `perf::PERF_COUNT_HW_CPU_CYCLES:u`, `perf::PERF_COUNT_HW_INSTRUCTIONS:u`  | `PHP_INI_SYSTEM` | The metrics to monitor with the global handle. |
+| `perfidious.overflow_mode` | `0` | `PHP_INI_SYSTEM` | Sets the overflow behavior when casting counters from `uint64_t` to `zend_long`. See the constants `Perfidious\OVERFLOW_*` for other values. Note that when set to `Perfidious\OVERFLOW_WARN`, `read` and `readArray` may return `NULL`, despite their type signatures indicating otherwise. |
 | `perfidious.request.enable` | `0` | `PHP_INI_SYSTEM` | Set to `1` to enable the per-request handle. This handle is kept open between requests, but reset before and after. You can read from this handle via e.g. `var_dump(Perfidious\request_handle()?->read());` |
 | `perfidious.request.metrics` | `perf::PERF_COUNT_HW_CPU_CYCLES:u`, `perf::PERF_COUNT_HW_INSTRUCTIONS:u`  | `PHP_INI_SYSTEM` | The metrics to monitor with the request handle. |
 

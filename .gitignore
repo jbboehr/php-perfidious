@@ -51,6 +51,7 @@ nbproject
 run-tests.php
 .settings
 specs
+*-*.*.*.tgz
 test_coverage/
 test.php
 tests/**/*.diff

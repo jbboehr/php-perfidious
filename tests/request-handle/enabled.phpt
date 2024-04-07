@@ -9,14 +9,21 @@ perfidious.request.metrics=perf::PERF_COUNT_SW_CPU_CLOCK:u,perf::PERF_COUNT_SW_P
 <?php
 $handle = Perfidious\request_handle();
 var_dump(get_class($handle));
-var_dump($handle->readArray());
+var_dump($handle->read());
 --EXPECTF--
 string(%d) "Perfidious\Handle"
-array(3) {
-  ["perf::PERF_COUNT_SW_CPU_CLOCK:u"]=>
+object(Perfidious\ReadResult)#%d (%d) {
+  ["timeEnabled"]=>
   int(%d)
-  ["perf::PERF_COUNT_SW_PAGE_FAULTS:u"]=>
+  ["timeRunning"]=>
   int(%d)
-  ["perf::PERF_COUNT_SW_CONTEXT_SWITCHES:u"]=>
-  int(%d)
+  ["values"]=>
+  array(%d) {
+    ["perf::PERF_COUNT_SW_CPU_CLOCK:u"]=>
+    int(%d)
+    ["perf::PERF_COUNT_SW_PAGE_FAULTS:u"]=>
+    int(%d)
+    ["perf::PERF_COUNT_SW_CONTEXT_SWITCHES:u"]=>
+    int(%d)
+  }
 }

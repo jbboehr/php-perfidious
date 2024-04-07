@@ -38,8 +38,6 @@ while (true) { // @phpstan-ignore-line
     $stats = $handle->read();
     $percent_running = $stats->timeEnabled > 0 ? 100 * $stats->timeRunning / $stats->timeEnabled : 0;
 
-    //\PHPStan\dumpType($stats);
-
     printf("cpu=%d pid=%d\n", $cpu, $pid);
     printf("time_enabled=%d time_running=%d percent_running=%d%%\n", $stats->timeEnabled, $stats->timeRunning, $percent_running);
     foreach ($stats->values as $k => $v) {

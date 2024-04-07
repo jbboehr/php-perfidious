@@ -6,6 +6,6 @@ $handle = open(["perf::PERF_COUNT_SW_CPU_CLOCK:u"]);
 $handle->enable();
 
 for ($i = 0; $i < 3; $i++) {
-    var_dump($handle->readArray());
+    var_dump($handle->read());
     sleep(1);
 }
