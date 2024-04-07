@@ -1,10 +1,13 @@
 
 # php-perfidious
 
-[![ci](https://github.com/jbboehr/php-perf/actions/workflows/ci.yml/badge.svg)](https://github.com/jbboehr/php-perf/actions/workflows/ci.yml)
-[![Coverage Status](https://coveralls.io/repos/github/jbboehr/php-perf/badge.svg?branch=master)](https://coveralls.io/github/jbboehr/php-perf?branch=master)
+[![ci](https://github.com/jbboehr/php-perfidious/actions/workflows/ci.yml/badge.svg)](https://github.com/jbboehr/php-perfidious/actions/workflows/ci.yml)
+[![Codecov](https://codecov.io/gh/jbboehr/php-perfidious/graph/badge.svg?token=DSLDXIWHC5)](https://codecov.io/gh/jbboehr/php-perfidious)
+[![Coveralls](https://coveralls.io/repos/github/jbboehr/php-perfidious/badge.svg?branch=master)](https://coveralls.io/github/jbboehr/php-perfidious?branch=master)
 [![License: AGPL v3+](https://img.shields.io/badge/License-AGPL_v3%2b-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 ![stability-experimental](https://img.shields.io/badge/stability-experimental-orange.svg)
+![Language](https://img.shields.io/github/languages/top/jbboehr/php-perfidious)
+![Tag](https://img.shields.io/github/v/tag/jbboehr/php-perfidious)
 
 This extension provides access to the performance monitoring *counters* exposed
 by the Linux `perf_events` kernel API.
@@ -31,8 +34,8 @@ apt install build-essential libcap-dev libpfm4-dev php-dev
 Now clone the repo and compile the extension:
 
 ```bash
-git clone https://github.com/jbboehr/php-perf.git
-cd php-perf
+git clone https://github.com/jbboehr/php-perfidious.git
+cd php-perfidious
 phpize
 ./configure
 make
