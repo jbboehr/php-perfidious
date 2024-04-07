@@ -1,5 +1,5 @@
 --TEST--
-Perfidious\Handle
+Perfidious\Handle::rawStream()
 --EXTENSIONS--
 perfidious
 --FILE--

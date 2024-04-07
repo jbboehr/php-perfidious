@@ -106,9 +106,7 @@ static struct perfidious_handle *split_and_open(zend_string *restrict metrics, b
         zend_string_release(delim);
     } while (false);
 
-    if (UNEXPECTED(Z_TYPE(z_metrics) != IS_ARRAY)) {
-        goto done;
-    }
+    ZEND_ASSERT(Z_TYPE(z_metrics) == IS_ARRAY);
 
     do {
         zend_string **arr = alloca(sizeof(zend_string *) * (zend_array_count(Z_ARRVAL(z_metrics)) + 1));
@@ -117,12 +115,8 @@ static struct perfidious_handle *split_and_open(zend_string *restrict metrics, b
 
         ZEND_HASH_FOREACH_VAL(Z_ARRVAL(z_metrics), z)
         {
-            if (EXPECTED(Z_TYPE_P(z) == IS_STRING)) {
-                arr[arr_len++] = Z_STR_P(z);
-            } else {
-                zend_type_error("All event names must be strings");
-                goto done;
-            }
+            ZEND_ASSERT(Z_TYPE_P(z) == IS_STRING);
+            arr[arr_len++] = Z_STR_P(z);
         }
         ZEND_HASH_FOREACH_END();
 
@@ -134,7 +128,6 @@ static struct perfidious_handle *split_and_open(zend_string *restrict metrics, b
         perfidious_handle_enable(handle);
     }
 
-done:
     zval_dtor(&z_metrics);
     return handle;
 }

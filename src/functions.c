@@ -161,6 +161,7 @@ static PHP_FUNCTION(perfidious_open)
     }
 
     // Check capability if pid > 0
+#ifndef PERFIDIOUS_DEBUG
     if (pid > 0) {
         cap_t cap = cap_get_proc();
         if (cap != NULL) {
@@ -172,6 +173,7 @@ static PHP_FUNCTION(perfidious_open)
             }
         }
     }
+#endif
 
     // Check cpu for overflow
     long int n_proc_onln = sysconf(_SC_NPROCESSORS_ONLN);

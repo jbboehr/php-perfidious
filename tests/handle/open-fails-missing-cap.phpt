@@ -4,6 +4,7 @@ Perfidious\Handle (open fails with missing cap)
 perfidious
 --SKIPIF--
 <?php if (get_current_user() === 'root') die("skip: would fail as root"); ?>
+<?php if (Perfidious\DEBUG) die("skip: must not be compiled in debug mode"); ?>
 --FILE--
 <?php
 // Note: this test will fail if run with CAP_PERFMON (e.g. as root)

@@ -23,7 +23,7 @@ if (count($pos_args) <= 0) {
 }
 
 $pid = $opts['pid'] ?? 0;
-$pid = is_numeric($pid) ? (int) $opts['pid'] : 0;
+$pid = is_numeric($pid) ? (int) $pid : 0;
 $cpu = $opts['cpu'] ?? -1;
 $cpu = is_numeric($cpu) ? (int) $cpu : -1;
 $interval = $opts['interval'] ?? 2;

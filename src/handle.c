@@ -550,6 +550,23 @@ static PHP_METHOD(PerfidousHandle, reset)
     RETURN_ZVAL(ZEND_THIS, 1, 0);
 }
 
+#ifdef PERFIDIOUS_DEBUG
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perfidious_handle_debug_corrupt_metric_ids_arginfo, IS_NULL, true)
+ZEND_END_ARG_INFO()
+
+ZEND_COLD
+static PHP_METHOD(PerfidousHandle, debugCorruptMetricIds)
+{
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(ZEND_THIS));
+
+    for (size_t i = 0; i < obj->handle->metrics_count; i++) {
+        obj->handle->metrics[i].id = UINT64_MAX;
+    }
+}
+#endif
+
 // clang-format off
 static zend_function_entry perfidious_handle_methods[] = {
     PHP_ME(PerfidousHandle, disable, perfidious_handle_disable_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
@@ -558,6 +575,9 @@ static zend_function_entry perfidious_handle_methods[] = {
     PHP_ME(PerfidousHandle, read, perfidious_handle_read_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
     PHP_ME(PerfidousHandle, readArray, perfidious_handle_read_array_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
     PHP_ME(PerfidousHandle, reset, perfidious_handle_reset_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
+#ifdef PERFIDIOUS_DEBUG
+    PHP_ME(PerfidousHandle, debugCorruptMetricIds, perfidious_handle_debug_corrupt_metric_ids_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
+#endif
     PHP_FE_END
 };
 // clang-format on
