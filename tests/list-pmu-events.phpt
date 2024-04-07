@@ -17,7 +17,7 @@ foreach ($events as $event) {
 bool(true)
 int(%d)
 string(%d) "Perfidious\PmuEventInfo"
-object(Perfidious\PmuEventInfo)#%d (5) {
+object(Perfidious\PmuEventInfo)#%d (%d) {
   ["name"]=>
   string(30) "perf::PERF_COUNT_HW_CPU_CYCLES"
   ["desc"]=>
@@ -26,6 +26,8 @@ object(Perfidious\PmuEventInfo)#%d (5) {
   NULL
   ["pmu"]=>
   int(51)
+  ["idx"]=>
+  int(%d)
   ["is_present"]=>
   bool(true)
 }

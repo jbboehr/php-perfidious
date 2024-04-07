@@ -45,7 +45,42 @@ static PHP_FUNCTION(perfidious_get_pmu_info)
         Z_PARAM_LONG(pmu)
     ZEND_PARSE_PARAMETERS_END();
 
-    if (SUCCESS != perfidious_get_pmu_info(pmu, return_value, false)) {
+    if (UNEXPECTED(SUCCESS != perfidious_get_pmu_info(pmu, return_value, false))) {
+        RETURN_NULL();
+    }
+}
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_get_pmu_event_info_arginfo, false, 2, Perfidious\\PmuEventInfo, false)
+    ZEND_ARG_TYPE_INFO(false, pmu, IS_LONG, false)
+    ZEND_ARG_TYPE_INFO(false, idx, IS_LONG, false)
+ZEND_END_ARG_INFO()
+
+ZEND_COLD
+static PHP_FUNCTION(perfidious_get_pmu_event_info)
+{
+    zend_long pmu;
+    zend_long idx;
+    pfm_pmu_info_t pmu_info = {0};
+    pmu_info.size = sizeof(pmu_info);
+
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_LONG(pmu)
+        Z_PARAM_LONG(idx)
+    ZEND_PARSE_PARAMETERS_END();
+
+    pfm_err_t pfm_err = pfm_get_pmu_info(pmu, &pmu_info);
+    if (PFM_SUCCESS != pfm_err) {
+        zend_throw_exception_ex(
+            perfidious_pmu_not_found_exception_ce,
+            pfm_err,
+            "cannot get pmu info for %lu: %s",
+            pmu,
+            pfm_strerror(pfm_err)
+        );
+        return;
+    }
+
+    if (UNEXPECTED(SUCCESS != perfidious_get_pmu_event_info(&pmu_info, (int) idx, return_value))) {
         RETURN_NULL();
     }
 }
@@ -268,6 +303,7 @@ static ZEND_FUNCTION(perfidious_debug_uint64_overflow)
 PERFIDIOUS_LOCAL
 const zend_function_entry perfidious_functions[] = {
     ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\get_pmu_info", ZEND_FN(perfidious_get_pmu_info), perfidious_get_pmu_info_arginfo, 0)
+    ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\get_pmu_event_info", ZEND_FN(perfidious_get_pmu_event_info), perfidious_get_pmu_event_info_arginfo, 0)
     ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\global_handle", ZEND_FN(perfidious_global_handle), perfidious_global_handle_arginfo, 0)
     ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\list_pmus", ZEND_FN(perfidious_list_pmus), perfidious_list_pmus_arginfo, 0)
     ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\list_pmu_events", ZEND_FN(perfidious_list_pmu_events), perfidious_list_pmu_events_arginfo, 0)

@@ -28,6 +28,7 @@
 #include "private.h"
 
 PERFIDIOUS_LOCAL zend_string *PERFIDIOUS_INTERNED_EQUIV;
+PERFIDIOUS_LOCAL zend_string *PERFIDIOUS_INTERNED_IDX;
 PERFIDIOUS_PUBLIC zend_class_entry *perfidious_pmu_event_info_ce;
 
 ZEND_COLD
@@ -61,6 +62,9 @@ perfidious_pmu_event_info_ctor(pfm_pmu_info_t *pmu_info, pfm_event_info_t *info,
 
     ZVAL_LONG(&tmp, (zend_long) info->pmu);
     zend_update_property_ex(Z_OBJCE_P(return_value), Z_OBJ_P(return_value), PERFIDIOUS_INTERNED_PMU, &tmp);
+
+    ZVAL_LONG(&tmp, (zend_long) info->idx);
+    zend_update_property_ex(Z_OBJCE_P(return_value), Z_OBJ_P(return_value), PERFIDIOUS_INTERNED_IDX, &tmp);
 
     ZVAL_BOOL(&tmp, pmu_info->is_present);
     zend_update_property_ex(Z_OBJCE_P(return_value), Z_OBJ_P(return_value), PERFIDIOUS_INTERNED_IS_PRESENT, &tmp);
@@ -159,6 +163,19 @@ static zend_always_inline zend_class_entry *register_class_PmuEventInfo(void)
         ZVAL_UNDEF(&default_value);
         zend_declare_typed_property(
             class_entry,
+            PERFIDIOUS_INTERNED_IDX,
+            &default_value,
+            ZEND_ACC_PUBLIC | ZEND_ACC_READONLY,
+            NULL,
+            (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG)
+        );
+    } while (false);
+
+    do {
+        zval default_value = {0};
+        ZVAL_UNDEF(&default_value);
+        zend_declare_typed_property(
+            class_entry,
             PERFIDIOUS_INTERNED_IS_PRESENT,
             &default_value,
             ZEND_ACC_PUBLIC | ZEND_ACC_READONLY,
@@ -179,6 +196,7 @@ void perfidious_pmu_event_info_minit(void)
     PERFIDIOUS_INTERNED_DESC = zend_string_init_interned(ZEND_STRL("desc"), 1);
     PERFIDIOUS_INTERNED_EQUIV = zend_string_init_interned(ZEND_STRL("equiv"), 1);
     PERFIDIOUS_INTERNED_PMU = zend_string_init_interned(ZEND_STRL("pmu"), 1);
+    PERFIDIOUS_INTERNED_IDX = zend_string_init_interned(ZEND_STRL("idx"), 1);
     PERFIDIOUS_INTERNED_IS_PRESENT = zend_string_init_interned(ZEND_STRL("is_present"), 1);
 
     perfidious_pmu_event_info_ce = register_class_PmuEventInfo();
