@@ -115,6 +115,7 @@ Some notable generic perf events are:
 
 | Name | Default | Changeable | Description  |
 | --------------------- | -------- | ----------- | ------------ |
+| `perfidious.overflow_mode` | `0` | `PHP_INI_SYSTEM` | Sets the overflow behavior when casting counters from `uint64_t` to `zend_long`. See the constants `Perfidious\OVERFLOW_*` for other values. Note that when set to `Perfidious\OVERFLOW_WARN`, `read` and `readArray` may return `NULL`, despite their type signatures indicating otherwise. |
 | `perfidious.global.enable` | `0` | `PHP_INI_SYSTEM` | Set to `1` to enable the global handle. This handle is kept open between requests. You can read from this handle via e.g. `var_dump(Perfidious\global_handle()?->read());`. |
 | `perfidious.global.metrics` | `perf::PERF_COUNT_HW_CPU_CYCLES:u`, `perf::PERF_COUNT_HW_INSTRUCTIONS:u`  | `PHP_INI_SYSTEM` | The metrics to monitor with the global handle. |
 | `perfidious.request.enable` | `0` | `PHP_INI_SYSTEM` | Set to `1` to enable the per-request handle. This handle is kept open between requests, but reset before and after. You can read from this handle via e.g. `var_dump(Perfidious\request_handle()?->read());` |

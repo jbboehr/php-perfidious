@@ -4,6 +4,10 @@ namespace Perfidious;
 
 const VERSION = "0.1.0";
 
+const OVERFLOW_THROW = 0;
+const OVERFLOW_WARN = 1;
+const OVERFLOW_SATURATE = 2;
+const OVERFLOW_WRAP = 3;
 
 /**
  * @throws PmuNotFoundException
@@ -99,6 +103,7 @@ final class Handle
 
     /**
      * Get a raw byte stream from the handle's file descriptor
+     *
      * @note closing this resource will cause subsequent calls to read to fail
      * @return resource
      */
@@ -107,6 +112,11 @@ final class Handle
     }
 
     /**
+     * @note If perfidious.overflow_mode is set to Perfidious\OVERFLOW_WARN, this method can return null, despite its
+     *       typehint. If perfidious.overflow_mode is set to any value other than Perfidious\OVERFLOW_THROW, this
+     *       method will *not* throw an OverflowException.
+     *
+     * @return ReadResult
      * @throws OverflowException|IOException
      *
      * @phpstan-return ReadResult<T>
@@ -116,7 +126,11 @@ final class Handle
     }
 
     /**
-     * @return array<string, int>
+     * @note If perfidious.overflow_mode is set to Perfidious\OVERFLOW_WARN, this method can return null, despite its
+     *       typehint. If perfidious.overflow_mode is set to any value other than Perfidious\OVERFLOW_THROW, this
+     *       method will *not* throw an OverflowException.
+     *
+     * @return array
      * @throws OverflowException|IOException
      *
      * @phpstan-return array<value-of<T>, int>

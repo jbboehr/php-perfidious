@@ -10,6 +10,7 @@
   buildPecl,
   src,
   checkSupport ? false,
+  debugSupport ? false,
   WerrorSupport ? checkSupport,
   valgrindSupport ? true,
 }:
@@ -32,7 +33,8 @@ buildPecl rec {
   configureFlags =
     []
     ++ lib.optional WerrorSupport "--enable-compile-warnings=error"
-    ++ lib.optionals (!WerrorSupport) ["--enable-compile-warnings=yes" "--disable-Werror"];
+    ++ lib.optionals (!WerrorSupport) ["--enable-compile-warnings=yes" "--disable-Werror"]
+    ++ lib.optional debugSupport "--enable-perfidious-debug";
 
   makeFlags = ["phpincludedir=$(dev)/include"];
   outputs = ["out" "dev"];

@@ -49,6 +49,8 @@ jobs:
             -   name: Install dependencies
                 run: composer install --prefer-dist --no-progress --ignore-platform-req=php+ --ignore-platform-req=ext-perfidious
 
+            -   run: php -l perfidious.stub.php && php perfidious.stub.php
+
             -   name: phpcs
                 run: php vendor/bin/phpcs
 
@@ -57,13 +59,18 @@ jobs:
 
     test:
         runs-on: ubuntu-latest
-        name: "Test | PHP ${{ matrix.php-version }}"
+        name: "Test | PHP ${{ matrix.php-version }} ${{ matrix.debug }}"
         strategy:
             matrix:
                 php-version:
                     - "8.1"
                     - "8.2"
                     - "8.3"
+                debug:
+                    - ""
+                include:
+                    - php-version: "8.1"
+                      debug: "debug"
         steps:
             -   uses: actions/checkout@v4
 
@@ -80,11 +87,11 @@ jobs:
                     php-version: "${{ matrix.php-version }}"
                     tools: composer:v2
 
-            -   run: php -l perfidious.stub.php && php perfidious.stub.php
-
             -   run: phpize
 
-            -   run: ./configure --enable-compile-warnings=error
+            -   run: ./configure --enable-compile-warnings=error "${EXTRA_FLAGS}"
+                env:
+                    EXTRA_FLAGS: ${{ matrix.debug == 'debug' && '--enable-perfidious-debug' || '' }}
 
             -   run: make
 
@@ -107,13 +114,18 @@ jobs:
 
     coverage:
         runs-on: ubuntu-latest
-        name: "Coverage | PHP ${{ matrix.php-version }}"
+        name: "Coverage | PHP ${{ matrix.php-version }} ${{ matrix.debug }}"
         strategy:
             matrix:
                 php-version:
                     - "8.1"
                     - "8.2"
                     - "8.3"
+                debug:
+                    - ""
+                include:
+                    - php-version: "8.1"
+                      debug: "debug"
         steps:
             -   uses: actions/checkout@v4
 
@@ -132,7 +144,9 @@ jobs:
 
             -   run: phpize
 
-            -   run: ./configure --enable-compile-warnings=error CFLAGS="-fprofile-arcs -ftest-coverage ${CFLAGS}" LDFLAGS="--coverage ${LDFLAGS}"
+            -   run: ./configure --enable-compile-warnings=error "${EXTRA_FLAGS}" CFLAGS="-fprofile-arcs -ftest-coverage ${CFLAGS}" LDFLAGS="--coverage ${LDFLAGS}"
+                env:
+                    EXTRA_FLAGS: ${{ matrix.debug == 'debug' && '--enable-perfidious-debug' || '' }}
 
             -   run: lcov --directory . --zerocounters
 

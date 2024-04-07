@@ -38,7 +38,6 @@
 #include "ext/standard/php_string.h"
 
 #include "php_perfidious.h"
-#include "functions.h"
 #include "handle.h"
 #include "private.h"
 
@@ -63,6 +62,7 @@ static ZEND_INI_MH(OnUpdateStr)
 
 // clang-format off
 PHP_INI_BEGIN()
+    STD_PHP_INI_ENTRY(PHP_PERFIDIOUS_NAME ".overflow_mode", "0", PHP_INI_SYSTEM, OnUpdateLong, overflow_mode, zend_perfidious_globals, perfidious_globals)
     STD_PHP_INI_ENTRY(PHP_PERFIDIOUS_NAME ".global.enable", "0", PHP_INI_SYSTEM, OnUpdateBool, global_enable, zend_perfidious_globals, perfidious_globals)
     STD_PHP_INI_ENTRY(PHP_PERFIDIOUS_NAME ".global.metrics", DEFAULT_METRICS, PHP_INI_SYSTEM, OnUpdateStr, global_metrics, zend_perfidious_globals, perfidious_globals)
     STD_PHP_INI_ENTRY(PHP_PERFIDIOUS_NAME ".request.enable", "0", PHP_INI_SYSTEM, OnUpdateBool, request_enable, zend_perfidious_globals, perfidious_globals)
@@ -152,9 +152,27 @@ static PHP_MINIT_FUNCTION(perfidious)
         return FAILURE;
     }
 
-    REGISTER_INI_ENTRIES();
-
+#ifdef PERFIDIOUS_DEBUG
+    REGISTER_BOOL_CONSTANT(PHP_PERFIDIOUS_NAMESPACE "\\DEBUG", (zend_bool) PERFIDIOUS_DEBUG, flags);
+#else
+    REGISTER_BOOL_CONSTANT(PHP_PERFIDIOUS_NAMESPACE "\\DEBUG", false, flags);
+#endif
     REGISTER_STRING_CONSTANT(PHP_PERFIDIOUS_NAMESPACE "\\VERSION", (char *) PHP_PERFIDIOUS_VERSION, flags);
+
+    REGISTER_LONG_CONSTANT(PHP_PERFIDIOUS_NAMESPACE "\\OVERFLOW_THROW", PERFIDIOUS_OVERFLOW_THROW, flags);
+    REGISTER_LONG_CONSTANT(PHP_PERFIDIOUS_NAMESPACE "\\OVERFLOW_WARN", PERFIDIOUS_OVERFLOW_WARN, flags);
+    REGISTER_LONG_CONSTANT(PHP_PERFIDIOUS_NAMESPACE "\\OVERFLOW_SATURATE", PERFIDIOUS_OVERFLOW_SATURATE, flags);
+    REGISTER_LONG_CONSTANT(PHP_PERFIDIOUS_NAMESPACE "\\OVERFLOW_WRAP", PERFIDIOUS_OVERFLOW_WRAP, flags);
+
+#ifdef PERFIDIOUS_DEBUG
+    do {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "%" PRIu64, UINT64_MAX);
+        REGISTER_STRING_CONSTANT(PHP_PERFIDIOUS_NAMESPACE "\\UINT64_MAX", buf, flags);
+    } while (false);
+#endif
+
+    REGISTER_INI_ENTRIES();
 
     perfidious_exceptions_minit();
     perfidious_handle_minit();
@@ -284,24 +302,14 @@ static PHP_GINIT_FUNCTION(perfidious)
     perfidious_globals->error_mode = PERFIDIOUS_ERROR_MODE_THROW;
 }
 
-// clang-format off
-PERFIDIOUS_LOCAL
-const zend_function_entry perfidious_functions[] = {
-    ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\get_pmu_info", ZEND_FN(perfidious_get_pmu_info), perfidious_get_pmu_info_arginfo, 0)
-    ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\global_handle", ZEND_FN(perfidious_global_handle), perfidious_global_handle_arginfo, 0)
-    ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\list_pmus", ZEND_FN(perfidious_list_pmus), perfidious_list_pmus_arginfo, 0)
-    ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\list_pmu_events", ZEND_FN(perfidious_list_pmu_events), perfidious_list_pmu_events_arginfo, 0)
-    ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\open", ZEND_FN(perfidious_open), perfidious_open_arginfo, 0)
-    ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\request_handle", ZEND_FN(perfidious_request_handle), perfidious_request_handle_arginfo, 0)
-    PHP_FE_END
-};
-// clang-format on
-
 static const zend_module_dep perfidious_deps[] = {
     {"spl",     NULL, NULL, MODULE_DEP_REQUIRED},
     {"opcache", NULL, NULL, MODULE_DEP_OPTIONAL},
     ZEND_MOD_END,
 };
+
+PERFIDIOUS_LOCAL
+extern const zend_function_entry perfidious_functions[];
 
 zend_module_entry perfidious_module_entry = {
     STANDARD_MODULE_HEADER_EX,

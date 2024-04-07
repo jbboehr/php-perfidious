@@ -29,13 +29,15 @@
 #include <Zend/zend_portability.h>
 #include "main/php.h"
 #include "php_perfidious.h"
-#include "functions.h"
 #include "handle.h"
 #include "private.h"
 
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_get_pmu_info_arginfo, false, 1, Perfidious\\PmuInfo, false)
+    ZEND_ARG_TYPE_INFO(false, pmu, IS_LONG, false)
+ZEND_END_ARG_INFO()
+
 ZEND_COLD
-PERFIDIOUS_LOCAL
-PHP_FUNCTION(perfidious_get_pmu_info)
+static PHP_FUNCTION(perfidious_get_pmu_info)
 {
     zend_long pmu;
 
@@ -48,9 +50,11 @@ PHP_FUNCTION(perfidious_get_pmu_info)
     }
 }
 
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_global_handle_arginfo, false, 0, Perfidious\\Handle, false)
+ZEND_END_ARG_INFO()
+
 ZEND_COLD
-PERFIDIOUS_LOCAL
-PHP_FUNCTION(perfidious_global_handle)
+static PHP_FUNCTION(perfidious_global_handle)
 {
     ZEND_PARSE_PARAMETERS_NONE();
 
@@ -65,9 +69,11 @@ PHP_FUNCTION(perfidious_global_handle)
     }
 }
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perfidious_list_pmus_arginfo, IS_ARRAY, false)
+ZEND_END_ARG_INFO()
+
 ZEND_COLD
-PERFIDIOUS_LOCAL
-PHP_FUNCTION(perfidious_list_pmus)
+static PHP_FUNCTION(perfidious_list_pmus)
 {
     zend_long index;
     zval tmp = {0};
@@ -84,9 +90,12 @@ PHP_FUNCTION(perfidious_list_pmus)
     }
 }
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perfidious_list_pmu_events_arginfo, IS_ARRAY, false)
+    ZEND_ARG_TYPE_INFO(false, pmu, IS_LONG, false)
+ZEND_END_ARG_INFO()
+
 ZEND_COLD
-PERFIDIOUS_LOCAL
-PHP_FUNCTION(perfidious_list_pmu_events)
+static PHP_FUNCTION(perfidious_list_pmu_events)
 {
     zend_long pmu_id;
 
@@ -125,9 +134,14 @@ PHP_FUNCTION(perfidious_list_pmu_events)
     }
 }
 
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_open_arginfo, false, 1, Perfidious\\Handle, false)
+    ZEND_ARG_TYPE_INFO(false, event_names, IS_ARRAY, false)
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(false, pid, IS_LONG, true, "0")
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(false, cpu, IS_LONG, true, "-1")
+ZEND_END_ARG_INFO()
+
 ZEND_COLD
-PERFIDIOUS_LOCAL
-PHP_FUNCTION(perfidious_open)
+static PHP_FUNCTION(perfidious_open)
 {
     HashTable *event_names_ht;
     zend_long pid_zl = 0;
@@ -194,9 +208,11 @@ PHP_FUNCTION(perfidious_open)
     obj->handle = handle;
 }
 
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_request_handle_arginfo, false, 0, Perfidious\\Handle, true)
+ZEND_END_ARG_INFO()
+
 ZEND_COLD
-PERFIDIOUS_LOCAL
-PHP_FUNCTION(perfidious_request_handle)
+static PHP_FUNCTION(perfidious_request_handle)
 {
     ZEND_PARSE_PARAMETERS_NONE();
 
@@ -210,3 +226,54 @@ PHP_FUNCTION(perfidious_request_handle)
         RETURN_NULL();
     }
 }
+
+#ifdef PERFIDIOUS_DEBUG
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(perfidious_debug_uint64_overflow_arginfo, false, 0, IS_LONG, false)
+    ZEND_ARG_TYPE_INFO(false, overflow_mode, IS_LONG, false)
+ZEND_END_ARG_INFO()
+
+ZEND_COLD
+static ZEND_FUNCTION(perfidious_debug_uint64_overflow)
+{
+    zend_long overflow_mode_zl = -1;
+    enum perfidious_overflow_mode overflow_mode;
+    zend_long output;
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(overflow_mode_zl)
+    ZEND_PARSE_PARAMETERS_END();
+
+    if (overflow_mode_zl == -1) {
+        overflow_mode = PERFIDIOUS_G(overflow_mode);
+    } else {
+        if (overflow_mode_zl > PERFIDIOUS_OVERFLOW_MAX || overflow_mode_zl < 0) {
+            zend_type_error("Overflow mode out-of-range");
+            return;
+        }
+        overflow_mode = overflow_mode_zl;
+    }
+
+    if (!perfidious_uint64_t_to_zend_long(UINT64_MAX, &output, overflow_mode)) {
+        RETURN_NULL();
+    }
+
+    RETURN_LONG(output);
+}
+#endif
+
+// clang-format off
+PERFIDIOUS_LOCAL
+const zend_function_entry perfidious_functions[] = {
+    ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\get_pmu_info", ZEND_FN(perfidious_get_pmu_info), perfidious_get_pmu_info_arginfo, 0)
+    ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\global_handle", ZEND_FN(perfidious_global_handle), perfidious_global_handle_arginfo, 0)
+    ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\list_pmus", ZEND_FN(perfidious_list_pmus), perfidious_list_pmus_arginfo, 0)
+    ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\list_pmu_events", ZEND_FN(perfidious_list_pmu_events), perfidious_list_pmu_events_arginfo, 0)
+    ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\open", ZEND_FN(perfidious_open), perfidious_open_arginfo, 0)
+    ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\request_handle", ZEND_FN(perfidious_request_handle), perfidious_request_handle_arginfo, 0)
+#ifdef PERFIDIOUS_DEBUG
+    ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\debug_uint64_overflow", ZEND_FN(perfidious_debug_uint64_overflow), perfidious_debug_uint64_overflow_arginfo, 0)
+#endif
+    PHP_FE_END
+};
+// clang-format on

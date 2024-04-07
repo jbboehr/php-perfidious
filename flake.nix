@@ -79,10 +79,12 @@
           stdenv ? pkgs.stdenv,
           php ? pkgs.php,
           libpfm ? pkgs.libpfm,
+          debugSupport ? false,
         }:
           pkgs.callPackage ./nix/derivation.nix {
             inherit src;
             inherit stdenv php libpfm;
+            inherit debugSupport;
             buildPecl = pkgs.callPackage (nixpkgs + "/pkgs/build-support/php/build-pecl.nix") {
               inherit php stdenv;
             };
@@ -146,7 +148,7 @@
               # in opcache and relies on mkWrapper to load extensions
               export TEST_PHP_ARGS='-c ${package.php.phpIni}'
               # php.unwrapped from the buildDeps is overwriting php
-              export PATH="${package.php}/bin:$PATH"
+              export PATH="${package.php}/bin:./vendor/bin:$PATH"
             '';
           };
 
@@ -200,21 +202,31 @@
         };
 
         # @see https://github.com/NixOS/nixpkgs/pull/110787
-        buildConfs = lib.cartesianProductOfSets {
-          php = ["php81" "php82" "php83"];
-          stdenv = [
-            "gcc"
-            "clang"
-            # totally broken
-            # "musl"
+        buildConfs =
+          (lib.cartesianProductOfSets {
+            php = ["php81" "php82" "php83"];
+            stdenv = [
+              "gcc"
+              "clang"
+              # totally broken
+              # "musl"
+            ];
+            libpfm = ["libpfm" "libpfm-unstable"];
+          })
+          ++ [
+            {
+              php = "php81";
+              stdenv = "gcc";
+              libpfm = "libpfm";
+              debugSupport = true;
+            }
           ];
-          libpfm = ["libpfm" "libpfm-unstable"];
-        };
 
         buildFn = {
           php,
           libpfm,
           stdenv,
+          debugSupport ? false,
         }:
           lib.nameValuePair
           (lib.concatStringsSep "-" (lib.filter (v: v != "") [
@@ -226,12 +238,18 @@
               then ""
               else "${libpfm}"
             )
+            (
+              if debugSupport
+              then "debug"
+              else ""
+            )
           ]))
           (
             makePackage {
               php = matrix.php.${php};
               libpfm = matrix.libpfm.${libpfm};
               stdenv = matrix.stdenv.${stdenv};
+              inherit debugSupport;
             }
           );
 

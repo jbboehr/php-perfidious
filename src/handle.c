@@ -239,10 +239,13 @@ zend_result perfidious_handle_read_to_array_with_times(
             zend_long value_zl = 0;
             zval tmp = {0};
 
-            PERFIDIOUS_ASSERT_RETURN_EX(perfidious_uint64_t_to_zend_long(value->value, &value_zl), {
-                zval_ptr_dtor(return_value);
-                ZVAL_UNDEF(return_value);
-            });
+            PERFIDIOUS_ASSERT_RETURN_EX(
+                perfidious_uint64_t_to_zend_long(value->value, &value_zl, PERFIDIOUS_OVERFLOW_THROW),
+                {
+                    zval_ptr_dtor(return_value);
+                    ZVAL_UNDEF(return_value);
+                }
+            );
 
             ZVAL_LONG(&tmp, value_zl);
             zend_symtable_update(Z_ARRVAL_P(return_value), metric->name, &tmp);
@@ -255,7 +258,6 @@ zend_result perfidious_handle_read_to_array_with_times(
 ZEND_HOT
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
-PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
 zend_result
 perfidious_handle_read_to_array(const struct perfidious_handle *restrict handle, zval *restrict return_value)
 {
@@ -279,14 +281,16 @@ perfidious_handle_read_to_result(const struct perfidious_handle *restrict handle
     PERFIDIOUS_ASSERT_RETURN(err == SUCCESS);
 
     zend_long time_enabled_zl = 0;
-    PERFIDIOUS_ASSERT_RETURN_EX(perfidious_uint64_t_to_zend_long(time_enabled, &time_enabled_zl), {
-        zval_ptr_dtor(&arr);
-    });
+    PERFIDIOUS_ASSERT_RETURN_EX(
+        perfidious_uint64_t_to_zend_long(time_enabled, &time_enabled_zl, PERFIDIOUS_OVERFLOW_THROW),
+        { zval_ptr_dtor(&arr); }
+    );
 
     zend_long time_running_zl = 0;
-    PERFIDIOUS_ASSERT_RETURN_EX(perfidious_uint64_t_to_zend_long(time_running, &time_running_zl), {
-        zval_ptr_dtor(&arr);
-    });
+    PERFIDIOUS_ASSERT_RETURN_EX(
+        perfidious_uint64_t_to_zend_long(time_running, &time_running_zl, PERFIDIOUS_OVERFLOW_THROW),
+        { zval_ptr_dtor(&arr); }
+    );
 
     object_init_ex(return_value, perfidious_read_result_ce);
 
@@ -503,7 +507,9 @@ static PHP_METHOD(PerfidousHandle, read)
         perfidious_handle_disable(obj->handle);
     }
 
-    perfidious_handle_read_to_result(obj->handle, return_value);
+    if (UNEXPECTED(FAILURE == perfidious_handle_read_to_result(obj->handle, return_value))) {
+        RETVAL_NULL();
+    }
 
     if (orig_enabled) {
         perfidious_handle_enable(obj->handle);
@@ -524,7 +530,7 @@ static PHP_METHOD(PerfidousHandle, readArray)
     }
 
     if (UNEXPECTED(FAILURE == perfidious_handle_read_to_array(obj->handle, return_value))) {
-        RETURN_NULL();
+        RETVAL_NULL();
     }
 
     if (orig_enabled) {

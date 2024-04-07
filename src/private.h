@@ -44,8 +44,6 @@ PERFIDIOUS_LOCAL extern zend_string *PERFIDIOUS_INTERNED_TIME_ENABLED;
 PERFIDIOUS_LOCAL extern zend_string *PERFIDIOUS_INTERNED_TIME_RUNNING;
 PERFIDIOUS_LOCAL extern zend_string *PERFIDIOUS_INTERNED_VALUES;
 
-// interned strings for handle
-
 #define PERFIDIOUS_ASSERT_RETURN(expr)                                                                                 \
     if (UNEXPECTED(!(expr))) {                                                                                         \
         return FAILURE;                                                                                                \
@@ -58,18 +56,37 @@ PERFIDIOUS_LOCAL extern zend_string *PERFIDIOUS_INTERNED_VALUES;
         return FAILURE;                                                                                                \
     }
 
-static inline bool perfidious_uint64_t_to_zend_long(uint64_t from, zend_long *restrict to)
+static inline bool
+perfidious_uint64_t_to_zend_long(uint64_t from, zend_long *restrict to, enum perfidious_overflow_mode overflow_mode)
 {
 #if SIZEOF_UINT64_T >= SIZEOF_ZEND_LONG
     if (UNEXPECTED(from > ZEND_LONG_MAX)) {
-        zend_throw_exception_ex(
-            perfidious_overflow_exception_ce,
-            0,
-            "value too large: %" PRIu64 " > %" ZEND_LONG_FMT_SPEC,
-            from,
-            ZEND_LONG_MAX
-        );
-        return false;
+        switch (overflow_mode) {
+            default:
+            case PERFIDIOUS_OVERFLOW_SATURATE:
+                from = ZEND_LONG_MAX;
+                break;
+
+            case PERFIDIOUS_OVERFLOW_WRAP:
+                from = from % ZEND_LONG_MAX;
+                break;
+
+            case PERFIDIOUS_OVERFLOW_THROW:
+                zend_throw_exception_ex(
+                    perfidious_overflow_exception_ce,
+                    0,
+                    "value too large: %" PRIu64 " > %" ZEND_LONG_FMT_SPEC,
+                    from,
+                    ZEND_LONG_MAX
+                );
+                return false;
+
+            case PERFIDIOUS_OVERFLOW_WARN:
+                php_error_docref(
+                    NULL, E_WARNING, "value too large: %" PRIu64 " > %" ZEND_LONG_FMT_SPEC, from, ZEND_LONG_MAX
+                );
+                return false;
+        }
     }
 #endif
 

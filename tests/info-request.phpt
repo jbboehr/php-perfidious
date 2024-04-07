@@ -19,6 +19,7 @@ Authors => %A
 Directive => Local Value => Master Value
 perfidious.global.enable => 0 => 0
 perfidious.global.metrics => %s => %s
+perfidious.overflow_mode => 0 => 0
 perfidious.request.enable => 1 => 1
 perfidious.request.metrics => perf::PERF_COUNT_SW_CPU_CLOCK:u,perf::PERF_COUNT_SW_PAGE_FAULTS:u,perf::PERF_COUNT_SW_CONTEXT_SWITCHES:u => perf::PERF_COUNT_SW_CPU_CLOCK:u,perf::PERF_COUNT_SW_PAGE_FAULTS:u,perf::PERF_COUNT_SW_CONTEXT_SWITCHES:u
 %A
