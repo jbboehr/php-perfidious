@@ -176,7 +176,7 @@ jobs:
                 with:
                     file: coverage.info
                     token: ${{ secrets.CODECOV_TOKEN }}
-                    slug: jbboehr/php-perf
+                    slug: jbboehr/php-perfifidous
 
             -   name: Coveralls
                 uses: coverallsapp/github-action@v2
@@ -187,7 +187,9 @@ jobs:
                     parallel: true
 
     finish:
-        needs: coverage
+        needs:
+            - coverage
+            - nix
         if: ${{ always() }}
         runs-on: ubuntu-latest
         steps:
@@ -244,7 +246,24 @@ jobs:
 
             -   run: nix build -L ".#${{ matrix.attr }}"
 
-            #            -   run: nix flake check -L
+            -   run: find -L result*; cp result-coverage/coverage.info coverage.info || true
+
+            -   name: Upload coverage reports to Codecov
+                if: ${{ hashFiles('coverage.info') != '' }}
+                uses: codecov/codecov-action@v4
+                with:
+                    file: coverage.info
+                    token: ${{ secrets.CODECOV_TOKEN }}
+                    slug: jbboehr/php-perfifidous
+
+            -   name: Coveralls
+                if: ${{ hashFiles('coverage.info') != '' }}
+                uses: coverallsapp/github-action@v2
+                continue-on-error: true
+                with:
+                    file: coverage.info
+                    format: lcov
+                    parallel: true
 
             -   name: Export Nix Store Cache
                 shell: bash

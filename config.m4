@@ -21,6 +21,9 @@ PHP_ARG_ENABLE(perfidious,     whether to enable perfidious,
 PHP_ARG_ENABLE(perfidious-debug, whether to enable perfidious debug support,
 [AS_HELP_STRING([--enable-perfidious-debug], [Enable perfidious debug support])], [no], [no])
 
+PHP_ARG_ENABLE(perfidious-coverage, whether to enable perfidious coverage support,
+[AS_HELP_STRING([--enable-perfidious-coverage], [Enable perfidious coverage support])], [no], [no])
+
 AC_DEFUN([PHP_PERFIDIOUS_ADD_SOURCES], [
   PHP_PERFIDIOUS_SOURCES="$PHP_PERFIDIOUS_SOURCES $1"
 ])
@@ -51,6 +54,11 @@ if test "$PHP_PERFIDIOUS" != "no"; then
         AC_DEFINE([PERFIDIOUS_DEBUG], [1], [Enable vyrtue debug support])
     else
         AC_DEFINE([NDEBUG], [1], [Disable debug support])
+    fi
+
+    if test "$PHP_PERFIDIOUS_COVERAGE" == "yes"; then
+        CFLAGS="-fprofile-arcs -ftest-coverage $CFLAGS"
+        LDFLAGS="--coverage $LDFLAGS"
     fi
 
     PHP_ADD_LIBRARY(cap, , PERFIDIOUS_SHARED_LIBADD)

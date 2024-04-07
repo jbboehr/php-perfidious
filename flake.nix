@@ -80,11 +80,12 @@
           php ? pkgs.php,
           libpfm ? pkgs.libpfm,
           debugSupport ? false,
+          coverageSupport ? false,
         }:
           pkgs.callPackage ./nix/derivation.nix {
             inherit src;
             inherit stdenv php libpfm;
-            inherit debugSupport;
+            inherit debugSupport coverageSupport;
             buildPecl = pkgs.callPackage (nixpkgs + "/pkgs/build-support/php/build-pecl.nix") {
               inherit php stdenv;
             };
@@ -212,6 +213,7 @@
               # "musl"
             ];
             libpfm = ["libpfm" "libpfm-unstable"];
+            coverageSupport = [false];
           })
           ++ [
             {
@@ -220,13 +222,21 @@
               libpfm = "libpfm";
               debugSupport = true;
             }
-          ];
+          ]
+          ++ (lib.cartesianProductOfSets {
+            php = ["php81" "php82" "php83"];
+            stdenv = ["gcc"];
+            libpfm = ["libpfm"];
+            debugSupport = [false true];
+            coverageSupport = [true];
+          });
 
         buildFn = {
           php,
           libpfm,
           stdenv,
           debugSupport ? false,
+          coverageSupport ? false,
         }:
           lib.nameValuePair
           (lib.concatStringsSep "-" (lib.filter (v: v != "") [
@@ -243,13 +253,18 @@
               then "debug"
               else ""
             )
+            (
+              if coverageSupport
+              then "coverage"
+              else ""
+            )
           ]))
           (
             makePackage {
               php = matrix.php.${php};
               libpfm = matrix.libpfm.${libpfm};
               stdenv = matrix.stdenv.${stdenv};
-              inherit debugSupport;
+              inherit debugSupport coverageSupport;
             }
           );
 
