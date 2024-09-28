@@ -1,7 +1,5 @@
 /**
- * Copyright (C) 2024 John Boehr & contributors
- *
- * This file is part of php-perfidious.
+ * Copyright (c) anno Domini nostri Jesu Christi MMXXIV John Boehr & contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by

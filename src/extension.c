@@ -1,7 +1,5 @@
 /**
- * Copyright (C) 2024 John Boehr & contributors
- *
- * This file is part of php-perfidious.
+ * Copyright (c) anno Domini nostri Jesu Christi MMXXIV John Boehr & contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -132,6 +130,9 @@ static struct perfidious_handle *split_and_open(zend_string *restrict metrics, b
     return handle;
 }
 
+const char *PERFIDIOUS_MOTD =
+    "Think not that I am come to send peace on earth: I came not to send peace, but a sword. Matthew 10:34";
+
 static PHP_MINIT_FUNCTION(perfidious)
 {
     const int flags = CONST_CS | CONST_PERSISTENT;
@@ -164,6 +165,8 @@ static PHP_MINIT_FUNCTION(perfidious)
         REGISTER_STRING_CONSTANT(PHP_PERFIDIOUS_NAMESPACE "\\UINT64_MAX", buf, flags);
     } while (false);
 #endif
+
+    REGISTER_STRING_CONSTANT(PHP_PERFIDIOUS_NAMESPACE "\\MOTD", (char *) PERFIDIOUS_MOTD, flags);
 
     REGISTER_INI_ENTRIES();
 
@@ -284,6 +287,10 @@ static PHP_MINFO_FUNCTION(perfidious)
         minfo_handle_metrics(PERFIDIOUS_G(request_handle));
         php_info_print_table_end();
     }
+
+    php_info_print_box_start(0);
+    PUTS(PERFIDIOUS_MOTD);
+    php_info_print_box_end();
 }
 
 static PHP_GINIT_FUNCTION(perfidious)

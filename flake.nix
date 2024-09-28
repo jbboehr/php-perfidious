@@ -1,8 +1,23 @@
+# Copyright (c) anno Domini nostri Jesu Christi MMXVI-MMXXIV John Boehr & contributors
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 {
   description = "php-perfidious";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-23.11";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-24.05";
+    nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
     systems.url = "github:nix-systems/default-linux";
     flake-utils = {
       url = "github:numtide/flake-utils";
@@ -16,7 +31,6 @@
       url = "github:cachix/pre-commit-hooks.nix";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.nixpkgs-stable.follows = "nixpkgs";
-      inputs.flake-utils.follows = "flake-utils";
       inputs.gitignore.follows = "gitignore";
     };
     nix-github-actions = {
@@ -32,17 +46,18 @@
   outputs = {
     self,
     nixpkgs,
+    nixpkgs-unstable,
+    systems,
     flake-utils,
     gitignore,
     pre-commit-hooks,
-    systems,
     nix-github-actions,
     libpfm4-unstable-src,
-    ...
-  } @ args:
+  }:
     flake-utils.lib.eachDefaultSystem (
       system: let
         pkgs = nixpkgs.legacyPackages.${system};
+        pkgs-unstable = nixpkgs-unstable.legacyPackages.${system};
         lib = pkgs.lib;
 
         src' = gitignore.lib.gitignoreSource ./.;
@@ -103,9 +118,10 @@
             actionlint.enable = true;
             alejandra.enable = true;
             alejandra.excludes = ["\/vendor\/"];
-            clang-format.enable = true;
-            clang-format.types_or = ["c" "c++"];
-            clang-format.files = "\\.(c|h)$";
+            # I hate formatters
+            #clang-format.enable = true;
+            #clang-format.types_or = ["c" "c++"];
+            #clang-format.files = "\\.(c|h)$";
             markdownlint.enable = true;
             markdownlint.excludes = ["LICENSE\.md"];
             markdownlint.settings.configuration = {
@@ -191,6 +207,7 @@
         matrix = with pkgs; {
           php = {
             inherit php81 php82 php83;
+            php84 = pkgs-unstable.php84;
           };
           stdenv = {
             gcc = stdenv;
@@ -205,7 +222,7 @@
         # @see https://github.com/NixOS/nixpkgs/pull/110787
         buildConfs =
           (lib.cartesianProductOfSets {
-            php = ["php81" "php82" "php83"];
+            php = ["php81" "php82" "php83" "php84"];
             stdenv = [
               "gcc"
               "clang"
@@ -224,7 +241,7 @@
             }
           ]
           ++ (lib.cartesianProductOfSets {
-            php = ["php81" "php82" "php83"];
+            php = ["php81" "php82" "php83" "php84"];
             stdenv = ["gcc"];
             libpfm = ["libpfm"];
             debugSupport = [false true];
@@ -275,6 +292,7 @@
             # php81 = packages.php81-gcc;
             # php82 = packages.php82-gcc;
             # php83 = packages.php83-gcc;
+            # php84 = packages.php84-gcc;
             default = packages.php81-gcc;
           };
       in {

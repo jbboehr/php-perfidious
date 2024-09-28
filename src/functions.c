@@ -1,7 +1,5 @@
 /**
- * Copyright (C) 2024 John Boehr & contributors
- *
- * This file is part of php-perfidious.
+ * Copyright (c) anno Domini nostri Jesu Christi MMXXIV John Boehr & contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -300,17 +298,23 @@ static ZEND_FUNCTION(perfidious_debug_uint64_overflow)
 #endif
 
 // clang-format off
+#if PHP_VERSION_ID >= 80400
+#define PERFIDIOUS_FE(zend_name, name, arg_info, flags) ZEND_RAW_FENTRY(zend_name, name, arg_info, flags, NULL, NULL)
+#else
+#define PERFIDIOUS_FE(zend_name, name, arg_info, flags) ZEND_RAW_FENTRY(zend_name, name, arg_info, flags)
+#endif
+
 PERFIDIOUS_LOCAL
 const zend_function_entry perfidious_functions[] = {
-    ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\get_pmu_info", ZEND_FN(perfidious_get_pmu_info), perfidious_get_pmu_info_arginfo, 0)
-    ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\get_pmu_event_info", ZEND_FN(perfidious_get_pmu_event_info), perfidious_get_pmu_event_info_arginfo, 0)
-    ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\global_handle", ZEND_FN(perfidious_global_handle), perfidious_global_handle_arginfo, 0)
-    ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\list_pmus", ZEND_FN(perfidious_list_pmus), perfidious_list_pmus_arginfo, 0)
-    ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\list_pmu_events", ZEND_FN(perfidious_list_pmu_events), perfidious_list_pmu_events_arginfo, 0)
-    ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\open", ZEND_FN(perfidious_open), perfidious_open_arginfo, 0)
-    ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\request_handle", ZEND_FN(perfidious_request_handle), perfidious_request_handle_arginfo, 0)
+    PERFIDIOUS_FE(PHP_PERFIDIOUS_NAMESPACE "\\get_pmu_info", ZEND_FN(perfidious_get_pmu_info), perfidious_get_pmu_info_arginfo, 0)
+    PERFIDIOUS_FE(PHP_PERFIDIOUS_NAMESPACE "\\get_pmu_event_info", ZEND_FN(perfidious_get_pmu_event_info), perfidious_get_pmu_event_info_arginfo, 0)
+    PERFIDIOUS_FE(PHP_PERFIDIOUS_NAMESPACE "\\global_handle", ZEND_FN(perfidious_global_handle), perfidious_global_handle_arginfo, 0)
+    PERFIDIOUS_FE(PHP_PERFIDIOUS_NAMESPACE "\\list_pmus", ZEND_FN(perfidious_list_pmus), perfidious_list_pmus_arginfo, 0)
+    PERFIDIOUS_FE(PHP_PERFIDIOUS_NAMESPACE "\\list_pmu_events", ZEND_FN(perfidious_list_pmu_events), perfidious_list_pmu_events_arginfo, 0)
+    PERFIDIOUS_FE(PHP_PERFIDIOUS_NAMESPACE "\\open", ZEND_FN(perfidious_open), perfidious_open_arginfo, 0)
+    PERFIDIOUS_FE(PHP_PERFIDIOUS_NAMESPACE "\\request_handle", ZEND_FN(perfidious_request_handle), perfidious_request_handle_arginfo, 0)
 #ifdef PERFIDIOUS_DEBUG
-    ZEND_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\debug_uint64_overflow", ZEND_FN(perfidious_debug_uint64_overflow), perfidious_debug_uint64_overflow_arginfo, 0)
+    PERFIDIOUS_FE(PHP_PERFIDIOUS_NAMESPACE "\\debug_uint64_overflow", ZEND_FN(perfidious_debug_uint64_overflow), perfidious_debug_uint64_overflow_arginfo, 0)
 #endif
     PHP_FE_END
 };
