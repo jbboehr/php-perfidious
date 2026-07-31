@@ -16,7 +16,7 @@
   description = "php-perfidious";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-24.05";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
     systems.url = "github:nix-systems/default-linux";
     flake-utils = {
@@ -41,6 +41,10 @@
       url = "git+https://git.code.sf.net/p/perfmon2/libpfm4";
       flake = false;
     };
+    nix-phps = {
+      url = "github:fossar/nix-phps";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = {
@@ -53,6 +57,7 @@
     pre-commit-hooks,
     nix-github-actions,
     libpfm4-unstable-src,
+    nix-phps,
   }:
     flake-utils.lib.eachDefaultSystem (
       system: let
@@ -146,7 +151,7 @@
               clang-tools
               iwyu
               lcov
-              linuxPackages_latest.perf
+              perf
               gdb
               package.php.packages.composer
               valgrind
@@ -204,9 +209,12 @@
             '';
           };
 
+        pkgs-phps = nix-phps.packages.${system};
+
         matrix = with pkgs; {
           php = {
-            inherit php81 php82 php83;
+            inherit php82 php83;
+            php81 = pkgs-phps.php81;
             php84 = pkgs-unstable.php84;
           };
           stdenv = {
@@ -221,7 +229,7 @@
 
         # @see https://github.com/NixOS/nixpkgs/pull/110787
         buildConfs =
-          (lib.cartesianProductOfSets {
+          (lib.cartesianProduct {
             php = ["php81" "php82" "php83" "php84"];
             stdenv = [
               "gcc"
@@ -240,7 +248,7 @@
               debugSupport = true;
             }
           ]
-          ++ (lib.cartesianProductOfSets {
+          ++ (lib.cartesianProduct {
             php = ["php81" "php82" "php83" "php84"];
             stdenv = ["gcc"];
             libpfm = ["libpfm"];
