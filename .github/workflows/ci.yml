@@ -78,10 +78,7 @@ jobs:
         steps:
             -   uses: actions/checkout@v4
 
-            -   uses: awalsh128/cache-apt-pkgs-action@latest
-                with:
-                    packages: libcap-dev libpfm4-dev valgrind
-                    version: 1
+            -   run: sudo apt-get update && sudo apt-get install -y libcap-dev libpfm4-dev valgrind
 
             -   name: Install PHP
                 uses: shivammathur/setup-php@v2
@@ -134,10 +131,7 @@ jobs:
         steps:
             -   uses: actions/checkout@v4
 
-            -   uses: awalsh128/cache-apt-pkgs-action@latest
-                with:
-                    packages: lcov libcap-dev libpfm4-dev
-                    version: 1
+            -   run: sudo apt-get update && sudo apt-get install -y lcov libcap-dev libpfm4-dev
 
             -   name: Install PHP
                 uses: shivammathur/setup-php@v2
@@ -153,11 +147,13 @@ jobs:
                 env:
                     EXTRA_FLAGS: ${{ matrix.debug == 'debug' && '--enable-perfidious-debug' || '' }}
 
+            -   run: make
+
+            # must run after make, not before: --initial captures baseline coverage from the
+            # .gcno graph files gcc emits during compilation, which don't exist until after the build
             -   run: lcov --directory . --zerocounters
 
             -   run: lcov --directory . --capture --compat-libtool --initial --output-file coverage.info
-
-            -   run: make
 
             -   run: sudo sysctl -w kernel.perf_event_paranoid=1
 

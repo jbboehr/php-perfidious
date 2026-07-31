@@ -72,7 +72,9 @@
       runHook postCheck
     '';
 
-  preBuild = lib.optionalString coverageSupport ''
+  # must run after buildPhase, not before: --initial captures baseline coverage from the
+  # .gcno graph files gcc emits during compilation, which don't exist until the build has run
+  postBuild = lib.optionalString coverageSupport ''
     lcov --directory . --zerocounters
     lcov --directory . --capture --compat-libtool --initial --output-file coverage.info
   '';
