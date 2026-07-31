@@ -215,21 +215,6 @@ zend_result perfidious_handle_read_to_array_with_times(
             zval_ptr_dtor(return_value);
             ZVAL_UNDEF(return_value);
             return FAILURE;
-            /*
-            metric = NULL;
-
-            // skip the first entry - it should be the dummy
-            for (size_t j = 1; j < handle->metrics_count; j++) {
-                if (handle->metrics[j].id == value->id) {
-                    metric = &handle->metrics[j];
-                    break;
-                }
-            }
-
-            if (UNEXPECTED(metric == NULL)) {
-                continue;
-            }
-            */
         } else if (i == 0) {
             // skip the first entry - it should be the dummy
             continue;
