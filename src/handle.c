@@ -151,6 +151,8 @@ zend_result perfidious_handle_close(struct perfidious_handle *restrict handle)
 
     handle->metrics_count = 0;
 
+    pefree(handle, handle->persist);
+
     return rv;
 }
 
@@ -332,6 +334,7 @@ struct perfidious_handle *perfidious_handle_open_ex(
         sizeof(struct perfidious_handle) + sizeof(struct perfidious_metric) * (event_names_length + 1), 1, persist
     );
     handle->metrics_size = event_names_length + 1;
+    handle->persist = persist;
 
     // Open a dummy event to hold the group
     do {
