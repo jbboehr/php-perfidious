@@ -29,10 +29,12 @@ PERFIDIOUS_LOCAL zend_string *PERFIDIOUS_INTERNED_EQUIV;
 PERFIDIOUS_LOCAL zend_string *PERFIDIOUS_INTERNED_IDX;
 PERFIDIOUS_PUBLIC zend_class_entry *perfidious_pmu_event_info_ce;
 
+// not "inline": with PERFIDIOUS_DEBUG's extra call site, -Werror=inline fails the build
+// if it's marked inline and gcc decides it's too big to actually inline
 ZEND_COLD
 PERFIDIOUS_ATTR_NONNULL_ALL
 PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
-static inline zend_result
+static zend_result
 perfidious_pmu_event_info_ctor(pfm_pmu_info_t *pmu_info, pfm_event_info_t *info, zval *restrict return_value)
 {
     char buf[512];
@@ -40,7 +42,10 @@ perfidious_pmu_event_info_ctor(pfm_pmu_info_t *pmu_info, pfm_event_info_t *info,
 
     PERFIDIOUS_ASSERT_RETURN(SUCCESS == object_init_ex(return_value, perfidious_pmu_event_info_ce));
 
-    size_t buf_len = snprintf(buf, sizeof(buf), "%s::%s", pmu_info->name, info->name);
+    int buf_ret = snprintf(buf, sizeof(buf), "%s::%s", pmu_info->name, info->name);
+    // snprintf() returns the length that would have been written absent truncation, which can
+    // exceed what's actually in buf - clamp so we never read past its end
+    size_t buf_len = buf_ret < 0 ? 0 : MIN((size_t) buf_ret, sizeof(buf) - 1);
 
     ZVAL_STRINGL(&tmp, buf, buf_len);
     zend_update_property_ex(Z_OBJCE_P(return_value), Z_OBJ_P(return_value), PERFIDIOUS_INTERNED_NAME, &tmp);
@@ -93,6 +98,27 @@ zend_result perfidious_get_pmu_event_info(pfm_pmu_info_t *restrict pmu_info, int
 
     return perfidious_pmu_event_info_ctor(pmu_info, &info, return_value);
 }
+
+#ifdef PERFIDIOUS_DEBUG
+ZEND_COLD
+PERFIDIOUS_LOCAL
+PERFIDIOUS_ATTR_NONNULL_ALL
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
+zend_result perfidious_debug_pmu_event_info_ctor(
+    zend_string *restrict pmu_name, zend_string *restrict event_name, zval *restrict return_value
+)
+{
+    pfm_pmu_info_t pmu_info = {0};
+    pmu_info.name = ZSTR_VAL(pmu_name);
+    pmu_info.desc = "";
+
+    pfm_event_info_t info = {0};
+    info.name = ZSTR_VAL(event_name);
+    info.desc = "";
+
+    return perfidious_pmu_event_info_ctor(&pmu_info, &info, return_value);
+}
+#endif
 
 PERFIDIOUS_ATTR_RETURNS_NONNULL
 PERFIDIOUS_ATTR_WARN_UNUSED_RESULT

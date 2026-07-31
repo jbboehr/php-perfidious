@@ -311,6 +311,29 @@ static ZEND_FUNCTION(perfidious_debug_uint64_overflow)
 
     RETURN_LONG(output);
 }
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(
+    perfidious_debug_pmu_event_info_from_names_arginfo, false, 2, Perfidious\\PmuEventInfo, false
+)
+    ZEND_ARG_TYPE_INFO(false, pmu_name, IS_STRING, false)
+    ZEND_ARG_TYPE_INFO(false, event_name, IS_STRING, false)
+ZEND_END_ARG_INFO()
+
+ZEND_COLD
+static PHP_FUNCTION(perfidious_debug_pmu_event_info_from_names)
+{
+    zend_string *pmu_name;
+    zend_string *event_name;
+
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_STR(pmu_name)
+        Z_PARAM_STR(event_name)
+    ZEND_PARSE_PARAMETERS_END();
+
+    if (UNEXPECTED(SUCCESS != perfidious_debug_pmu_event_info_ctor(pmu_name, event_name, return_value))) {
+        RETURN_NULL();
+    }
+}
 #endif
 
 // clang-format off
@@ -331,6 +354,7 @@ const zend_function_entry perfidious_functions[] = {
     PERFIDIOUS_FE(PHP_PERFIDIOUS_NAMESPACE "\\request_handle", ZEND_FN(perfidious_request_handle), perfidious_request_handle_arginfo, 0)
 #ifdef PERFIDIOUS_DEBUG
     PERFIDIOUS_FE(PHP_PERFIDIOUS_NAMESPACE "\\debug_uint64_overflow", ZEND_FN(perfidious_debug_uint64_overflow), perfidious_debug_uint64_overflow_arginfo, 0)
+    PERFIDIOUS_FE(PHP_PERFIDIOUS_NAMESPACE "\\debug_pmu_event_info_from_names", ZEND_FN(perfidious_debug_pmu_event_info_from_names), perfidious_debug_pmu_event_info_from_names_arginfo, 0)
 #endif
     PHP_FE_END
 };

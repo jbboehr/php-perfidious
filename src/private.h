@@ -144,4 +144,16 @@ PERFIDIOUS_ATTR_NONNULL_ALL
 PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
 zend_result perfidious_get_pmu_event_info(pfm_pmu_info_t *restrict pmu_info, int idx, zval *restrict return_value);
 
+#ifdef PERFIDIOUS_DEBUG
+// exercises perfidious_pmu_event_info_ctor()'s name truncation with caller-controlled strings,
+// since real libpfm event names are never long enough to hit the truncation path
+ZEND_COLD
+PERFIDIOUS_LOCAL
+PERFIDIOUS_ATTR_NONNULL_ALL
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
+zend_result perfidious_debug_pmu_event_info_ctor(
+    zend_string *restrict pmu_name, zend_string *restrict event_name, zval *restrict return_value
+);
+#endif
+
 #endif /* PERFIDIOUS_PRIVATE_H */
