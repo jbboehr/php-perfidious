@@ -241,6 +241,7 @@ static PHP_FUNCTION(perfidious_open)
             arr[arr_count++] = Z_STR_P(z);
         } else {
             zend_type_error("All event names must be strings");
+            return;
         }
     }
     ZEND_HASH_FOREACH_END();
@@ -334,6 +335,19 @@ static PHP_FUNCTION(perfidious_debug_pmu_event_info_from_names)
         RETURN_NULL();
     }
 }
+
+// lets tests assert perfidious_handle_open_ex() was (or wasn't) actually reached, e.g. to
+// confirm perfidious_open() bails out immediately on a bad argument instead of doing real work
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(perfidious_debug_get_open_ex_call_count_arginfo, false, 0, IS_LONG, false)
+ZEND_END_ARG_INFO()
+
+ZEND_COLD
+static PHP_FUNCTION(perfidious_debug_get_open_ex_call_count)
+{
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    RETURN_LONG((zend_long) PERFIDIOUS_G(debug_open_ex_call_count));
+}
 #endif
 
 // clang-format off
@@ -355,6 +369,7 @@ const zend_function_entry perfidious_functions[] = {
 #ifdef PERFIDIOUS_DEBUG
     PERFIDIOUS_FE(PHP_PERFIDIOUS_NAMESPACE "\\debug_uint64_overflow", ZEND_FN(perfidious_debug_uint64_overflow), perfidious_debug_uint64_overflow_arginfo, 0)
     PERFIDIOUS_FE(PHP_PERFIDIOUS_NAMESPACE "\\debug_pmu_event_info_from_names", ZEND_FN(perfidious_debug_pmu_event_info_from_names), perfidious_debug_pmu_event_info_from_names_arginfo, 0)
+    PERFIDIOUS_FE(PHP_PERFIDIOUS_NAMESPACE "\\debug_get_open_ex_call_count", ZEND_FN(perfidious_debug_get_open_ex_call_count), perfidious_debug_get_open_ex_call_count_arginfo, 0)
 #endif
     PHP_FE_END
 };

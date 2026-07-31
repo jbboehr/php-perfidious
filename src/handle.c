@@ -323,6 +323,10 @@ struct perfidious_handle *perfidious_handle_open_ex(
     zend_string **restrict event_names, size_t event_names_length, pid_t pid, int cpu, bool persist
 )
 {
+#ifdef PERFIDIOUS_DEBUG
+    PERFIDIOUS_G(debug_open_ex_call_count)++;
+#endif
+
     int fd;
     uint64_t id;
     int group_fd;

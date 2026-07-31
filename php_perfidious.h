@@ -111,6 +111,10 @@ ZEND_BEGIN_MODULE_GLOBALS(perfidious)
 
     enum perfidious_error_mode error_mode;
     enum perfidious_overflow_mode overflow_mode;
+
+#ifdef PERFIDIOUS_DEBUG
+    uint32_t debug_open_ex_call_count;
+#endif
 ZEND_END_MODULE_GLOBALS(perfidious)
 
 ZEND_EXTERN_MODULE_GLOBALS(perfidious);
