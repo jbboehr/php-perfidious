@@ -12,8 +12,22 @@ $handle = Perfidious\open([
 $stream = $handle->rawStream(2);
 var_dump(strlen(fread($stream, 32)));
 fclose($stream);
+// rawStream() hands out a dup()'d fd, so closing it must not break the handle
 var_dump($handle->read());
 --EXPECTF--
 int(32)
-%A Uncaught Perfidious\IOException: failed to read: Illegal seek %A
-%A Uncaught Perfidious\IOException: close failed: Bad file descriptor %A
+object(Perfidious\ReadResult)#%d (3) {
+  ["timeEnabled"]=>
+  int(%d)
+  ["timeRunning"]=>
+  int(%d)
+  ["values"]=>
+  array(3) {
+    ["perf::PERF_COUNT_SW_CPU_CLOCK:u"]=>
+    int(%d)
+    ["perf::PERF_COUNT_SW_PAGE_FAULTS:u"]=>
+    int(%d)
+    ["perf::PERF_COUNT_SW_CONTEXT_SWITCHES:u"]=>
+    int(%d)
+  }
+}

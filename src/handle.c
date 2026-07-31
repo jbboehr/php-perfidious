@@ -491,7 +491,23 @@ static PHP_METHOD(PerfidousHandle, rawStream)
         RETURN_NULL();
     }
 
-    php_stream *stream = php_stream_fopen_from_fd(obj->handle->metrics[idx].fd, "r", NULL);
+    // dup() so the returned stream owns an independent fd: php_stream_fopen_from_fd() takes
+    // ownership of what it's given and closes it when the stream is closed/GC'd, and we don't
+    // want that to leave handle->metrics[idx].fd dangling (or, worse, silently reused by the OS
+    // for something unrelated) for the rest of the handle's lifetime
+    int fd = dup(obj->handle->metrics[idx].fd);
+    if (UNEXPECTED(fd == -1)) {
+        perfidious_error_helper(perfidious_io_exception_ce, errno, "dup failed: %s", strerror(errno));
+        return;
+    }
+
+    php_stream *stream = php_stream_fopen_from_fd(fd, "r", NULL);
+    if (UNEXPECTED(stream == NULL)) {
+        close(fd);
+        zend_throw_exception_ex(perfidious_io_exception_ce, 0, "failed to create stream from fd %d", fd);
+        return;
+    }
+
     php_stream_to_zval(stream, return_value);
 }
 
@@ -566,6 +582,31 @@ static PHP_METHOD(PerfidousHandle, debugCorruptMetricIds)
         obj->handle->metrics[i].id = UINT64_MAX;
     }
 }
+
+// closes the real underlying fd directly, unlike rawStream() (which now hands out a dup()'d
+// fd), so tests can still simulate a broken handle to exercise the read-failure paths
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perfidious_handle_debug_close_fd_arginfo, IS_NULL, true)
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(false, idx, IS_LONG, true, "0")
+ZEND_END_ARG_INFO()
+
+ZEND_COLD
+static PHP_METHOD(PerfidousHandle, debugCloseFd)
+{
+    zend_long idx = 0;
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(idx)
+    ZEND_PARSE_PARAMETERS_END();
+
+    struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(ZEND_THIS));
+
+    if (UNEXPECTED((size_t) idx >= obj->handle->metrics_count)) {
+        return;
+    }
+
+    close(obj->handle->metrics[idx].fd);
+}
 #endif
 
 // clang-format off
@@ -578,6 +619,7 @@ static zend_function_entry perfidious_handle_methods[] = {
     PHP_ME(PerfidousHandle, reset, perfidious_handle_reset_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
 #ifdef PERFIDIOUS_DEBUG
     PHP_ME(PerfidousHandle, debugCorruptMetricIds, perfidious_handle_debug_corrupt_metric_ids_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
+    PHP_ME(PerfidousHandle, debugCloseFd, perfidious_handle_debug_close_fd_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
 #endif
     PHP_FE_END
 };

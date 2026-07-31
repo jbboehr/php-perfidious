@@ -118,9 +118,10 @@ final class Handle
     }
 
     /**
-     * Get a raw byte stream from the handle's file descriptor
+     * Get a raw byte stream backed by a duplicate of the handle's file descriptor
      *
-     * @note closing this resource will cause subsequent calls to read to fail
+     * @note the returned stream owns an independent copy of the file descriptor, so closing it
+     *       does not affect this handle or subsequent calls to read()
      * @return resource
      */
     final public function rawStream()

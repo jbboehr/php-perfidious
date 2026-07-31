@@ -10,24 +10,12 @@ $handle = Perfidious\open([
 $stream = $handle->rawStream();
 var_dump(strlen(fread($stream, 32)));
 fclose($stream);
-try {
-    var_dump($handle->enable());
-} catch (\Throwable $e) {
-    var_dump($e->getMessage());
-}
-try {
-    var_dump($handle->disable());
-} catch (\Throwable $e) {
-    var_dump($e->getMessage());
-}
-try {
-    var_dump($handle->reset());
-} catch (\Throwable $e) {
-    var_dump($e->getMessage());
-}
+// rawStream() hands out a dup()'d fd, so closing it must not break the handle
+var_dump(get_class($handle->enable()));
+var_dump(get_class($handle->disable()));
+var_dump(get_class($handle->reset()));
 --EXPECTF--
 int(32)
-string(%d) "ioctl failed: Bad file descriptor"
-string(%d) "ioctl failed: Bad file descriptor"
-string(%d) "ioctl failed: Bad file descriptor"
-%A Uncaught Perfidious\IOException: close failed: Bad file descriptor %A
+string(%d) "Perfidious\Handle"
+string(%d) "Perfidious\Handle"
+string(%d) "Perfidious\Handle"
