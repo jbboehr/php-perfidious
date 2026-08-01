@@ -125,6 +125,11 @@
                 # this doesn't seem to work
                 table = false;
               };
+              # Keep a Changelog's format repeats ### Added / ### Fixed / etc under every
+              # version heading by design - only flag duplicates within the same parent section
+              MD024 = {
+                siblings_only = true;
+              };
             };
             shellcheck.enable = true;
           };
