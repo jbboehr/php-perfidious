@@ -7,3 +7,14 @@ parameters:
         - examples
     stubFiles:
         - perfidious.stub.php
+    ignoreErrors:
+        # $argv/$argc are populated for CLI scripts regardless of register_argc_argv (that ini
+        # setting only matters for the web SAPI) - verified directly, but PHPStan checks the ini
+        # value of whatever PHP binary it runs under and flags this as a false positive whenever
+        # that happens to be Off, which several PHP 8.5 builds set as the new default. Whether
+        # this actually fires depends on that ini default, hence reportUnmatched: false - it
+        # won't fire on every PHP version this gets analyzed under
+        -
+            message: '#^Variable \$argv might not be defined\.$#'
+            path: examples/*
+            reportUnmatched: false
