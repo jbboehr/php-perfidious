@@ -25,7 +25,7 @@ jobs:
                     - "8.3"
                     - "8.4"
         steps:
-            -   uses: actions/checkout@v4
+            -   uses: actions/checkout@v7
 
             -   name: Install PHP
                 uses: shivammathur/setup-php@v2
@@ -76,7 +76,7 @@ jobs:
                     - php-version: "8.4"
                       debug: "debug"
         steps:
-            -   uses: actions/checkout@v4
+            -   uses: actions/checkout@v7
 
             -   uses: awalsh128/cache-apt-pkgs-action@latest
                 with:
@@ -132,7 +132,7 @@ jobs:
                     - php-version: "8.1"
                       debug: "debug"
         steps:
-            -   uses: actions/checkout@v4
+            -   uses: actions/checkout@v7
 
             -   uses: awalsh128/cache-apt-pkgs-action@latest
                 with:
@@ -208,7 +208,7 @@ jobs:
         outputs:
             matrix: ${{ steps.set-matrix.outputs.matrix }}
         steps:
-            -   uses: actions/checkout@v4
+            -   uses: actions/checkout@v7
             -   uses: cachix/install-nix-action@v27
                 with:
                     nix_path: nixpkgs=channel:nixos-24.05
@@ -227,7 +227,7 @@ jobs:
         strategy:
             matrix: ${{fromJSON(needs.nix-matrix.outputs.matrix)}}
         steps:
-            -   uses: actions/checkout@v4
+            -   uses: actions/checkout@v7
 
             -   name: Set Up Build Cache
                 uses: actions/cache@v4
@@ -299,7 +299,7 @@ jobs:
                 DOCKER_NAME:
                     - debian
         steps:
-            -   uses: actions/checkout@v4
+            -   uses: actions/checkout@v7
                 with:
                     submodules: recursive
             -   run: sudo sysctl -w kernel.perf_event_paranoid=1
@@ -326,7 +326,7 @@ jobs:
                 DOCKER_NAME:
                     - fedora
         steps:
-            -   uses: actions/checkout@v4
+            -   uses: actions/checkout@v7
                 with:
                     submodules: recursive
             -   run: sudo sysctl -w kernel.perf_event_paranoid=1
