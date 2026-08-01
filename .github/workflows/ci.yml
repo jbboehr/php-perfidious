@@ -146,7 +146,7 @@ jobs:
 
             -   run: phpize
 
-            -   run: ./configure --enable-compile-warnings=error "${EXTRA_FLAGS}" CFLAGS="-fprofile-arcs -ftest-coverage ${CFLAGS}" LDFLAGS="--coverage ${LDFLAGS}"
+            -   run: ./configure --enable-compile-warnings=error --enable-perfidious-coverage "${EXTRA_FLAGS}"
                 env:
                     EXTRA_FLAGS: ${{ matrix.debug == 'debug' && '--enable-perfidious-debug' || '' }}
 
