@@ -37,10 +37,6 @@
       url = "github:nix-community/nix-github-actions";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    libpfm4-unstable-src = {
-      url = "git+https://git.code.sf.net/p/perfmon2/libpfm4";
-      flake = false;
-    };
     nix-phps = {
       url = "github:fossar/nix-phps";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -56,7 +52,6 @@
     gitignore,
     pre-commit-hooks,
     nix-github-actions,
-    libpfm4-unstable-src,
     nix-phps,
   }:
     flake-utils.lib.eachDefaultSystem (
@@ -68,11 +63,6 @@
         src' = gitignore.lib.gitignoreSource ./.;
 
         iwyu = pkgs.callPackage ./nix/iwyu.nix {};
-
-        libpfm-unstable = pkgs.libpfm.overrideAttrs (o: {
-          version = "${o.version}+git-master";
-          src = libpfm4-unstable-src;
-        });
 
         src = pkgs.lib.cleanSourceWith {
           name = "php-perfidious-source";
@@ -226,7 +216,7 @@
             musl = pkgsMusl.stdenv;
           };
           libpfm = {
-            inherit libpfm libpfm-unstable;
+            inherit libpfm;
           };
         };
 
@@ -240,7 +230,7 @@
               # totally broken
               # "musl"
             ];
-            libpfm = ["libpfm" "libpfm-unstable"];
+            libpfm = ["libpfm"];
             coverageSupport = [false];
           })
           ++ [
