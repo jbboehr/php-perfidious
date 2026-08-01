@@ -6,6 +6,7 @@ m4_include(m4/ax_cflags_warn_all.m4)
 m4_include(m4/ax_check_link_flag.m4)
 m4_include(m4/ax_compiler_flags.m4)
 m4_include(m4/ax_compiler_flags_cflags.m4)
+m4_include(m4/ax_compiler_flags_cxxflags.m4)
 m4_include(m4/ax_compiler_flags_gir.m4)
 m4_include(m4/ax_compiler_flags_ldflags.m4)
 m4_include(m4/ax_compiler_vendor.m4)
@@ -23,6 +24,9 @@ PHP_ARG_ENABLE(perfidious-debug, whether to enable perfidious debug support,
 
 PHP_ARG_ENABLE(perfidious-coverage, whether to enable perfidious coverage support,
 [AS_HELP_STRING([--enable-perfidious-coverage], [Enable perfidious coverage support])], [no], [no])
+
+PHP_ARG_ENABLE(perfidious-sanitize, whether to build perfidious with ASan/UBSan,
+[AS_HELP_STRING([--enable-perfidious-sanitize], [Build perfidious with ASan/UBSan])], [no], [no])
 
 AC_DEFUN([PHP_PERFIDIOUS_ADD_SOURCES], [
   PHP_PERFIDIOUS_SOURCES="$PHP_PERFIDIOUS_SOURCES $1"
@@ -62,6 +66,10 @@ if test "$PHP_PERFIDIOUS" != "no"; then
         LDFLAGS="--coverage $LDFLAGS"
     fi
 
+    if test "$PHP_PERFIDIOUS_SANITIZE" == "yes"; then
+        PERFIDIOUS_EXTRA_CFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -g"
+    fi
+
     PHP_ADD_LIBRARY(cap, , PERFIDIOUS_SHARED_LIBADD)
     PHP_ADD_LIBRARY(pfm, , PERFIDIOUS_SHARED_LIBADD)
 
@@ -77,7 +85,10 @@ if test "$PHP_PERFIDIOUS" != "no"; then
 
     PHP_ADD_BUILD_DIR(src)
     PHP_INSTALL_HEADERS([ext/perfidious], [php_perfidious.h])
-    PHP_NEW_EXTENSION(perfidious, $PHP_PERFIDIOUS_SOURCES, $ext_shared, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
+    dnl 4th arg (sapi_class) intentionally left blank: -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 used to
+    dnl sit there, which PHP_NEW_EXTENSION only ever compares against the literal string "cli" -
+    dnl it never did anything. extra-cflags is the 5th arg.
+    PHP_NEW_EXTENSION(perfidious, $PHP_PERFIDIOUS_SOURCES, $ext_shared, , -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 $PERFIDIOUS_EXTRA_CFLAGS)
     PHP_ADD_EXTENSION_DEP(perfidious, spl, false)
     PHP_ADD_EXTENSION_DEP(perfidious, opcache, true)
     PHP_SUBST(PERFIDIOUS_SHARED_LIBADD)

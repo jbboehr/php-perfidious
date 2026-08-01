@@ -306,8 +306,85 @@
             # php84 = packages.php84-gcc;
             default = packages.php81-gcc;
           };
+
+        # Statically-linked, whole-process ASan/UBSan build: perfidious source is embedded
+        # directly into a php source tree (as ext/perfidious) and built in, so there's no
+        # dlopen() of a separate .so at all. That matters because PHP's extension loader always
+        # dlopen()s with RTLD_DEEPBIND, which is fundamentally incompatible with sanitizer
+        # runtimes - an ordinary dynamically-loaded .so built with -fsanitize=address just can't
+        # be loaded at all, so a ASan/UBSan build has to avoid dlopen() entirely like this.
+        #
+        # Deliberately NOT wired into `packages`/`checks`/`devShells`: it rebuilds the whole of
+        # PHP core from source (slow), so it's opt-in only via
+        # `nix build .#sanitize-static-php82` / `.#sanitize-static-php82-check`.
+        sanitizeStdenv =
+          if pkgs.stdenv.cc.isClang
+          then pkgs.llvmPackages.stdenv
+          else pkgs.stdenv;
+
+        sanitizeStaticPhp = let
+          basePhp = pkgs.php82.unwrapped;
+        in
+          pkgs.callPackage (nixpkgs + "/pkgs/development/interpreters/php/generic.nix") {
+            stdenv = sanitizeStdenv;
+            pcre2 = pkgs.pcre2.override {withJitSealloc = false;};
+            version = basePhp.version;
+            phpSrc = basePhp.src;
+            phpAttrsOverrides = final: prev: {
+              buildInputs = prev.buildInputs ++ [pkgs.libcap pkgs.libpfm];
+              postPatch =
+                (prev.postPatch or "")
+                + ''
+                  cp -r ${src} ext/perfidious
+                  chmod -R u+w ext/perfidious
+                  # config.m4's m4_include(m4/...) paths resolve relative to php-src's own root
+                  # (which has no m4/ dir of its own), not relative to ext/perfidious/
+                  cp -r ext/perfidious/m4 m4
+                '';
+              configureFlags =
+                prev.configureFlags
+                ++ [
+                  "--enable-perfidious"
+                  "--enable-perfidious-sanitize"
+                  "--enable-compile-warnings=yes"
+                  "--disable-Werror"
+                ];
+              # only LDFLAGS (needed on the final link, to pull in the sanitizer runtime) applies
+              # to the whole build - CFLAGS stays scoped to just perfidious's own object files,
+              # via --enable-perfidious-sanitize above, see config.m4
+              LDFLAGS = "${prev.LDFLAGS or ""} -fsanitize=address,undefined";
+            };
+          };
+
+        sanitizeStaticPhpCheck =
+          pkgs.runCommand "perfidious-sanitize-static-check" {
+            nativeBuildInputs = [sanitizeStdenv.cc];
+          } ''
+            cp -r --no-preserve=mode,ownership ${src}/tests .
+            cp ${sanitizeStaticPhp.dev}/lib/build/run-tests.php .
+
+            export USE_ZEND_ALLOC=0
+            export LD_PRELOAD="$(cc -print-file-name=libasan.so):$(cc -print-file-name=libubsan.so)"
+            export ASAN_OPTIONS="detect_leaks=0:abort_on_error=1"
+            export UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1"
+            export NO_INTERACTION=1
+            export REPORT_EXIT_STATUS=1
+
+            ${sanitizeStaticPhp}/bin/php -n run-tests.php \
+              || (find tests -name '*.log' | xargs -r cat; exit 1)
+
+            touch $out
+          '';
       in {
-        inherit packages;
+        # sanitize-static-php82(-check) are intentionally added only here, to the *returned*
+        # packages set, not the `packages` variable devShells/checks below are built from - see
+        # sanitizeStaticPhp's comment above.
+        packages =
+          packages
+          // {
+            sanitize-static-php82 = sanitizeStaticPhp;
+            sanitize-static-php82-check = sanitizeStaticPhpCheck;
+          };
 
         devShells = builtins.mapAttrs (name: package: makeDevShell package) packages;
 
