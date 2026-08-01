@@ -153,6 +153,7 @@
               lcov
               perf
               gdb
+              gh
               package.php.packages.composer
               valgrind
             ];
