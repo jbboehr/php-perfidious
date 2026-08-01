@@ -5,8 +5,10 @@ ARG BASE_IMAGE=fedora:latest
 FROM ${BASE_IMAGE}
 WORKDIR /build
 
-# dnf5 (default since Fedora 41) dropped the one-word "groupinstall" alias
-RUN dnf group install 'Development Tools' -y
+# dnf5 (default since Fedora 41) dropped the one-word "groupinstall" alias, and (as of
+# Fedora 44) also rejects the "Development Tools" display name for install/upgrade
+# transactions - it only resolves against the group id here, not the name
+RUN dnf group install development-tools -y
 RUN dnf install \
     git-all \
     gcc \
