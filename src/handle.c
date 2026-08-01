@@ -441,7 +441,7 @@ cleanup:
 }
 
 ZEND_COLD
-static PHP_METHOD(PerfidousHandle, disable)
+static PHP_METHOD(PerfidiousHandle, disable)
 {
     ZEND_PARSE_PARAMETERS_NONE();
 
@@ -453,7 +453,7 @@ static PHP_METHOD(PerfidousHandle, disable)
 }
 
 ZEND_COLD
-static PHP_METHOD(PerfidousHandle, enable)
+static PHP_METHOD(PerfidiousHandle, enable)
 {
     ZEND_PARSE_PARAMETERS_NONE();
 
@@ -465,7 +465,7 @@ static PHP_METHOD(PerfidousHandle, enable)
 }
 
 ZEND_COLD
-static PHP_METHOD(PerfidousHandle, rawStream)
+static PHP_METHOD(PerfidiousHandle, rawStream)
 {
     zend_long idx = 0;
 
@@ -501,7 +501,7 @@ static PHP_METHOD(PerfidousHandle, rawStream)
 }
 
 ZEND_HOT
-static PHP_METHOD(PerfidousHandle, read)
+static PHP_METHOD(PerfidiousHandle, read)
 {
     ZEND_PARSE_PARAMETERS_NONE();
 
@@ -523,7 +523,7 @@ static PHP_METHOD(PerfidousHandle, read)
 }
 
 ZEND_HOT
-static PHP_METHOD(PerfidousHandle, readArray)
+static PHP_METHOD(PerfidiousHandle, readArray)
 {
     ZEND_PARSE_PARAMETERS_NONE();
 
@@ -545,7 +545,7 @@ static PHP_METHOD(PerfidousHandle, readArray)
 }
 
 ZEND_COLD
-static PHP_METHOD(PerfidousHandle, reset)
+static PHP_METHOD(PerfidiousHandle, reset)
 {
     ZEND_PARSE_PARAMETERS_NONE();
 
@@ -561,7 +561,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perfidious_handle_debug_corrupt_metric_ids_
 ZEND_END_ARG_INFO()
 
 ZEND_COLD
-static PHP_METHOD(PerfidousHandle, debugCorruptMetricIds)
+static PHP_METHOD(PerfidiousHandle, debugCorruptMetricIds)
 {
     ZEND_PARSE_PARAMETERS_NONE();
 
@@ -579,7 +579,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perfidious_handle_debug_close_fd_arginfo, I
 ZEND_END_ARG_INFO()
 
 ZEND_COLD
-static PHP_METHOD(PerfidousHandle, debugCloseFd)
+static PHP_METHOD(PerfidiousHandle, debugCloseFd)
 {
     zend_long idx = 0;
 
@@ -600,15 +600,15 @@ static PHP_METHOD(PerfidousHandle, debugCloseFd)
 
 // clang-format off
 static zend_function_entry perfidious_handle_methods[] = {
-    PHP_ME(PerfidousHandle, disable, perfidious_handle_disable_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
-    PHP_ME(PerfidousHandle, enable, perfidious_handle_enable_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
-    PHP_ME(PerfidousHandle, rawStream, perfidious_handle_raw_stream_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
-    PHP_ME(PerfidousHandle, read, perfidious_handle_read_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
-    PHP_ME(PerfidousHandle, readArray, perfidious_handle_read_array_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
-    PHP_ME(PerfidousHandle, reset, perfidious_handle_reset_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
+    PHP_ME(PerfidiousHandle, disable, perfidious_handle_disable_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
+    PHP_ME(PerfidiousHandle, enable, perfidious_handle_enable_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
+    PHP_ME(PerfidiousHandle, rawStream, perfidious_handle_raw_stream_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
+    PHP_ME(PerfidiousHandle, read, perfidious_handle_read_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
+    PHP_ME(PerfidiousHandle, readArray, perfidious_handle_read_array_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
+    PHP_ME(PerfidiousHandle, reset, perfidious_handle_reset_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
 #ifdef PERFIDIOUS_DEBUG
-    PHP_ME(PerfidousHandle, debugCorruptMetricIds, perfidious_handle_debug_corrupt_metric_ids_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
-    PHP_ME(PerfidousHandle, debugCloseFd, perfidious_handle_debug_close_fd_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
+    PHP_ME(PerfidiousHandle, debugCorruptMetricIds, perfidious_handle_debug_corrupt_metric_ids_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
+    PHP_ME(PerfidiousHandle, debugCloseFd, perfidious_handle_debug_close_fd_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
 #endif
     PHP_FE_END
 };
