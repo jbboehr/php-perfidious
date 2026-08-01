@@ -173,6 +173,7 @@ jobs:
                     lcov --remove coverage.info "/usr*" \
                         --remove coverage.info "*/.phpenv/*" \
                         --compat-libtool \
+                        --ignore-errors unused \
                         --output-file coverage.info
 
             -   name: Upload coverage reports to Codecov
