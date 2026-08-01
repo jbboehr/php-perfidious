@@ -42,6 +42,7 @@ if test "$PHP_PERFIDIOUS" != "no"; then
         -Wno-missing-prototypes -Wno-error=missing-prototypes \
         -Wno-missing-declarations -Wno-error=missing-declarations \
         -Wno-cast-align -Wno-error=cast-align \
+        -Wno-nested-externs -Wno-error=nested-externs \
     ])
 
     AC_CHECK_SIZEOF(pid_t)

@@ -24,6 +24,7 @@ jobs:
                     - "8.2"
                     - "8.3"
                     - "8.4"
+                    - "8.5"
         steps:
             -   uses: actions/checkout@v7
 
@@ -68,6 +69,7 @@ jobs:
                     - "8.2"
                     - "8.3"
                     - "8.4"
+                    - "8.5"
                 debug:
                     - ""
                 include:
@@ -123,6 +125,7 @@ jobs:
                     - "8.2"
                     - "8.3"
                     - "8.4"
+                    - "8.5"
                 debug:
                     - ""
                 include:
@@ -292,6 +295,7 @@ jobs:
                     - "8.3"
                     # i wish they wouldn't do this
                     - "8.4.0RC1"
+                    - "8.5"
                 DOCKER_NAME:
                     - debian
         steps:

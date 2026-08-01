@@ -181,7 +181,9 @@
               enabled,
               all,
             }:
-              enabled ++ [all.opcache package];
+            # not all php versions have opcache packaged as a selectable extension yet
+            # (e.g. php85, as of this nixpkgs revision)
+              enabled ++ lib.optional (all ? opcache) all.opcache ++ [package];
           };
         in
           pkgs.testers.runNixOSTest {
@@ -205,7 +207,7 @@
               machine.wait_for_unit("default.target")
               machine.succeed("php -m && php -m | grep -i perfidious")
               machine.succeed("cp -r --no-preserve=mode,ownership ${src}/* .")
-              machine.succeed("cp --no-preserve=mode,ownership ${php.unwrapped}/lib/build/run-tests.php .")
+              machine.succeed("cp --no-preserve=mode,ownership ${php.unwrapped.dev}/lib/build/run-tests.php .")
               machine.succeed("TEST_PHP_DETAILED=1 NO_INTERACTION=1 REPORT_EXIT_STATUS=1 php run-tests.php || (find tests -name '*.log' | xargs -n1 cat ; exit 1)")
             '';
           };
@@ -214,7 +216,7 @@
 
         matrix = with pkgs; {
           php = {
-            inherit php82 php83;
+            inherit php82 php83 php85;
             php81 = pkgs-phps.php81;
             php84 = pkgs-unstable.php84;
           };
@@ -231,7 +233,7 @@
         # @see https://github.com/NixOS/nixpkgs/pull/110787
         buildConfs =
           (lib.cartesianProduct {
-            php = ["php81" "php82" "php83" "php84"];
+            php = ["php81" "php82" "php83" "php84" "php85"];
             stdenv = [
               "gcc"
               "clang"
@@ -250,7 +252,7 @@
             }
           ]
           ++ (lib.cartesianProduct {
-            php = ["php81" "php82" "php83" "php84"];
+            php = ["php81" "php82" "php83" "php84" "php85"];
             stdenv = ["gcc"];
             libpfm = ["libpfm"];
             debugSupport = [false true];
