@@ -16,7 +16,7 @@ by the Linux `perf_events` kernel API.
 
 As we are calling Linux kernel APIs, this extension will only work on **Linux**.
 
-* PHP 8.1 - 8.3
+* PHP 8.1 - 8.5
 * libcap
 * libpfm4
 
@@ -130,6 +130,14 @@ Some notable generic perf events are:
 | `perfidious.overflow_mode` | `0` | `PHP_INI_SYSTEM` | Sets the overflow behavior when casting counters from `uint64_t` to `zend_long`. See the constants `Perfidious\OVERFLOW_*` for other values. Note that when set to `Perfidious\OVERFLOW_WARN`, `read` and `readArray` may return `NULL`, despite their type signatures indicating otherwise. |
 | `perfidious.request.enable` | `0` | `PHP_INI_SYSTEM` | Set to `1` to enable the per-request handle. This handle is kept open between requests, but reset before and after. You can read from this handle via e.g. `var_dump(Perfidious\request_handle()?->read());` |
 | `perfidious.request.metrics` | `perf::PERF_COUNT_HW_CPU_CYCLES:u`, `perf::PERF_COUNT_HW_INSTRUCTIONS:u` | `PHP_INI_SYSTEM` | The metrics to monitor with the request handle. |
+
+`global.enable` and `request.enable` only really do something useful under a
+persistent-worker SAPI like php-fpm: the global handle is opened once and
+never reset, so it accumulates across every request the worker ever
+handles; the request handle is reset at the start and end of each request,
+so it reflects just that one request. Under the CLI SAPI, every invocation
+is its own process with exactly one "request", so the two behave
+identically there.
 
 ## Troubleshooting
 
