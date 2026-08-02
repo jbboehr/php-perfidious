@@ -10,10 +10,10 @@
   <email>jbboehr@gmail.com</email>
   <active>yes</active>
  </lead>
- <date>2024-04-07</date>
+ <date>2026-08-01</date>
  <version>
-  <release>0.1.0</release>
-  <api>0.1.0</api>
+  <release>0.2.0</release>
+  <api>0.2.0</api>
  </version>
  <stability>
   <release>beta</release>
@@ -21,7 +21,24 @@
  </stability>
  <license uri="https://spdx.org/licenses/romic-exception.html">AGPL-3.0-only WITH romic-exception</license>
  <notes>
-  - Initial release
+  - Added: support for PHP 8.5.
+  - Added: a static-linked ASan/UBSan build for sanitizer testing.
+  - Added: a NixOS VM test covering perfidious.global.enable / perfidious.request.enable
+    persistence under php-fpm.
+  - Changed: relicensed from AGPL-3.0-or-later to AGPL-3.0-only WITH romic-exception, a linking
+    exception permitting this extension to be linked into other code without that code becoming
+    subject to the AGPL. See docs/LICENSE_EXCEPTION.md and CONTRIBUTING.md.
+  - Changed: Perfidious\open() now rejects more than 1000 event names with
+    Perfidious\OverflowException, instead of accepting an unbounded array.
+  - Fixed: a memory leak where the handle's underlying native struct was never freed when a
+    Handle was closed or garbage collected.
+  - Fixed: Handle::rawStream() closing the returned stream no longer closes the handle's own
+    file descriptor out from under it.
+  - Fixed: -Werror no longer defaults on for a plain git-checkout build, only inside the
+    project's own nix devShell.
+  - Security: fixed stack buffer over-reads that could leak adjacent stack memory into a
+    PmuEventInfo object's $name property, or into exception/warning messages, for
+    PMU/event name combinations long enough to overflow an internal formatting buffer.
  </notes>
  <contents>
   <dir name="/">

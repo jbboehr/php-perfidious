@@ -6,6 +6,8 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
 
 ## [Unreleased]
 
+## 0.2.0 - 2026-08-01
+
 ### Added
 
 - Support for PHP 8.5.
@@ -14,9 +16,18 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
   persistence across many requests handled by the same worker process - something the
   CLI-only `.phpt` suite can never exercise, since every CLI invocation only ever sees a
   single "request".
+- A static-linked ASan/UBSan build (`nix build .#sanitize-static-php82` /
+  `.#sanitize-static-php82-check`) for sanitizer testing. Opt-in only, since it rebuilds
+  all of PHP core from source.
 
 ### Changed
 
+- Relicensed from `AGPL-3.0-or-later` to `AGPL-3.0-only WITH romic-exception`. The Romic Exception
+  is a linking exception: it permits this extension to be linked or combined with other code (e.g.
+  the PHP applications that load it) without that other code becoming subject to the AGPL merely
+  because of the linking. Modifications to the extension itself remain fully AGPL. See
+  [`docs/LICENSE_EXCEPTION.md`](docs/LICENSE_EXCEPTION.md) and [`CONTRIBUTING.md`](CONTRIBUTING.md)
+  for the complete terms, including the new CLA-based contribution model.
 - `Perfidious\open()` now rejects more than 1000 event names with `Perfidious\OverflowException`,
   instead of accepting an unbounded array.
 
@@ -29,6 +40,10 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
 - `Handle::rawStream()`: closing the returned stream no longer closes the handle's own file
   descriptor out from under it. Previously this broke all further use of the `Handle` (`read()`,
   `enable()`, etc.) after the stream was closed.
+- `-Werror` no longer defaults on for a plain `git clone` + `phpize && ./configure` build -
+  only inside the project's own `nix develop` shell now. Previously any git checkout defaulted
+  to fatal warnings, which could hard-fail a build over a warning that's harmless on our own
+  compilers but not on someone else's.
 
 ### Security
 
@@ -44,4 +59,4 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
 
 - Initial release
 
-[Unreleased]: https://github.com/jbboehr/php-perfidious/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/jbboehr/php-perfidious/compare/v0.2.0...HEAD
