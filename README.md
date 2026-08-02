@@ -190,6 +190,18 @@ group, it will not schedule any of them. Try removing events until you get
 some non-zero data, or opening separate handles. Note also that some events
 may be low-frequency.
 
+**Q:** Building from a git checkout fails with a compiler warning treated as an
+error (`-Werror`).
+
+**A:** Building inside the project's own `nix develop` shell always treats
+warnings as errors by design, so we catch them during development. A plain
+`git clone` + `phpize && ./configure` build, and PECL/release-tarball installs,
+default to non-fatal warnings instead - if you hit this outside the nix
+devShell, please [file an issue](https://github.com/jbboehr/php-perfidious/issues),
+since it likely means a warning that's fine on our compilers isn't on yours.
+You can also pass `--enable-compile-warnings=yes` explicitly to `./configure`
+to disable it yourself.
+
 ## References
 
 * [Linux perf Wiki](https://perf.wiki.kernel.org/index.php/Main_Page)
