@@ -255,9 +255,15 @@
                   phpPackage = php;
                   # pinned to exactly one static worker: every request must land on the same
                   # process so global_handle()'s persistence-across-requests is actually exercised
+                  # software events, not the default perf::PERF_COUNT_HW_* metrics: nested-virtualized
+                  # CI runners (e.g. GitHub Actions) commonly don't expose a hardware PMU to the guest
+                  # at all, so perf_event_open() for a HW event fails outright there ("No such file or
+                  # directory") - software events don't depend on hardware PMU virtualization support
                   phpOptions = ''
                     perfidious.global.enable = 1
+                    perfidious.global.metrics = "perf::PERF_COUNT_SW_TASK_CLOCK:u"
                     perfidious.request.enable = 1
+                    perfidious.request.metrics = "perf::PERF_COUNT_SW_TASK_CLOCK:u"
                   '';
                   settings = {
                     "listen.owner" = "nginx";
