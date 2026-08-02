@@ -9,6 +9,11 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
 ### Added
 
 - Support for PHP 8.5.
+- A NixOS VM test running the extension under real php-fpm requests (`nix build
+  .#*-vmtest`), covering `perfidious.global.enable` / `perfidious.request.enable`
+  persistence across many requests handled by the same worker process - something the
+  CLI-only `.phpt` suite can never exercise, since every CLI invocation only ever sees a
+  single "request".
 
 ### Changed
 

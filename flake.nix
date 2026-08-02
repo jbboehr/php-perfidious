@@ -180,6 +180,41 @@
             # (e.g. php85, as of this nixpkgs revision)
               enabled ++ lib.optional (all ? opcache) all.opcache ++ [package];
           };
+
+          # CLI-based tests only ever see one "request" per process, so they can't exercise
+          # perfidious.global.enable / perfidious.request.enable's actual point: a handle that
+          # persists across requests (global) vs. one that's reset every request (request). This
+          # docroot is served over php-fpm (a real persistent-worker SAPI) below to cover that.
+          #
+          # note: this deliberately does NOT assert on real counter magnitudes (e.g. timeEnabled
+          # growing across requests) - perf counters were found to be unreliable/frozen inside
+          # nested-virtualization CI runners (confirmed even for a single non-forked long-lived
+          # process), which is also why the CLI .phpt suite never asserts real counter values.
+          # What's actually novel/valuable here - and fully deterministic regardless of PMU/timer
+          # virtualization quirks - is proving the *same* worker process survives many repeated
+          # RINIT/RSHUTDOWN cycles (i.e. real requests) without global_handle()/request_handle()
+          # erroring, returning corrupt data, or crashing the worker: exactly the class of
+          # use-after-free / double-reset bug a one-shot-per-process CLI test can never catch.
+          fpmDocroot = pkgs.writeTextDir "index.php" ''
+            <?php
+            $g = \Perfidious\global_handle();
+            $r = \Perfidious\request_handle();
+            if ($g === null || $r === null) {
+                http_response_code(500);
+                echo json_encode(["error" => "global/request handle not enabled"]);
+                exit;
+            }
+            foreach (["global" => $g, "request" => $r] as $name => $h) {
+                foreach ($h->readArray() as $metric => $v) {
+                    if (!is_int($v) || $v < 0) {
+                        http_response_code(500);
+                        echo json_encode(["error" => "corrupt $name counter $metric: " . var_export($v, true)]);
+                        exit;
+                    }
+                }
+            }
+            echo json_encode(["pid" => getmypid()]);
+          '';
         in
           pkgs.testers.runNixOSTest {
             name = "php-perfidious-vm-test";
@@ -196,14 +231,69 @@
                 environment.systemPackages = [
                   php
                 ];
+
+                services.nginx = {
+                  enable = true;
+                  virtualHosts."perfidious" = {
+                    root = "${fpmDocroot}";
+                    locations = {
+                      "~ \\.php$".extraConfig = ''
+                        fastcgi_pass unix:${config.services.phpfpm.pools.perfidious.socket};
+                        fastcgi_index index.php;
+                        include ${config.services.nginx.package}/conf/fastcgi_params;
+                        include ${pkgs.nginx}/conf/fastcgi.conf;
+                      '';
+                      "/".extraConfig = ''
+                        try_files $uri $uri/ index.php;
+                      '';
+                    };
+                  };
+                };
+
+                services.phpfpm.pools.perfidious = {
+                  user = "nginx";
+                  phpPackage = php;
+                  # pinned to exactly one static worker: every request must land on the same
+                  # process so global_handle()'s persistence-across-requests is actually exercised
+                  phpOptions = ''
+                    perfidious.global.enable = 1
+                    perfidious.request.enable = 1
+                  '';
+                  settings = {
+                    "listen.owner" = "nginx";
+                    "listen.group" = "nginx";
+                    "listen.mode" = "0600";
+                    "pm" = "static";
+                    "pm.max_children" = 1;
+                  };
+                };
               };
             };
             testScript = {nodes, ...}: ''
+              import json
+
               machine.wait_for_unit("default.target")
               machine.succeed("php -m && php -m | grep -i perfidious")
               machine.succeed("cp -r --no-preserve=mode,ownership ${src}/* .")
               machine.succeed("cp --no-preserve=mode,ownership ${php.unwrapped.dev}/lib/build/run-tests.php .")
               machine.succeed("TEST_PHP_DETAILED=1 NO_INTERACTION=1 REPORT_EXIT_STATUS=1 php run-tests.php || (find tests -name '*.log' | xargs -n1 cat ; exit 1)")
+
+              machine.wait_for_unit("nginx.service")
+              machine.wait_for_unit("phpfpm-perfidious.service")
+
+              readings = []
+              for _ in range(10):
+                  out = machine.succeed("curl -fsS http://127.0.0.1:80/index.php")
+                  readings.append(json.loads(out))
+
+              for i, r in enumerate(readings):
+                  assert "error" not in r, f"request #{i}: global_handle()/request_handle() broken under php-fpm: {r}"
+
+              pids = {r["pid"] for r in readings}
+              assert len(pids) == 1, (
+                  f"expected all {len(readings)} requests to land on the same persistent php-fpm "
+                  f"worker (pm=static, pm.max_children=1), got worker pids: {sorted(pids)}"
+              )
             '';
           };
 
