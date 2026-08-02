@@ -118,7 +118,10 @@
             #clang-format.types_or = ["c" "c++"];
             #clang-format.files = "\\.(c|h)$";
             markdownlint.enable = true;
-            markdownlint.excludes = ["LICENSE\.md"];
+            # LICENSE.md: verbatim upstream GPL/AGPL boilerplate, not worth reformatting.
+            # PULL_REQUEST_TEMPLATE.md: GitHub PR templates conventionally start with ## (no H1)
+            # and use <details>/<summary> for collapsible sections.
+            markdownlint.excludes = ["LICENSE\.md" "\.github/PULL_REQUEST_TEMPLATE\.md"];
             markdownlint.settings.configuration = {
               MD013 = {
                 line_length = 1488;

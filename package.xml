@@ -19,13 +19,18 @@
   <release>beta</release>
   <api>beta</api>
  </stability>
- <license uri="https://www.gnu.org/licenses/agpl-3.0.en.html">AGPL-3.0-or-later</license>
+ <license uri="https://spdx.org/licenses/romic-exception.html">AGPL-3.0-only WITH romic-exception</license>
  <notes>
   - Initial release
  </notes>
  <contents>
   <dir name="/">
    <file name="CHANGELOG.md" role="doc" />
+   <file name="CODE_OF_CONDUCT.md" role="doc" />
+   <file name="CONTRIBUTING.md" role="doc" />
+   <file name="docs/CLA-v1.md" role="doc" />
+   <file name="docs/LICENSE_EXCEPTION.md" role="doc" />
+   <file name="docs/STEWARD.md" role="doc" />
    <file name="LICENSE.md" role="doc" />
    <file name="README.md" role="doc" />
    <file name="perfidious.stub.php" role="doc" />

@@ -62,5 +62,6 @@ third-party
 tmp-php.ini
 vgcore.*
 /result*
+/tmp/
 
 /vendor/
