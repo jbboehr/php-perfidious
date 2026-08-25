@@ -59,6 +59,38 @@ jobs:
             -   name: phpstan
                 run: php vendor/bin/phpstan analyze
 
+    pie:
+        runs-on: ubuntu-latest
+        name: "PIE | PHP 8.1"
+        steps:
+            -   uses: actions/checkout@v7
+
+            -   run: sudo apt-get update && sudo apt-get install -y libcap-dev libpfm4-dev
+
+            -   name: Install PHP
+                uses: shivammathur/setup-php@v2
+                with:
+                    coverage: "none"
+                    extensions: json, opcache
+                    php-version: "8.1"
+                    tools: composer:v2
+
+            -   name: Download and verify PIE
+                env:
+                    GH_TOKEN: ${{ github.token }}
+                run: |
+                    curl --proto '=https' --tlsv1.2 -fL \
+                        --output "${RUNNER_TEMP}/pie.phar" \
+                        https://github.com/php/pie/releases/latest/download/pie.phar
+                    gh attestation verify --repo php/pie "${RUNNER_TEMP}/pie.phar"
+                    php "${RUNNER_TEMP}/pie.phar" --version
+
+            -   name: Install extension from checkout with PIE
+                run: sudo php "${RUNNER_TEMP}/pie.phar" install --no-interaction --no-cache
+
+            -   name: Verify extension is loaded
+                run: php --ri perfidious
+
     test:
         runs-on: ubuntu-latest
         name: "Test | PHP ${{ matrix.php-version }} ${{ matrix.debug }}"

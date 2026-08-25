@@ -22,13 +22,30 @@ As we are calling Linux kernel APIs, this extension will only work on **Linux**.
 
 ## Installation
 
+### PIE
+
+Install the build toolchain and required system libraries first. On Ubuntu and Debian:
+
+```bash
+apt install build-essential git libcap-dev libpfm4-dev php-dev
+```
+
+After [installing PIE](https://php.github.io/pie/#installing-pie), install the current development version from a source
+checkout:
+
+```bash
+git clone https://github.com/jbboehr/php-perfidious.git
+cd php-perfidious
+pie install
+```
+
 ### Source
 
 You will need a few packages, including libcap and libpfm4. On Ubuntu and
 Debian, this should be:
 
 ```bash
-apt install build-essential libcap-dev libpfm4-dev php-dev
+apt install build-essential git libcap-dev libpfm4-dev php-dev
 ```
 
 Now clone the repo and compile the extension:

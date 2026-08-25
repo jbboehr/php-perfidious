@@ -6,6 +6,15 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
 
 ## [Unreleased]
 
+### Added
+
+- PIE metadata, local-checkout installation support, and a CI smoke test that installs and loads the extension through
+  PIE.
+
+### Changed
+
+- The Composer package type is now `php-ext`, allowing PIE to recognize this package as `ext-perfidious`.
+
 ## 0.2.0 - 2026-08-01
 
 ### Added

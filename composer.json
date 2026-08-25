@@ -1,7 +1,7 @@
 {
     "name": "jbboehr/perfidious",
-    "description": "Stub/tooling package for ext-perfidious, a PHP extension providing access to the performance monitoring counters exposed by the Linux perf_events kernel API",
-    "type": "library",
+    "description": "PHP extension providing access to the performance monitoring counters exposed by the Linux perf_events kernel API",
+    "type": "php-ext",
     "keywords": [
         "perf",
         "perf_events",
@@ -22,12 +22,42 @@
         "issues": "https://github.com/jbboehr/php-perfidious/issues",
         "source": "https://github.com/jbboehr/php-perfidious"
     },
+    "require": {
+        "php": ">=8.1",
+        "ext-spl": "*"
+    },
     "require-dev": {
         "phpstan/phpstan": "^1.10",
         "squizlabs/php_codesniffer": "^3.9"
     },
-    "suggest": {
-        "ext-perfidious": "*"
+    "php-ext": {
+        "extension-name": "perfidious",
+        "os-families": [
+            "linux"
+        ],
+        "configure-options": [
+            {
+                "name": "enable-perfidious-debug",
+                "description": "Enable perfidious debug support"
+            },
+            {
+                "name": "enable-perfidious-coverage",
+                "description": "Enable perfidious coverage support"
+            },
+            {
+                "name": "enable-perfidious-sanitize",
+                "description": "Build perfidious with ASan and UBSan"
+            },
+            {
+                "name": "enable-compile-warnings",
+                "description": "Set the compiler warning level to no, yes, or error",
+                "needs-value": true
+            },
+            {
+                "name": "disable-Werror",
+                "description": "Make compiler warnings non-fatal"
+            }
+        ]
     },
     "_comment": [
         "Think not that I am come to send peace on earth: I came not to send peace, but a sword. Matthew 10:34"
