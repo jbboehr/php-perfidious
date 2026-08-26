@@ -244,7 +244,10 @@ jobs:
             -   uses: cachix/install-nix-action@v31
                 with:
                     nix_path: nixpkgs=channel:nixos-26.05
-                    extra_nix_config: "system-features = nixos-test benchmark big-parallel kvm"
+                    extra_nix_config: |
+                        system-features = nixos-test benchmark big-parallel kvm
+                        extra-substituters = https://fossar.cachix.org
+                        extra-trusted-public-keys = fossar.cachix.org-1:Zv6FuqIboeHPWQS7ysLCJ7UT7xExb4OE8c4LyGb5AsE=
             -   id: set-matrix
                 name: Generate Nix Matrix
                 run: |
@@ -275,7 +278,10 @@ jobs:
             -   uses: cachix/install-nix-action@v31
                 with:
                     nix_path: nixpkgs=channel:nixos-26.05
-                    extra_nix_config: "system-features = nixos-test benchmark big-parallel kvm"
+                    extra_nix_config: |
+                        system-features = nixos-test benchmark big-parallel kvm
+                        extra-substituters = https://fossar.cachix.org
+                        extra-trusted-public-keys = fossar.cachix.org-1:Zv6FuqIboeHPWQS7ysLCJ7UT7xExb4OE8c4LyGb5AsE=
 
             -   name: Import Nix Store Cache
                 if: "steps.nix-cache.outputs.cache-hit == 'true'"

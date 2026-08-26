@@ -42,7 +42,6 @@
     };
     nix-phps = {
       url = "github:fossar/nix-phps";
-      inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
