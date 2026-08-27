@@ -6,6 +6,8 @@ on:
             - master
             - develop
             - ci
+            - "windows/**"
+            - "darwin/**"
     pull_request:
         branches:
             - master
@@ -15,6 +17,14 @@ permissions:
 
 jobs:
     lint:
+        if: >-
+            ${{
+                github.event_name != 'push' ||
+                (
+                    !startsWith(github.ref_name, 'windows/') &&
+                    !startsWith(github.ref_name, 'darwin/')
+                )
+            }}
         runs-on: ubuntu-latest
         name: "Lint | PHP ${{ matrix.php-version }}"
         strategy:
@@ -60,6 +70,14 @@ jobs:
                 run: php vendor/bin/phpstan analyze
 
     pie:
+        if: >-
+            ${{
+                github.event_name != 'push' ||
+                (
+                    !startsWith(github.ref_name, 'windows/') &&
+                    !startsWith(github.ref_name, 'darwin/')
+                )
+            }}
         runs-on: ubuntu-latest
         name: "PIE | PHP 8.1"
         steps:
@@ -92,6 +110,11 @@ jobs:
                 run: php --ri perfidious
 
     windows:
+        if: >-
+            ${{
+                github.event_name != 'push' ||
+                !startsWith(github.ref_name, 'darwin/')
+            }}
         runs-on: windows-2022
         name: "Windows | PHP ${{ matrix.php-version }} ${{ matrix.ts }} x64"
         strategy:
@@ -119,6 +142,11 @@ jobs:
                     test-workers: "1"
 
     macos:
+        if: >-
+            ${{
+                github.event_name != 'push' ||
+                !startsWith(github.ref_name, 'windows/')
+            }}
         name: "macOS | PHP ${{ matrix.php-version }} ${{ matrix.arch }}"
         runs-on: ${{ matrix.runner }}
         strategy:
@@ -159,6 +187,14 @@ jobs:
                 run: php -n -d extension="$(pwd)/modules/perfidious.so" --ri perfidious
 
     test:
+        if: >-
+            ${{
+                github.event_name != 'push' ||
+                (
+                    !startsWith(github.ref_name, 'windows/') &&
+                    !startsWith(github.ref_name, 'darwin/')
+                )
+            }}
         runs-on: ubuntu-latest
         name: "Test | PHP ${{ matrix.php-version }} ${{ matrix.debug }}"
         strategy:
@@ -220,6 +256,14 @@ jobs:
 
 
     coverage:
+        if: >-
+            ${{
+                github.event_name != 'push' ||
+                (
+                    !startsWith(github.ref_name, 'windows/') &&
+                    !startsWith(github.ref_name, 'darwin/')
+                )
+            }}
         runs-on: ubuntu-latest
         name: "Coverage | PHP ${{ matrix.php-version }} ${{ matrix.debug }}"
         strategy:
@@ -299,7 +343,17 @@ jobs:
         needs:
             - coverage
             - nix
-        if: ${{ always() }}
+        if: >-
+            ${{
+                always() &&
+                (
+                    github.event_name != 'push' ||
+                    (
+                        !startsWith(github.ref_name, 'windows/') &&
+                        !startsWith(github.ref_name, 'darwin/')
+                    )
+                )
+            }}
         runs-on: ubuntu-latest
         steps:
             -   name: Coveralls Finished
@@ -308,6 +362,14 @@ jobs:
                     parallel-finished: true
 
     nix-matrix:
+        if: >-
+            ${{
+                github.event_name != 'push' ||
+                (
+                    !startsWith(github.ref_name, 'windows/') &&
+                    !startsWith(github.ref_name, 'darwin/')
+                )
+            }}
         runs-on: ubuntu-latest
         outputs:
             matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -328,6 +390,14 @@ jobs:
                     echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
     nix:
+        if: >-
+            ${{
+                github.event_name != 'push' ||
+                (
+                    !startsWith(github.ref_name, 'windows/') &&
+                    !startsWith(github.ref_name, 'darwin/')
+                )
+            }}
         name: "nix (${{ matrix.name }})"
         runs-on: ${{ matrix.os }}
         needs: nix-matrix
@@ -396,6 +466,14 @@ jobs:
                         xargs nix-store --export > /tmp/nix-store.nar
 
     docker:
+        if: >-
+            ${{
+                github.event_name != 'push' ||
+                (
+                    !startsWith(github.ref_name, 'windows/') &&
+                    !startsWith(github.ref_name, 'darwin/')
+                )
+            }}
         runs-on: ubuntu-latest
         strategy:
             fail-fast: false
@@ -429,6 +507,14 @@ jobs:
                 run: bash ./.github/scripts/docker.sh
 
     docker-fedora:
+        if: >-
+            ${{
+                github.event_name != 'push' ||
+                (
+                    !startsWith(github.ref_name, 'windows/') &&
+                    !startsWith(github.ref_name, 'darwin/')
+                )
+            }}
         runs-on: ubuntu-latest
         strategy:
             fail-fast: false
