@@ -2,6 +2,8 @@
 Perfidious\list_pmus()
 --EXTENSIONS--
 perfidious
+--SKIPIF--
+<?php require __DIR__ . '/skipif-linux-only.inc'; ?>
 --FILE--
 <?php
 $pmus = Perfidious\list_pmus();

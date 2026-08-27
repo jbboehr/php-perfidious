@@ -3,6 +3,7 @@ Perfidious\Handle::debugCloseFd() exercised directly against read()/readArray()/
 --EXTENSIONS--
 perfidious
 --SKIPIF--
+<?php require __DIR__ . '/../skipif-linux-only.inc'; ?>
 <?php if (!Perfidious\DEBUG) die("skip: must be compiled in debug mode"); ?>
 --FILE--
 <?php

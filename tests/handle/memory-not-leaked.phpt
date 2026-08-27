@@ -2,6 +2,8 @@
 Perfidious\Handle (struct memory is freed when the handle is closed)
 --EXTENSIONS--
 perfidious
+--SKIPIF--
+<?php require __DIR__ . '/../skipif-linux-only.inc'; ?>
 --FILE--
 <?php
 // warm up so one-time initialization overhead doesn't skew the baseline below

@@ -2,6 +2,8 @@
 Perfidious\list_pmu_events()
 --EXTENSIONS--
 perfidious
+--SKIPIF--
+<?php require __DIR__ . '/skipif-linux-only.inc'; ?>
 --FILE--
 <?php
 $events = Perfidious\list_pmu_events(51);

@@ -5,14 +5,27 @@ project(php_perfidious C)
 
 set(CMAKE_C_STANDARD 99)
 
-set(SOURCE_FILES
-    src/extension.c
+set(COMMON_SOURCE_FILES
     src/exceptions.c
-    src/functions.c
-    src/handle.c
-    src/pmu_event_info.c
-    src/pmu_info.c
     src/read_result.c
+)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    set(PLATFORM_SOURCE_FILES
+        src/extension.c
+        src/functions.c
+        src/handle.c
+        src/pmu_event_info.c
+        src/pmu_info.c
+    )
+    add_compile_definitions(PERFIDIOUS_PLATFORM_LINUX=1)
+else()
+    message(FATAL_ERROR "The existing perf_events backend is supported only on Linux")
+endif()
+
+set(SOURCE_FILES
+    ${COMMON_SOURCE_FILES}
+    ${PLATFORM_SOURCE_FILES}
 )
 
 add_compile_definitions(HAVE_CONFIG_H=1)

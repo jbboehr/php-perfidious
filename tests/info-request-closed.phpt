@@ -3,6 +3,7 @@ phpinfo per-request stats - closed fd
 --EXTENSIONS--
 perfidious
 --SKIPIF--
+<?php require __DIR__ . '/skipif-linux-only.inc'; ?>
 <?php if (!Perfidious\DEBUG) die("skip: must be compiled in debug mode"); ?>
 --INI--
 perfidious.request.enable=1

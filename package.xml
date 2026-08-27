@@ -52,6 +52,7 @@
    <file name="README.md" role="doc" />
    <file name="perfidious.stub.php" role="doc" />
    <file name="config.m4" role="src" />
+   <file name="config.w32" role="src" />
 
    <file name="php_perfidious.h" role="src" />
    <file name="src/private.h" role="src" />
@@ -87,6 +88,7 @@
    <file name="m4/ax_cflags_warn_all.m4" role="src" />
    <file name="m4/ax_compiler_flags_gir.m4" role="src" />
 
+   <file name="tests/skipif-linux-only.inc" role="test" />
    <file name="tests/get-pmu-event-info-long-name.phpt" role="test" />
    <file name="tests/get-pmu-event-info.phpt" role="test" />
    <file name="tests/get-pmu-info.phpt" role="test" />

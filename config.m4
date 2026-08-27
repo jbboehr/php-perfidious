@@ -32,7 +32,37 @@ AC_DEFUN([PHP_PERFIDIOUS_ADD_SOURCES], [
   PHP_PERFIDIOUS_SOURCES="$PHP_PERFIDIOUS_SOURCES $1"
 ])
 
+PHP_PERFIDIOUS_COMMON_SOURCES="
+    src/exceptions.c
+    src/read_result.c
+"
+
+PHP_PERFIDIOUS_LINUX_SOURCES="
+    src/extension.c
+    src/functions.c
+    src/handle.c
+    src/pmu_event_info.c
+    src/pmu_info.c
+"
+
 if test "$PHP_PERFIDIOUS" != "no"; then
+    AS_CASE([$host_os],
+        [linux*], [
+            AC_DEFINE(
+                [PERFIDIOUS_PLATFORM_LINUX],
+                [1],
+                [Define to 1 when building the Linux perf_events backend]
+            )
+            PHP_ADD_LIBRARY(cap, , PERFIDIOUS_SHARED_LIBADD)
+            PHP_ADD_LIBRARY(pfm, , PERFIDIOUS_SHARED_LIBADD)
+            PHP_PERFIDIOUS_ADD_SOURCES([
+                $PHP_PERFIDIOUS_COMMON_SOURCES
+                $PHP_PERFIDIOUS_LINUX_SOURCES
+            ])
+        ],
+        [AC_MSG_ERROR([The existing perf_events backend is supported only on Linux])]
+    )
+
     dnl AX_COMPILER_FLAGS defaults --enable-compile-warnings to "error" (fatal warnings) unless
     dnl ax_is_release=yes, and the ordinary [git-directory] policy sets ax_is_release=no for any
     dnl checkout with a .git directory - which would make -Werror the default for every plain
@@ -78,19 +108,6 @@ if test "$PHP_PERFIDIOUS" != "no"; then
     if test "$PHP_PERFIDIOUS_SANITIZE" == "yes"; then
         PERFIDIOUS_EXTRA_CFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -g"
     fi
-
-    PHP_ADD_LIBRARY(cap, , PERFIDIOUS_SHARED_LIBADD)
-    PHP_ADD_LIBRARY(pfm, , PERFIDIOUS_SHARED_LIBADD)
-
-    PHP_PERFIDIOUS_ADD_SOURCES([
-        src/extension.c
-        src/exceptions.c
-        src/functions.c
-        src/handle.c
-        src/pmu_event_info.c
-        src/pmu_info.c
-        src/read_result.c
-    ])
 
     PHP_ADD_BUILD_DIR(src)
     PHP_INSTALL_HEADERS([ext/perfidious], [php_perfidious.h])

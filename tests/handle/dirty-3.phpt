@@ -2,6 +2,8 @@
 Perfidious\Handle::rawStream() - do dirty things part 3
 --EXTENSIONS--
 perfidious
+--SKIPIF--
+<?php require __DIR__ . '/../skipif-linux-only.inc'; ?>
 --FILE--
 <?php
 $handle = Perfidious\open([

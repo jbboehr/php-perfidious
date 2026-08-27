@@ -2,6 +2,8 @@
 Perfidious\open()
 --EXTENSIONS--
 perfidious
+--SKIPIF--
+<?php require __DIR__ . '/skipif-linux-only.inc'; ?>
 --FILE--
 <?php
 (function () {

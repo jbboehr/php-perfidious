@@ -3,6 +3,7 @@ Perfidious\Handle (open fails with missing cap, debug)
 --EXTENSIONS--
 perfidious
 --SKIPIF--
+<?php require __DIR__ . '/../skipif-linux-only.inc'; ?>
 <?php if (get_current_user() === 'root' || str_contains(get_current_user(), 'nixbld')) die("skip: would fail as root"); ?>
 <?php if (!Perfidious\DEBUG) die("skip: must be compiled in debug mode"); ?>
 --FILE--

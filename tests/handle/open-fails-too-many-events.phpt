@@ -2,6 +2,8 @@
 Perfidious\Handle (open fails with too many event names)
 --EXTENSIONS--
 perfidious
+--SKIPIF--
+<?php require __DIR__ . '/../skipif-linux-only.inc'; ?>
 --FILE--
 <?php
 $rv = Perfidious\open(array_fill(0, 1001, "perf::PERF_COUNT_SW_CPU_CLOCK:u"));

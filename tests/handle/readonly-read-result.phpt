@@ -2,6 +2,8 @@
 Perfidious\ReadResult (readonly / no dynamic properties)
 --EXTENSIONS--
 perfidious
+--SKIPIF--
+<?php require __DIR__ . '/../skipif-linux-only.inc'; ?>
 --FILE--
 <?php
 $h = Perfidious\open([

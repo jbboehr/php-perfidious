@@ -22,7 +22,6 @@
 #include "config.h"
 #endif
 
-#include <perfmon/pfmlib.h>
 #include "Zend/zend_API.h"
 #include "php_perfidious.h"
 

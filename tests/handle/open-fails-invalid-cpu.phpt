@@ -2,6 +2,8 @@
 Perfidious\Handle (open fails with invalid cpu)
 --EXTENSIONS--
 perfidious
+--SKIPIF--
+<?php require __DIR__ . '/../skipif-linux-only.inc'; ?>
 --FILE--
 <?php
 $rv = Perfidious\open([

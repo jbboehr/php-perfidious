@@ -2,6 +2,8 @@
 phpinfo global stats - invalid event name
 --EXTENSIONS--
 perfidious
+--SKIPIF--
+<?php require __DIR__ . '/skipif-linux-only.inc'; ?>
 --INI--
 perfidious.global.enable=1
 perfidious.global.metrics=blahblahblah

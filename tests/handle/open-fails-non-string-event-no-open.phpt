@@ -3,6 +3,7 @@ Perfidious\Handle (open bails out immediately on a non-string event name, withou
 --EXTENSIONS--
 perfidious
 --SKIPIF--
+<?php require __DIR__ . '/../skipif-linux-only.inc'; ?>
 <?php if (!Perfidious\DEBUG) die("skip: must be compiled in debug mode"); ?>
 --FILE--
 <?php

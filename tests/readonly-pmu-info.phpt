@@ -2,6 +2,8 @@
 Perfidious\PmuInfo (readonly / no dynamic properties)
 --EXTENSIONS--
 perfidious
+--SKIPIF--
+<?php require __DIR__ . '/skipif-linux-only.inc'; ?>
 --FILE--
 <?php
 $pmu = Perfidious\get_pmu_info(51);

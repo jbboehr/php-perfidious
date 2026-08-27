@@ -3,6 +3,7 @@ Perfidious\PmuEventInfo (name is truncated, not over-read, when pmu::event excee
 --EXTENSIONS--
 perfidious
 --SKIPIF--
+<?php require __DIR__ . '/skipif-linux-only.inc'; ?>
 <?php if (!Perfidious\DEBUG) die("skip: must be compiled in debug mode"); ?>
 --FILE--
 <?php

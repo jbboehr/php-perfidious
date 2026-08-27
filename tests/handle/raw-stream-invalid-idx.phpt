@@ -2,6 +2,8 @@
 Perfidious\Handle::rawStream() - invalid idx
 --EXTENSIONS--
 perfidious
+--SKIPIF--
+<?php require __DIR__ . '/../skipif-linux-only.inc'; ?>
 --FILE--
 <?php
 $handle = Perfidious\open([

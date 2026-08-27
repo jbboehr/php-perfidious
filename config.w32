@@ -1,0 +1,7 @@
+// vim:ft=javascript
+
+ARG_ENABLE("perfidious", "perfidious support", "no");
+
+if (PHP_PERFIDIOUS != "no") {
+    ERROR("perfidious does not have a Windows backend yet");
+}

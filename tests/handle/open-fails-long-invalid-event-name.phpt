@@ -2,6 +2,8 @@
 Perfidious\Handle::open() - invalid event name long enough to overflow the internal message buffer
 --EXTENSIONS--
 perfidious
+--SKIPIF--
+<?php require __DIR__ . '/../skipif-linux-only.inc'; ?>
 --FILE--
 <?php
 $prefix = "failed to get libpfm event encoding for ";

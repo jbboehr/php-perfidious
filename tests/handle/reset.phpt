@@ -2,6 +2,8 @@
 Perfidious\Handle::reset()
 --EXTENSIONS--
 perfidious
+--SKIPIF--
+<?php require __DIR__ . '/../skipif-linux-only.inc'; ?>
 --FILE--
 <?php
 $rv = Perfidious\open([

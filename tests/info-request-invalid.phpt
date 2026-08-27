@@ -2,6 +2,8 @@
 phpinfo per-request stats - invalid event name
 --EXTENSIONS--
 perfidious
+--SKIPIF--
+<?php require __DIR__ . '/skipif-linux-only.inc'; ?>
 --INI--
 perfidious.request.enable=1
 perfidious.request.metrics=blahblahblah
