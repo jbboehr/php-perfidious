@@ -3,5 +3,17 @@
 ARG_ENABLE("perfidious", "perfidious support", "no");
 
 if (PHP_PERFIDIOUS != "no") {
-    ERROR("perfidious does not have a Windows backend yet");
+    // Older supported PHP SDKs expose only X64; newer SDKs also distinguish x64 from ARM64.
+    if (!X64 || (typeof(TARGET_ARCH) != "undefined" && TARGET_ARCH != "x64")) {
+        ERROR("perfidious requires 64-bit x64 PHP on Windows");
+    }
+
+    AC_DEFINE("PERFIDIOUS_PLATFORM_WINDOWS", 1, "Define to 1 when building the Windows backend");
+
+    EXTENSION(
+        "perfidious",
+        "src\\exceptions.c src\\read_result.c src\\windows\\extension.c src\\windows\\functions.c",
+        true,
+        "/I \"" + configure_module_dirname + "\" /D PERFIDIOUS_PLATFORM_WINDOWS=1 /D ZEND_ENABLE_STATIC_TSRMLS_CACHE=1"
+    );
 }

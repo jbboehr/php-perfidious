@@ -2,6 +2,8 @@
 phpinfo
 --EXTENSIONS--
 perfidious
+--SKIPIF--
+<?php require __DIR__ . '/skipif-linux-only.inc'; ?>
 --FILE--
 <?php
 phpinfo(INFO_MODULES);

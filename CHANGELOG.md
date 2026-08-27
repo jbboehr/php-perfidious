@@ -10,6 +10,8 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
 
 - PIE metadata, local-checkout installation support, and a CI smoke test that installs and loads the extension through
   PIE.
+- An experimental low-level Windows x64 backend for process and thread cycle counts, process CPU time and page faults,
+  and current-thread profiling data, with immutable typed result objects.
 
 ### Changed
 

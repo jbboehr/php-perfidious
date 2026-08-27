@@ -33,7 +33,7 @@
 #if (__GNUC__ >= 4) || defined(__clang__) || defined(HAVE_FUNC_ATTRIBUTE_VISIBILITY)
 #define PERFIDIOUS_PUBLIC __attribute__((visibility("default")))
 #define PERFIDIOUS_LOCAL __attribute__((visibility("hidden")))
-#elif defined(PHP_WIN32) && defined(PERF_EXPORTS)
+#elif defined(PHP_WIN32) && defined(PERFIDIOUS_EXPORTS)
 #define PERFIDIOUS_PUBLIC __declspec(dllexport)
 #define PERFIDIOUS_LOCAL
 #else
@@ -98,10 +98,13 @@ PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_pmu_not_found_exception_ce
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_pmu_event_not_found_exception_ce;
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_overflow_exception_ce;
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_io_exception_ce;
+PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_read_result_ce;
+
+#if !defined(PHP_WIN32)
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_pmu_event_info_ce;
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_pmu_info_ce;
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_handle_ce;
-PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_read_result_ce;
+#endif
 
 ZEND_BEGIN_MODULE_GLOBALS(perfidious)
     zend_bool global_enable;
@@ -124,6 +127,7 @@ ZEND_EXTERN_MODULE_GLOBALS(perfidious);
 
 #define PERFIDIOUS_G(v) ZEND_MODULE_GLOBALS_ACCESSOR(perfidious, v)
 
+#if !defined(PHP_WIN32)
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
 zend_result perfidious_handle_reset(struct perfidious_handle *restrict handle);
@@ -189,5 +193,6 @@ PERFIDIOUS_ATTR_NONNULL_ALL
 PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
 zend_result
 perfidious_handle_read_to_result(const struct perfidious_handle *restrict handle, zval *restrict return_value);
+#endif
 
 #endif /* PHP_PERFIDIOUS_H */

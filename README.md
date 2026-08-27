@@ -10,19 +10,20 @@
 ![stability-experimental](https://img.shields.io/badge/stability-experimental-orange.svg)
 
 This extension provides access to the performance monitoring *counters* exposed
-by the Linux `perf_events` kernel API.
+by Linux `perf_events`, plus an experimental low-level Windows API.
 
 ## Requirements
 
-As we are calling Linux kernel APIs, this extension will only work on **Linux**.
-
 * PHP 8.1 - 8.5
-* libcap
-* libpfm4
+* Linux: libcap and libpfm4
+* Windows: 64-bit x64 PHP on a Windows version supported by that PHP release
 
 ## Installation
 
 ### PIE
+
+PIE installation is currently Linux-only. PIE installs precompiled extension DLLs on Windows,
+and this project does not publish those release artifacts yet.
 
 Install the build toolchain and required system libraries first. On Ubuntu and Debian:
 
@@ -40,6 +41,9 @@ pie install
 ```
 
 ### Source
+
+The commands below cover Linux. Windows builds use the matching PHP SDK and Visual Studio toolchain with
+`phpize.bat`, `configure.bat --enable-perfidious`, and `nmake`.
 
 You will need a few packages, including libcap and libpfm4. On Ubuntu and
 Debian, this should be:
@@ -71,6 +75,8 @@ Finally, *restart the web server*.
 ## Usage
 
 See also the [`examples`](./examples) directory and the [`stub`](./perfidious.stub.php).
+
+### Linux perf_events
 
 For example, you can programmatically open and access the counters.
 
@@ -126,7 +132,47 @@ object(Perfidious\ReadResult)#%d (%d) {
 }
 ```
 
+### Windows
+
+The Windows API currently exposes low-level counters in `Perfidious\Windows`:
+
+```php
+$cycles = Perfidious\Windows\query_current_process_cycle_time();
+$times = Perfidious\Windows\get_current_process_times();
+$memory = Perfidious\Windows\get_current_process_memory_info();
+
+$cpuTime100ns = $times->kernelTime100ns + $times->userTime100ns;
+$pageFaults = $memory->pageFaultCount;
+
+$profile = Perfidious\Windows\enable_current_thread_profiling();
+try {
+    $before = $profile->read();
+    usleep(1000);
+    $after = $profile->read();
+
+    $contextSwitches = $after->contextSwitchCount - $before->contextSwitchCount;
+    $cpuCycles = $after->cycleCount - $before->cycleCount;
+} finally {
+    $profile->close();
+}
+```
+
+`ProcessTimes` distinguishes the process creation `FILETIME` timestamp from the kernel
+and user CPU durations, whose property names include their 100-nanosecond unit.
+`ProcessMemoryInfo` reports `PROCESS_MEMORY_COUNTERS_EX`; despite its native name,
+`pagefileUsage` is process commit charge, while `privateUsage` is private committed memory.
+
+`ThreadProfileSnapshot` contains cumulative context switches, normalized CPU cycles,
+the wait-reason bitmap observed since the previous native read, per-read retry metadata,
+and optional hardware counters. Hardware counters are selected with a bitmask of up to
+16 globally configured indices and require a Windows kernel driver. A requested but
+unconfigured index reads as zero, which is indistinguishable from a configured counter
+that observed no events; `hardwareCounterCount` reports how many entries Windows says
+are populated.
+
 ## Events
+
+The event-name API in this section is Linux-only.
 
 We use the libpfm4 event name encoding to open events. To see a list of all events,
 execute [examples/all-events.php](examples/all-events.php) with the extension loaded

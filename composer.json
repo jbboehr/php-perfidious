@@ -1,10 +1,11 @@
 {
     "name": "jbboehr/perfidious",
-    "description": "PHP extension providing access to the performance monitoring counters exposed by the Linux perf_events kernel API",
+    "description": "PHP extension providing access to Linux and Windows performance monitoring counters",
     "type": "php-ext",
     "keywords": [
         "perf",
         "perf_events",
+        "windows",
         "profiling",
         "performance",
         "pfm",

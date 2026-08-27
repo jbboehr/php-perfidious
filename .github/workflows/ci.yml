@@ -91,6 +91,33 @@ jobs:
             -   name: Verify extension is loaded
                 run: php --ri perfidious
 
+    windows:
+        runs-on: windows-2022
+        name: "Windows | PHP ${{ matrix.php-version }} ${{ matrix.ts }} x64"
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - php-version: "8.1"
+                      ts: nts
+                    - php-version: "8.4"
+                      ts: nts
+                    - php-version: "8.4"
+                      ts: ts
+                    - php-version: "8.5"
+                      ts: nts
+        steps:
+            -   uses: actions/checkout@v7
+
+            -   name: Build and test the Windows extension
+                uses: php/php-windows-builder/extension@v1
+                with:
+                    php-version: "${{ matrix.php-version }}"
+                    arch: x64
+                    ts: "${{ matrix.ts }}"
+                    args: --enable-perfidious
+                    test-workers: "1"
+
     test:
         runs-on: ubuntu-latest
         name: "Test | PHP ${{ matrix.php-version }} ${{ matrix.debug }}"

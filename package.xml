@@ -2,8 +2,8 @@
 <package packagerversion="1.10.1" version="2.0" xmlns="http://pear.php.net/dtd/package-2.0" xmlns:tasks="http://pear.php.net/dtd/tasks-1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://pear.php.net/dtd/tasks-1.0 http://pear.php.net/dtd/tasks-1.0.xsd http://pear.php.net/dtd/package-2.0 http://pear.php.net/dtd/package-2.0.xsd">
  <name>perfidious</name>
  <channel>pecl.php.net</channel>
- <summary>Access perf_events PMU counters</summary>
- <description>This extension provides access to the performance monitoring counters exposed by the Linux perf_events kernel API.</description>
+ <summary>Access Linux and Windows performance counters</summary>
+ <description>This extension provides access to Linux perf_events and low-level Windows performance monitoring counters.</description>
  <lead>
   <name>John Boehr</name>
   <user>jbboehr</user>
@@ -64,6 +64,8 @@
    <file name="src/pmu_info.c" role="src" />
    <file name="src/extension.c" role="src" />
    <file name="src/pmu_event_info.c" role="src" />
+   <file name="src/windows/extension.c" role="src" />
+   <file name="src/windows/functions.c" role="src" />
 
    <file name="examples/sieve2.php" role="doc" />
    <file name="examples/watch.php" role="doc" />
@@ -89,6 +91,7 @@
    <file name="m4/ax_compiler_flags_gir.m4" role="src" />
 
    <file name="tests/skipif-linux-only.inc" role="test" />
+   <file name="tests/skipif-windows-only.inc" role="test" />
    <file name="tests/get-pmu-event-info-long-name.phpt" role="test" />
    <file name="tests/get-pmu-event-info.phpt" role="test" />
    <file name="tests/get-pmu-info.phpt" role="test" />
@@ -148,6 +151,14 @@
    <file name="tests/request-handle/enabled.phpt" role="test" />
    <file name="tests/request-handle/stays-open.phpt" role="test" />
    <file name="tests/version.phpt" role="test" />
+   <file name="tests/windows/direct-counters.phpt" role="test" />
+   <file name="tests/windows/info.phpt" role="test" />
+   <file name="tests/windows/process-results.phpt" role="test" />
+   <file name="tests/windows/readonly-results.phpt" role="test" />
+   <file name="tests/windows/serializable-results.phpt" role="test" />
+   <file name="tests/windows/thread-profile-hardware-counter-data.phpt" role="test" />
+   <file name="tests/windows/thread-profile.phpt" role="test" />
+   <file name="tests/windows/thread-profile-hardware-counters.phpt" role="test" />
   </dir>
  </contents>
  <dependencies>
