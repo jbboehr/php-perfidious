@@ -64,6 +64,7 @@
    <file name="src/pmu_info.c" role="src" />
    <file name="src/extension.c" role="src" />
    <file name="src/pmu_event_info.c" role="src" />
+   <file name="src/darwin/extension.c" role="src" />
    <file name="src/windows/extension.c" role="src" />
    <file name="src/windows/functions.c" role="src" />
 
@@ -91,10 +92,13 @@
    <file name="m4/ax_compiler_flags_gir.m4" role="src" />
 
    <file name="tests/skipif-linux-only.inc" role="test" />
+   <file name="tests/skipif-darwin-only.inc" role="test" />
    <file name="tests/skipif-windows-only.inc" role="test" />
+   <file name="tests/darwin/info.phpt" role="test" />
    <file name="tests/get-pmu-event-info-long-name.phpt" role="test" />
    <file name="tests/get-pmu-event-info.phpt" role="test" />
    <file name="tests/get-pmu-info.phpt" role="test" />
+   <file name="tests/header-linux-consumer.c" role="test" />
    <file name="tests/global-handle/disabled.phpt" role="test" />
    <file name="tests/global-handle/enabled.phpt" role="test" />
    <file name="tests/global-handle/stays-open.phpt" role="test" />

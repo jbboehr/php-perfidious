@@ -45,6 +45,10 @@ PHP_PERFIDIOUS_LINUX_SOURCES="
     src/pmu_info.c
 "
 
+PHP_PERFIDIOUS_DARWIN_SOURCES="
+    src/darwin/extension.c
+"
+
 if test "$PHP_PERFIDIOUS" != "no"; then
     AS_CASE([$host_os],
         [linux*], [
@@ -60,7 +64,19 @@ if test "$PHP_PERFIDIOUS" != "no"; then
                 $PHP_PERFIDIOUS_LINUX_SOURCES
             ])
         ],
-        [AC_MSG_ERROR([The existing perf_events backend is supported only on Linux])]
+        [darwin*], [
+            AC_DEFINE(
+                [PERFIDIOUS_PLATFORM_DARWIN],
+                [1],
+                [Define to 1 when building the Darwin backend]
+            )
+            PHP_PERFIDIOUS_ADD_SOURCES([
+                $PHP_PERFIDIOUS_COMMON_SOURCES
+                $PHP_PERFIDIOUS_DARWIN_SOURCES
+            ])
+            PHP_ADD_BUILD_DIR(src/darwin)
+        ],
+        [AC_MSG_ERROR([perfidious supports only Linux and Darwin on Unix-like systems])]
     )
 
     dnl AX_COMPILER_FLAGS defaults --enable-compile-warnings to "error" (fatal warnings) unless

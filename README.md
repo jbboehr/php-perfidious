@@ -17,6 +17,7 @@ by Linux `perf_events`, plus an experimental low-level Windows API.
 * PHP 8.1 - 8.5
 * Linux: libcap and libpfm4
 * Windows: 64-bit x64 PHP on a Windows version supported by that PHP release
+* macOS: the Darwin build foundation currently exposes no performance-counter API
 
 ## Installation
 

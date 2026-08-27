@@ -118,6 +118,46 @@ jobs:
                     args: --enable-perfidious
                     test-workers: "1"
 
+    macos:
+        name: "macOS | PHP ${{ matrix.php-version }} ${{ matrix.arch }}"
+        runs-on: ${{ matrix.runner }}
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - php-version: "8.1"
+                      arch: x64
+                      runner: macos-15-intel
+                    - php-version: "8.5"
+                      arch: arm64
+                      runner: macos-15
+        steps:
+            -   uses: actions/checkout@v7
+
+            -   name: Install PHP
+                uses: shivammathur/setup-php@v2
+                with:
+                    coverage: "none"
+                    extensions: json, opcache
+                    php-version: "${{ matrix.php-version }}"
+
+            -   run: phpize
+
+            -   run: ./configure --enable-compile-warnings=error
+
+            -   run: make
+
+            -   run: make test
+                env:
+                    NO_INTERACTION: 1
+                    REPORT_EXIT_STATUS: 1
+
+            -   run: cat tests/*.log
+                if: failure()
+
+            -   name: Verify extension is loaded
+                run: php -n -d extension="$(pwd)/modules/perfidious.so" --ri perfidious
+
     test:
         runs-on: ubuntu-latest
         name: "Test | PHP ${{ matrix.php-version }} ${{ matrix.debug }}"
@@ -150,6 +190,11 @@ jobs:
                     tools: composer:v2
 
             -   run: phpize
+
+            -   name: Compile a Linux consumer of the installed public header
+                run: |
+                    read -r -a php_includes <<< "$(php-config --includes)"
+                    cc "${php_includes[@]}" -I. -fsyntax-only tests/header-linux-consumer.c
 
             -   run: ./configure --enable-compile-warnings=error "${EXTRA_FLAGS}"
                 env:

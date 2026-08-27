@@ -100,7 +100,7 @@ PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_overflow_exception_ce;
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_io_exception_ce;
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_read_result_ce;
 
-#if !defined(PHP_WIN32)
+#if defined(PERFIDIOUS_PLATFORM_LINUX) || defined(__linux__)
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_pmu_event_info_ce;
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_pmu_info_ce;
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_handle_ce;
@@ -127,7 +127,7 @@ ZEND_EXTERN_MODULE_GLOBALS(perfidious);
 
 #define PERFIDIOUS_G(v) ZEND_MODULE_GLOBALS_ACCESSOR(perfidious, v)
 
-#if !defined(PHP_WIN32)
+#if defined(PERFIDIOUS_PLATFORM_LINUX) || defined(__linux__)
 PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
 zend_result perfidious_handle_reset(struct perfidious_handle *restrict handle);
