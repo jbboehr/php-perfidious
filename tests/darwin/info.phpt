@@ -21,6 +21,7 @@ var_dump(str_contains($info, 'Version'));
 var_dump(str_contains($info, 'perfidious.global.enable'));
 var_dump(function_exists('Perfidious\\open'));
 var_dump(function_exists('Perfidious\\Darwin\\get_current_process_resource_usage'));
+var_dump(function_exists('Perfidious\\Darwin\\get_current_thread_resource_usage'));
 var_dump(function_exists('Perfidious\\Windows\\query_current_process_cycle_time'));
 --EXPECT--
 bool(true)
@@ -32,5 +33,6 @@ bool(true)
 bool(true)
 bool(false)
 bool(false)
+bool(true)
 bool(true)
 bool(false)

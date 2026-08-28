@@ -247,6 +247,19 @@ function get_current_process_resource_usage(): ProcessResourceUsage
 {
 }
 
+/**
+ * Return cumulative resource usage for the current thread.
+ *
+ * CPU times are reported in nanoseconds. Hardware cycle and instruction counts may be zero when
+ * the kernel cannot collect them, including on macOS before 12.4 and on some virtualized systems.
+ *
+ * @throws \Perfidious\IOException|\Perfidious\OverflowException
+ * @see https://github.com/apple-oss-distributions/xnu/blob/main/bsd/sys/resource_private.h
+ */
+function get_current_thread_resource_usage(): ThreadResourceUsage
+{
+}
+
 final class ProcessResourceUsage
 {
     private function __construct()
@@ -259,6 +272,18 @@ final class ProcessResourceUsage
     public readonly int $majorPageFaultCount;
     public readonly int $voluntaryContextSwitchCount;
     public readonly int $involuntaryContextSwitchCount;
+    public readonly int $instructionCount;
+    public readonly int $cycleCount;
+}
+
+final class ThreadResourceUsage
+{
+    private function __construct()
+    {
+    }
+
+    public readonly int $userTimeNs;
+    public readonly int $systemTimeNs;
     public readonly int $instructionCount;
     public readonly int $cycleCount;
 }
