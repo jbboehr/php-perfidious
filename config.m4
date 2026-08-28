@@ -106,6 +106,13 @@ if test "$PHP_PERFIDIOUS" != "no"; then
         -Wno-nested-externs -Wno-error=nested-externs \
     ])
 
+    dnl PHP's Darwin libtool currently links extension bundles with deprecated
+    dnl -undefined suppress. Recent Apple linkers warn about that PHP-supplied
+    dnl flag, so -fatal_warnings would make every extension link fail before
+    dnl our own code can be tested. Keep compiler warnings fatal, but do not
+    dnl promote linker warnings on Darwin.
+    AS_CASE([$host_os], [darwin*], [WARN_LDFLAGS=""])
+
     AC_CHECK_SIZEOF(pid_t)
     AC_CHECK_SIZEOF(uint64_t)
 
