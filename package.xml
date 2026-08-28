@@ -56,6 +56,7 @@
 
    <file name="php_perfidious.h" role="src" />
    <file name="src/private.h" role="src" />
+   <file name="src/platform.h" role="src" />
    <file name="src/handle.h" role="src" />
    <file name="src/read_result.c" role="src" />
    <file name="src/handle.c" role="src" />
@@ -64,8 +65,9 @@
    <file name="src/pmu_info.c" role="src" />
    <file name="src/extension.c" role="src" />
    <file name="src/pmu_event_info.c" role="src" />
-   <file name="src/darwin/extension.c" role="src" />
-   <file name="src/windows/extension.c" role="src" />
+   <file name="src/linux/platform.c" role="src" />
+   <file name="src/darwin/platform.c" role="src" />
+   <file name="src/windows/platform.c" role="src" />
    <file name="src/windows/functions.c" role="src" />
 
    <file name="examples/sieve2.php" role="doc" />

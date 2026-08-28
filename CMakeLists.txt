@@ -6,15 +6,16 @@ project(php_perfidious C)
 set(CMAKE_C_STANDARD 99)
 
 set(COMMON_SOURCE_FILES
+    src/extension.c
     src/exceptions.c
     src/read_result.c
 )
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set(PLATFORM_SOURCE_FILES
-        src/extension.c
         src/functions.c
         src/handle.c
+        src/linux/platform.c
         src/pmu_event_info.c
         src/pmu_info.c
     )
