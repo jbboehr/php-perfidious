@@ -10,14 +10,15 @@
 ![stability-experimental](https://img.shields.io/badge/stability-experimental-orange.svg)
 
 This extension provides access to the performance monitoring *counters* exposed
-by Linux `perf_events`, plus an experimental low-level Windows API.
+by Linux `perf_events`, plus experimental low-level Windows and macOS APIs.
 
 ## Requirements
 
 * PHP 8.1 - 8.5
 * Linux: libcap and libpfm4
 * Windows: 64-bit x64 PHP on a Windows version supported by that PHP release
-* macOS: the Darwin build foundation currently exposes no performance-counter API
+* macOS: process and current-thread resource snapshots are available; hardware cycle and instruction counts may be
+  unavailable on older or virtualized systems
 
 ## Installation
 
