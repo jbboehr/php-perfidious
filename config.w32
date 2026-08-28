@@ -12,7 +12,7 @@ if (PHP_PERFIDIOUS != "no") {
 
     EXTENSION(
         "perfidious",
-        "src\\exceptions.c src\\read_result.c src\\windows\\extension.c src\\windows\\functions.c",
+        "src\\extension.c src\\exceptions.c src\\read_result.c src\\windows\\platform.c src\\windows\\functions.c",
         true,
         "/I \"" + configure_module_dirname + "\" /D PERFIDIOUS_PLATFORM_WINDOWS=1 /D ZEND_ENABLE_STATIC_TSRMLS_CACHE=1"
     );

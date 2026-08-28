@@ -33,20 +33,21 @@ AC_DEFUN([PHP_PERFIDIOUS_ADD_SOURCES], [
 ])
 
 PHP_PERFIDIOUS_COMMON_SOURCES="
+    src/extension.c
     src/exceptions.c
     src/read_result.c
 "
 
 PHP_PERFIDIOUS_LINUX_SOURCES="
-    src/extension.c
     src/functions.c
     src/handle.c
+    src/linux/platform.c
     src/pmu_event_info.c
     src/pmu_info.c
 "
 
 PHP_PERFIDIOUS_DARWIN_SOURCES="
-    src/darwin/extension.c
+    src/darwin/platform.c
 "
 
 if test "$PHP_PERFIDIOUS" != "no"; then
@@ -63,6 +64,7 @@ if test "$PHP_PERFIDIOUS" != "no"; then
                 $PHP_PERFIDIOUS_COMMON_SOURCES
                 $PHP_PERFIDIOUS_LINUX_SOURCES
             ])
+            PHP_ADD_BUILD_DIR(src/linux)
         ],
         [darwin*], [
             AC_DEFINE(

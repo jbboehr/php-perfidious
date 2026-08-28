@@ -116,7 +116,7 @@ ZEND_BEGIN_MODULE_GLOBALS(perfidious)
     struct perfidious_handle *request_handle;
 
     enum perfidious_error_mode error_mode;
-    enum perfidious_overflow_mode overflow_mode;
+    zend_long overflow_mode;
 
 #ifdef PERFIDIOUS_DEBUG
     uint32_t debug_open_ex_call_count;

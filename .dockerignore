@@ -4,5 +4,7 @@
 !php_perfidious.h
 !src/*.c
 !src/*.h
+!src/**/*.c
+!src/**/*.h
 !tests/*.phpt
 !tests/**/*.phpt
