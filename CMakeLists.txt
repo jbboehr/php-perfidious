@@ -20,8 +20,14 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         src/pmu_info.c
     )
     add_compile_definitions(PERFIDIOUS_PLATFORM_LINUX=1)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    set(PLATFORM_SOURCE_FILES
+        src/darwin/functions.c
+        src/darwin/platform.c
+    )
+    add_compile_definitions(PERFIDIOUS_PLATFORM_DARWIN=1)
 else()
-    message(FATAL_ERROR "The existing perf_events backend is supported only on Linux")
+    message(FATAL_ERROR "perfidious supports only Linux and Darwin with CMake")
 endif()
 
 set(SOURCE_FILES

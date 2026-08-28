@@ -33,6 +33,30 @@ for ($attempt = 0; $attempt < 3; $attempt++) {
 
 var_dump($before instanceof Perfidious\Darwin\ProcessResourceUsage);
 var_dump(array_keys(get_object_vars($before)));
+
+$reflection = new ReflectionClass($before);
+$properties = $reflection->getProperties(ReflectionProperty::IS_PUBLIC);
+var_dump($reflection->isFinal());
+var_dump($reflection->getConstructor()?->isPrivate());
+var_dump(array_reduce(
+    $properties,
+    static fn(bool $readonly, ReflectionProperty $property): bool => $readonly && $property->isReadOnly(),
+    true
+));
+
+try {
+    $before->userTimeNs = 0;
+} catch (Error) {
+    echo "readonly\n";
+}
+
+try {
+    $before->extra = 0;
+} catch (Error) {
+    echo "no dynamic properties\n";
+}
+
+var_dump(unserialize(serialize($before)) == $before);
 var_dump(array_reduce(
     get_object_vars($before),
     static fn(bool $valid, mixed $value): bool => $valid && is_int($value) && $value >= 0,
@@ -73,6 +97,12 @@ array(8) {
   [7]=>
   string(10) "cycleCount"
 }
+bool(true)
+bool(true)
+bool(true)
+readonly
+no dynamic properties
+bool(true)
 bool(true)
 bool(true)
 bool(true)

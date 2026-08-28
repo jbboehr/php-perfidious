@@ -47,6 +47,7 @@ PHP_PERFIDIOUS_LINUX_SOURCES="
 "
 
 PHP_PERFIDIOUS_DARWIN_SOURCES="
+    src/darwin/functions.c
     src/darwin/platform.c
 "
 
@@ -72,6 +73,7 @@ if test "$PHP_PERFIDIOUS" != "no"; then
                 [1],
                 [Define to 1 when building the Darwin backend]
             )
+            PHP_ADD_LIBRARY(proc, , PERFIDIOUS_SHARED_LIBADD)
             PHP_PERFIDIOUS_ADD_SOURCES([
                 $PHP_PERFIDIOUS_COMMON_SOURCES
                 $PHP_PERFIDIOUS_DARWIN_SOURCES
