@@ -27,8 +27,12 @@
 #include "php_perfidious.h"
 #include "../platform.h"
 
+PERFIDIOUS_LOCAL void perfidious_darwin_minit(void);
+
 PERFIDIOUS_LOCAL PHP_MINIT_FUNCTION(perfidious_platform)
 {
+    perfidious_darwin_minit();
+
     return SUCCESS;
 }
 

@@ -232,6 +232,37 @@ final class PmuEventInfo
     public bool $is_present;
 }
 
+namespace Perfidious\Darwin;
+
+/**
+ * Return cumulative resource usage for the current process.
+ *
+ * CPU times are reported in nanoseconds. Hardware cycle and instruction counts may be zero when
+ * the kernel cannot collect them, including on some virtualized systems.
+ *
+ * @throws \Perfidious\IOException|\Perfidious\OverflowException
+ * @see https://developer.apple.com/documentation/kernel/rusage_info_v4
+ */
+function get_current_process_resource_usage(): ProcessResourceUsage
+{
+}
+
+final class ProcessResourceUsage
+{
+    private function __construct()
+    {
+    }
+
+    public readonly int $userTimeNs;
+    public readonly int $systemTimeNs;
+    public readonly int $minorPageFaultCount;
+    public readonly int $majorPageFaultCount;
+    public readonly int $voluntaryContextSwitchCount;
+    public readonly int $involuntaryContextSwitchCount;
+    public readonly int $instructionCount;
+    public readonly int $cycleCount;
+}
+
 namespace Perfidious\Windows;
 
 /**

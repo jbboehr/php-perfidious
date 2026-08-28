@@ -34,7 +34,8 @@ PERFIDIOUS_LOCAL extern const zend_function_entry perfidious_functions[];
 PERFIDIOUS_LOCAL extern const zend_function_entry perfidious_windows_functions[];
 #define PERFIDIOUS_PLATFORM_FUNCTIONS perfidious_windows_functions
 #elif defined(PERFIDIOUS_PLATFORM_DARWIN)
-#define PERFIDIOUS_PLATFORM_FUNCTIONS NULL
+PERFIDIOUS_LOCAL extern const zend_function_entry perfidious_darwin_functions[];
+#define PERFIDIOUS_PLATFORM_FUNCTIONS perfidious_darwin_functions
 #else
 #error "Unsupported perfidious platform"
 #endif

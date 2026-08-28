@@ -67,6 +67,7 @@
    <file name="src/pmu_event_info.c" role="src" />
    <file name="src/linux/platform.c" role="src" />
    <file name="src/darwin/platform.c" role="src" />
+   <file name="src/darwin/functions.c" role="src" />
    <file name="src/windows/platform.c" role="src" />
    <file name="src/windows/functions.c" role="src" />
 
@@ -97,6 +98,7 @@
    <file name="tests/skipif-darwin-only.inc" role="test" />
    <file name="tests/skipif-windows-only.inc" role="test" />
    <file name="tests/darwin/info.phpt" role="test" />
+   <file name="tests/darwin/process-resource-usage.phpt" role="test" />
    <file name="tests/get-pmu-event-info-long-name.phpt" role="test" />
    <file name="tests/get-pmu-event-info.phpt" role="test" />
    <file name="tests/get-pmu-info.phpt" role="test" />
