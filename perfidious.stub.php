@@ -193,13 +193,15 @@ final class Handle
     }
 
     /**
-     * Get a raw byte stream backed by a duplicate of the handle's file descriptor
+     * Get a raw byte stream backed by a duplicate of one of the handle's file descriptors.
      *
+     * Index 0 is the event-group leader; requested events begin at index 1 in request order.
      * @note the returned stream owns an independent copy of the file descriptor, so closing it
      *       does not affect this handle or subsequent calls to read()
      * @return resource
+     * @throws \ValueError if idx does not reference an existing file descriptor
      */
-    final public function rawStream()
+    final public function rawStream(int $idx = 0)
     {
     }
 

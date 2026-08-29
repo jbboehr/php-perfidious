@@ -471,16 +471,23 @@ ZEND_COLD
 static PHP_METHOD(PerfidiousHandle, rawStream)
 {
     zend_long idx = 0;
+    bool idx_is_null = false;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
-        Z_PARAM_LONG(idx)
+        Z_PARAM_LONG_OR_NULL(idx, idx_is_null)
     ZEND_PARSE_PARAMETERS_END();
+
+    if (UNEXPECTED(idx_is_null)) {
+        zend_argument_type_error(1, "must be of type int, null given");
+        return;
+    }
 
     struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(ZEND_THIS));
 
-    if (UNEXPECTED((size_t) idx >= obj->handle->metrics_count)) {
-        RETURN_NULL();
+    if (UNEXPECTED(idx < 0 || (size_t) idx >= obj->handle->metrics_count)) {
+        zend_argument_value_error(1, "must reference an existing metric file descriptor");
+        return;
     }
 
     // dup() so the returned stream owns an independent fd: php_stream_fopen_from_fd() takes

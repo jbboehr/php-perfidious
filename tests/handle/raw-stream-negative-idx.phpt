@@ -10,7 +10,10 @@ $handle = Perfidious\open([
     "perf::PERF_COUNT_SW_CPU_CLOCK:u",
 ]);
 $handle->enable();
-$stream = $handle->rawStream(-1);
-var_dump($stream);
+try {
+    $handle->rawStream(-1);
+} catch (ValueError) {
+    echo "invalid index\n";
+}
 --EXPECT--
-NULL
+invalid index
