@@ -83,19 +83,22 @@ $afterRejectedRequest = Sampler::open([Metric::PageFaults, Metric::CpuTime]);
 var_dump($afterRejectedRequest->metrics() === [Metric::PageFaults, Metric::CpuTime]);
 $afterRejectedRequest->close();
 
-$allThreadMetricsRemainUnsupported = true;
+$threadMetricSupportMatchesPlatform = true;
 foreach (Metric::cases() as $metric) {
+    $isSupported = PHP_OS_FAMILY === 'Windows' && $metric === Metric::CpuTime;
+
     try {
-        $unexpectedSampler = Sampler::open([$metric], Scope::CurrentThread);
-        $unexpectedSampler->close();
-        $allThreadMetricsRemainUnsupported = false;
+        $threadSampler = Sampler::open([$metric], Scope::CurrentThread);
+        $threadSampler->close();
+        $threadMetricSupportMatchesPlatform = $threadMetricSupportMatchesPlatform && $isSupported;
     } catch (UnsupportedMetricException $exception) {
-        $allThreadMetricsRemainUnsupported = $allThreadMetricsRemainUnsupported &&
+        $threadMetricSupportMatchesPlatform = $threadMetricSupportMatchesPlatform &&
+            !$isSupported &&
             str_contains($exception->getMessage(), $metric->value) &&
             str_contains($exception->getMessage(), 'current-thread');
     }
 }
-var_dump($allThreadMetricsRemainUnsupported);
+var_dump($threadMetricSupportMatchesPlatform);
 
 $firstSampler = Sampler::open([Metric::CpuTime]);
 $secondSampler = Sampler::open([Metric::CpuTime]);

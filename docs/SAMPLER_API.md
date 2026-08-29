@@ -1,7 +1,7 @@
 # Sampler API design
 
-Status: slices 1 and 2 are implemented. Current-thread support, instruction counting, and Linux multiplex scaling remain
-proposed.
+Status: slices 1 and 2 are implemented. Slice 3 has started with Windows current-thread CPU time; the remaining
+current-thread combinations, instruction counting, and Linux multiplex scaling remain proposed.
 
 ## Summary
 
@@ -165,8 +165,8 @@ and closed from that same thread. It is an advanced scope for ZTS builds, thread
 counters that are unavailable process-wide. PHP fibers share an operating-system thread, so thread scope does not
 isolate one fiber from another.
 
-Slice 1 exposes this enum case to establish the API shape but does not support any current-thread metrics yet. Every
-such request therefore throws `UnsupportedMetricException` until the corresponding later slice is implemented.
+Windows supports `Metric::CpuTime` for this scope. The remaining current-thread combinations still throw
+`UnsupportedMetricException` until their platform adapters are implemented.
 
 The first version does not target arbitrary process or thread identifiers. The platform-specific APIs can continue to
 expose facilities that do so.
@@ -353,8 +353,9 @@ Implementation should proceed vertically and pause after each slice:
 1. Add the shared enums, value objects, validation, lifecycle, and unsupported-metric error behavior, together with
    current-process CPU time and page faults on all three platforms. This slice is implemented.
 2. Add current-process context switches and cycles where the matrix permits them. This slice is implemented.
-3. Add current-thread CPU time, page faults, context switches, and cycles where supported. Add the low-level Windows
-   `GetThreadTimes()` primitive in this slice before using it in the sampler backend.
+3. Add current-thread CPU time, page faults, context switches, and cycles where supported. The low-level Windows
+   `GetThreadTimes()` primitive and Windows current-thread CPU-time adapter are implemented; the remaining combinations
+   are pending.
 4. Add instruction counting and Linux multiplex scaling, retaining explicit best-effort notes for Darwin and leaving
    driver-dependent Windows instruction counters in the low-level namespace.
 

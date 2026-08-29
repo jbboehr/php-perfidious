@@ -22,6 +22,9 @@
 struct perfidious_platform_sampler
 {
     uint32_t metrics;
+    enum perfidious_scope_id scope;
+    DWORD thread_id;
+    HANDLE thread_handle;
     DWORD previous_page_faults;
     uint64_t page_fault_base;
     bool have_page_faults;
@@ -46,11 +49,15 @@ static zend_result perfidious_windows_throw_sampler_error(const char *operation,
 
 PERFIDIOUS_LOCAL uint32_t perfidious_platform_sampler_supported_metrics(enum perfidious_scope_id scope)
 {
-    if (scope != PERFIDIOUS_SCOPE_CURRENT_PROCESS) {
-        return 0;
+    switch (scope) {
+        case PERFIDIOUS_SCOPE_CURRENT_PROCESS:
+            return PERFIDIOUS_METRIC_CPU_TIME_MASK | PERFIDIOUS_METRIC_PAGE_FAULTS_MASK |
+                   PERFIDIOUS_METRIC_CPU_CYCLES_MASK;
+        case PERFIDIOUS_SCOPE_CURRENT_THREAD:
+            return PERFIDIOUS_METRIC_CPU_TIME_MASK;
     }
 
-    return PERFIDIOUS_METRIC_CPU_TIME_MASK | PERFIDIOUS_METRIC_PAGE_FAULTS_MASK | PERFIDIOUS_METRIC_CPU_CYCLES_MASK;
+    ZEND_UNREACHABLE();
 }
 
 PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_open(
@@ -59,9 +66,27 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_open(
 {
     struct perfidious_platform_sampler *result;
 
-    ZEND_ASSERT(scope == PERFIDIOUS_SCOPE_CURRENT_PROCESS);
+    ZEND_ASSERT(scope == PERFIDIOUS_SCOPE_CURRENT_PROCESS || scope == PERFIDIOUS_SCOPE_CURRENT_THREAD);
     result = ecalloc(1, sizeof(*result));
     result->metrics = metrics;
+    result->scope = scope;
+    if (scope == PERFIDIOUS_SCOPE_CURRENT_THREAD) {
+        if (UNEXPECTED(!DuplicateHandle(
+                GetCurrentProcess(),
+                GetCurrentThread(),
+                GetCurrentProcess(),
+                &result->thread_handle,
+                0,
+                FALSE,
+                DUPLICATE_SAME_ACCESS
+            ))) {
+            DWORD error = GetLastError();
+
+            efree(result);
+            return perfidious_windows_throw_sampler_error("DuplicateHandle", error);
+        }
+        result->thread_id = GetCurrentThreadId();
+    }
     *sampler = result;
 
     return SUCCESS;
@@ -73,6 +98,32 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_read(
 {
     memset(snapshot, 0, sizeof(*snapshot));
 
+    if (sampler->scope == PERFIDIOUS_SCOPE_CURRENT_THREAD) {
+        DWORD wait_result;
+
+        if (UNEXPECTED(sampler->thread_id != GetCurrentThreadId())) {
+            zend_throw_exception(
+                perfidious_io_exception_ce,
+                "Windows current-thread sampler must be read from the thread that opened it",
+                0
+            );
+            return FAILURE;
+        }
+
+        wait_result = WaitForSingleObject(sampler->thread_handle, 0);
+        if (UNEXPECTED(wait_result == WAIT_FAILED)) {
+            return perfidious_windows_throw_sampler_error("WaitForSingleObject", GetLastError());
+        }
+        if (UNEXPECTED(wait_result != WAIT_TIMEOUT)) {
+            zend_throw_exception(
+                perfidious_io_exception_ce,
+                "Windows current-thread sampler must be read from the thread that opened it",
+                0
+            );
+            return FAILURE;
+        }
+    }
+
     if ((sampler->metrics & PERFIDIOUS_METRIC_CPU_TIME_MASK) != 0) {
         FILETIME creation_time;
         FILETIME exit_time;
@@ -81,9 +132,18 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_read(
         uint64_t kernel_time_100ns;
         uint64_t user_time_100ns;
         uint64_t total_time_100ns;
+        const char *operation;
+        BOOL success;
 
-        if (UNEXPECTED(!GetProcessTimes(GetCurrentProcess(), &creation_time, &exit_time, &kernel_time, &user_time))) {
-            return perfidious_windows_throw_sampler_error("GetProcessTimes", GetLastError());
+        if (sampler->scope == PERFIDIOUS_SCOPE_CURRENT_PROCESS) {
+            operation = "GetProcessTimes";
+            success = GetProcessTimes(GetCurrentProcess(), &creation_time, &exit_time, &kernel_time, &user_time);
+        } else {
+            operation = "GetThreadTimes";
+            success = GetThreadTimes(sampler->thread_handle, &creation_time, &exit_time, &kernel_time, &user_time);
+        }
+        if (UNEXPECTED(!success)) {
+            return perfidious_windows_throw_sampler_error(operation, GetLastError());
         }
 
         kernel_time_100ns = perfidious_windows_filetime_to_uint64(kernel_time);
@@ -103,6 +163,7 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_read(
     if ((sampler->metrics & PERFIDIOUS_METRIC_PAGE_FAULTS_MASK) != 0) {
         PROCESS_MEMORY_COUNTERS_EX memory;
 
+        ZEND_ASSERT(sampler->scope == PERFIDIOUS_SCOPE_CURRENT_PROCESS);
         memset(&memory, 0, sizeof(memory));
         memory.cb = sizeof(memory);
         if (UNEXPECTED(
@@ -126,6 +187,7 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_read(
     if ((sampler->metrics & PERFIDIOUS_METRIC_CPU_CYCLES_MASK) != 0) {
         ULONG64 cycle_time;
 
+        ZEND_ASSERT(sampler->scope == PERFIDIOUS_SCOPE_CURRENT_PROCESS);
         if (UNEXPECTED(!QueryProcessCycleTime(GetCurrentProcess(), &cycle_time))) {
             return perfidious_windows_throw_sampler_error("QueryProcessCycleTime", GetLastError());
         }
@@ -137,5 +199,8 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_read(
 
 PERFIDIOUS_LOCAL void perfidious_platform_sampler_close(struct perfidious_platform_sampler *sampler)
 {
+    if (sampler->thread_handle != NULL) {
+        CloseHandle(sampler->thread_handle);
+    }
     efree(sampler);
 }
