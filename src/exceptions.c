@@ -31,6 +31,7 @@ PERFIDIOUS_PUBLIC zend_class_entry *perfidious_pmu_not_found_exception_ce;
 PERFIDIOUS_PUBLIC zend_class_entry *perfidious_pmu_event_not_found_exception_ce;
 PERFIDIOUS_PUBLIC zend_class_entry *perfidious_overflow_exception_ce;
 PERFIDIOUS_PUBLIC zend_class_entry *perfidious_io_exception_ce;
+PERFIDIOUS_PUBLIC zend_class_entry *perfidious_unsupported_metric_exception_ce;
 
 PERFIDIOUS_ATTR_RETURNS_NONNULL
 PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
@@ -105,6 +106,21 @@ static zend_class_entry *register_class_IOException(zend_class_entry *restrict i
     return class_entry;
 }
 
+PERFIDIOUS_ATTR_RETURNS_NONNULL
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
+static zend_class_entry *register_class_UnsupportedMetricException(zend_class_entry *restrict iface)
+{
+    zend_class_entry ce;
+    zend_class_entry *class_entry;
+
+    INIT_CLASS_ENTRY(ce, PHP_PERFIDIOUS_NAMESPACE "\\UnsupportedMetricException", NULL);
+    class_entry = zend_register_internal_class_ex(&ce, spl_ce_RuntimeException);
+    class_entry->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NO_DYNAMIC_PROPERTIES;
+    zend_class_implements(class_entry, 1, iface);
+
+    return class_entry;
+}
+
 PERFIDIOUS_LOCAL
 void perfidious_exceptions_minit(void)
 {
@@ -114,4 +130,6 @@ void perfidious_exceptions_minit(void)
     perfidious_pmu_event_not_found_exception_ce =
         register_class_PmuEventNotFoundException(perfidious_exception_interface_ce);
     perfidious_io_exception_ce = register_class_IOException(perfidious_exception_interface_ce);
+    perfidious_unsupported_metric_exception_ce =
+        register_class_UnsupportedMetricException(perfidious_exception_interface_ce);
 }

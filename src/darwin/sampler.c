@@ -1,0 +1,105 @@
+/**
+ * Copyright (c) anno Domini nostri Jesu Christi MMXXIV John Boehr & contributors
+ *
+ * SPDX-License-Identifier: AGPL-3.0-only WITH romic-exception
+ */
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include <errno.h>
+#include <stdint.h>
+#include <string.h>
+#include <sys/resource.h>
+#include <unistd.h>
+
+#include <libproc.h>
+
+#include "main/php.h"
+#include "Zend/zend_exceptions.h"
+
+#include "php_perfidious.h"
+#include "../sampler.h"
+
+struct perfidious_platform_sampler
+{
+    uint32_t metrics;
+};
+
+PERFIDIOUS_LOCAL uint32_t perfidious_platform_sampler_supported_metrics(enum perfidious_scope_id scope)
+{
+    if (scope != PERFIDIOUS_SCOPE_CURRENT_PROCESS) {
+        return 0;
+    }
+
+    return PERFIDIOUS_METRIC_CPU_TIME_MASK | PERFIDIOUS_METRIC_PAGE_FAULTS_MASK;
+}
+
+PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_open(
+    uint32_t metrics, enum perfidious_scope_id scope, struct perfidious_platform_sampler **sampler
+)
+{
+    struct perfidious_platform_sampler *result;
+
+    ZEND_ASSERT(scope == PERFIDIOUS_SCOPE_CURRENT_PROCESS);
+    result = ecalloc(1, sizeof(*result));
+    result->metrics = metrics;
+    *sampler = result;
+
+    return SUCCESS;
+}
+
+PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_read(
+    struct perfidious_platform_sampler *sampler, struct perfidious_sampler_snapshot *snapshot
+)
+{
+    memset(snapshot, 0, sizeof(*snapshot));
+
+    if ((sampler->metrics & PERFIDIOUS_METRIC_CPU_TIME_MASK) != 0) {
+        struct rusage_info_v4 usage;
+
+        memset(&usage, 0, sizeof(usage));
+        if (UNEXPECTED(proc_pid_rusage(getpid(), RUSAGE_INFO_V4, (rusage_info_t *) &usage) != 0)) {
+            int error = errno;
+            zend_throw_exception_ex(
+                perfidious_io_exception_ce, error, "proc_pid_rusage failed: [%d] %s", error, strerror(error)
+            );
+            return FAILURE;
+        }
+        if (UNEXPECTED(usage.ri_user_time > UINT64_MAX - usage.ri_system_time)) {
+            zend_throw_exception(perfidious_overflow_exception_ce, "Darwin total CPU time overflow", 0);
+            return FAILURE;
+        }
+        snapshot->values[PERFIDIOUS_METRIC_CPU_TIME] = usage.ri_user_time + usage.ri_system_time;
+    }
+
+    if ((sampler->metrics & PERFIDIOUS_METRIC_PAGE_FAULTS_MASK) != 0) {
+        struct rusage usage;
+
+        memset(&usage, 0, sizeof(usage));
+        if (UNEXPECTED(getrusage(RUSAGE_SELF, &usage) != 0)) {
+            int error = errno;
+            zend_throw_exception_ex(
+                perfidious_io_exception_ce, error, "getrusage failed: [%d] %s", error, strerror(error)
+            );
+            return FAILURE;
+        }
+        if (UNEXPECTED(usage.ru_minflt < 0 || usage.ru_majflt < 0)) {
+            zend_throw_exception(perfidious_io_exception_ce, "getrusage returned a negative page-fault count", 0);
+            return FAILURE;
+        }
+        if (UNEXPECTED((uint64_t) usage.ru_minflt > UINT64_MAX - (uint64_t) usage.ru_majflt)) {
+            zend_throw_exception(perfidious_overflow_exception_ce, "Darwin page-fault count overflow", 0);
+            return FAILURE;
+        }
+        snapshot->values[PERFIDIOUS_METRIC_PAGE_FAULTS] = (uint64_t) usage.ru_minflt + (uint64_t) usage.ru_majflt;
+    }
+
+    return SUCCESS;
+}
+
+PERFIDIOUS_LOCAL void perfidious_platform_sampler_close(struct perfidious_platform_sampler *sampler)
+{
+    efree(sampler);
+}

@@ -79,24 +79,96 @@ function request_handle(): ?Handle
 {
 }
 
-interface Exception
+interface ExceptionInterface
 {
 }
 
-final class IOException extends \RuntimeException implements Exception
+final class IOException extends \RuntimeException implements ExceptionInterface
 {
 }
 
-final class OverflowException extends \OverflowException implements Exception
+final class OverflowException extends \OverflowException implements ExceptionInterface
 {
 }
 
-final class PmuNotFoundException extends \InvalidArgumentException implements Exception
+final class PmuNotFoundException extends \InvalidArgumentException implements ExceptionInterface
 {
 }
 
-final class PmuEventNotFoundException extends \InvalidArgumentException implements Exception
+final class PmuEventNotFoundException extends \InvalidArgumentException implements ExceptionInterface
 {
+}
+
+final class UnsupportedMetricException extends \RuntimeException implements ExceptionInterface
+{
+}
+
+enum Scope: string
+{
+    case CurrentProcess = 'current-process';
+    case CurrentThread = 'current-thread';
+}
+
+enum Metric: string
+{
+    case CpuTime = 'cpu-time';
+    case PageFaults = 'page-faults';
+    case ContextSwitches = 'context-switches';
+    case CpuCycles = 'cpu-cycles';
+    case Instructions = 'instructions';
+}
+
+final class Sampler
+{
+    private function __construct()
+    {
+    }
+
+    /** @param non-empty-list<Metric> $metrics */
+    public static function open(array $metrics, Scope $scope = Scope::CurrentProcess): self
+    {
+    }
+
+    /** @return non-empty-list<Metric> */
+    public function metrics(): array
+    {
+    }
+
+    public function read(): Sample
+    {
+    }
+
+    public function close(): void
+    {
+    }
+}
+
+final class Sample
+{
+    private function __construct()
+    {
+    }
+
+    public function value(Metric $metric): int
+    {
+    }
+
+    public function since(self $earlier): SampleDelta
+    {
+    }
+}
+
+final class SampleDelta
+{
+    private function __construct()
+    {
+    }
+
+    public readonly int $elapsedTimeNs;
+
+    public function value(Metric $metric): int
+    {
+    }
 }
 
 /**

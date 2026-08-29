@@ -35,6 +35,7 @@
 
 #include "php_perfidious.h"
 #include "platform.h"
+#include "sampler.h"
 
 ZEND_DECLARE_MODULE_GLOBALS(perfidious);
 
@@ -77,6 +78,7 @@ static PHP_MINIT_FUNCTION(perfidious)
 
     perfidious_exceptions_minit();
     perfidious_read_result_minit();
+    perfidious_sampler_minit();
 
     if (UNEXPECTED(FAILURE == PHP_MINIT(perfidious_platform)(INIT_FUNC_ARGS_PASSTHRU))) {
         return FAILURE;

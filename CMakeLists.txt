@@ -9,6 +9,7 @@ set(COMMON_SOURCE_FILES
     src/extension.c
     src/exceptions.c
     src/read_result.c
+    src/sampler.c
 )
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
@@ -16,6 +17,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         src/functions.c
         src/handle.c
         src/linux/platform.c
+        src/linux/sampler.c
         src/pmu_event_info.c
         src/pmu_info.c
     )
@@ -24,6 +26,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     set(PLATFORM_SOURCE_FILES
         src/darwin/functions.c
         src/darwin/platform.c
+        src/darwin/sampler.c
     )
     add_compile_definitions(PERFIDIOUS_PLATFORM_DARWIN=1)
 else()

@@ -36,12 +36,14 @@ PHP_PERFIDIOUS_COMMON_SOURCES="
     src/extension.c
     src/exceptions.c
     src/read_result.c
+    src/sampler.c
 "
 
 PHP_PERFIDIOUS_LINUX_SOURCES="
     src/functions.c
     src/handle.c
     src/linux/platform.c
+    src/linux/sampler.c
     src/pmu_event_info.c
     src/pmu_info.c
 "
@@ -49,6 +51,7 @@ PHP_PERFIDIOUS_LINUX_SOURCES="
 PHP_PERFIDIOUS_DARWIN_SOURCES="
     src/darwin/functions.c
     src/darwin/platform.c
+    src/darwin/sampler.c
 "
 
 if test "$PHP_PERFIDIOUS" != "no"; then

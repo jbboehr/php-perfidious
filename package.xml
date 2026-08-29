@@ -57,8 +57,10 @@
    <file name="php_perfidious.h" role="src" />
    <file name="src/private.h" role="src" />
    <file name="src/platform.h" role="src" />
+   <file name="src/sampler.h" role="src" />
    <file name="src/handle.h" role="src" />
    <file name="src/read_result.c" role="src" />
+   <file name="src/sampler.c" role="src" />
    <file name="src/handle.c" role="src" />
    <file name="src/functions.c" role="src" />
    <file name="src/exceptions.c" role="src" />
@@ -66,10 +68,13 @@
    <file name="src/extension.c" role="src" />
    <file name="src/pmu_event_info.c" role="src" />
    <file name="src/linux/platform.c" role="src" />
+   <file name="src/linux/sampler.c" role="src" />
    <file name="src/darwin/platform.c" role="src" />
    <file name="src/darwin/functions.c" role="src" />
+   <file name="src/darwin/sampler.c" role="src" />
    <file name="src/windows/platform.c" role="src" />
    <file name="src/windows/functions.c" role="src" />
+   <file name="src/windows/sampler.c" role="src" />
 
    <file name="examples/sieve2.php" role="doc" />
    <file name="examples/watch.php" role="doc" />
@@ -154,6 +159,15 @@
    <file name="tests/overflow/warn.phpt" role="test" />
    <file name="tests/overflow/whoops.phpt" role="test" />
    <file name="tests/overflow/wrap.phpt" role="test" />
+   <file name="tests/sampler/arginfo.phpt" role="test" />
+   <file name="tests/sampler/enums.phpt" role="test" />
+   <file name="tests/sampler/object-model.phpt" role="test" />
+   <file name="tests/sampler/process-sampler.phpt" role="test" />
+   <file name="tests/sampler/sampler-delta-properties.phpt" role="test" />
+   <file name="tests/sampler/sampler-errors.phpt" role="test" />
+   <file name="tests/sampler/sampler-lifetime.phpt" role="test" />
+   <file name="tests/sampler/sampler-reference-metrics.phpt" role="test" />
+   <file name="tests/sampler/sampler-since-order.phpt" role="test" />
    <file name="tests/readonly-pmu-event-info.phpt" role="test" />
    <file name="tests/readonly-pmu-info.phpt" role="test" />
    <file name="tests/request-handle/disabled.phpt" role="test" />
