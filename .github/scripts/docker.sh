@@ -25,6 +25,6 @@ docker run \
     --env REPORT_EXIT_STATUS=1 \
     --env "TEST_PHP_EXECUTABLE=${TEST_PHP_EXECUTABLE}" \
     --cap-add CAP_PERFMON \
-    -v "${PWD}/tests:/mnt" \
+    -v "${PWD}:/mnt" \
     "${IMAGE_TAG}" \
-    php "${RUN_TESTS_PHP}" /mnt
+    php "${RUN_TESTS_PHP}" /mnt/tests

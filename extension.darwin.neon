@@ -1,0 +1,9 @@
+parameters:
+    dynamicConstantNames:
+        - Perfidious\DEBUG
+    scanFiles:
+        - stubs/common.stub.php
+        - stubs/darwin.stub.php
+    stubFiles:
+        - stubs/common.stub.php
+        - stubs/darwin.stub.php

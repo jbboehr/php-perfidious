@@ -454,9 +454,10 @@
 
         sanitizeStaticPhpCheck =
           pkgs.runCommand "perfidious-sanitize-static-check" {
-            nativeBuildInputs = [sanitizeStdenv.cc];
+            nativeBuildInputs = [sanitizeStdenv.cc pkgs.php82];
           } ''
             cp -r --no-preserve=mode,ownership ${src}/tests .
+            cp -r --no-preserve=mode,ownership ${src}/stubs .
             cp ${sanitizeStaticPhp.dev}/lib/build/run-tests.php .
 
             export USE_ZEND_ALLOC=0
@@ -465,6 +466,7 @@
             export UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1"
             export NO_INTERACTION=1
             export REPORT_EXIT_STATUS=1
+            export PERFIDIOUS_STUB_PHP=${pkgs.php82}/bin/php
 
             ${sanitizeStaticPhp}/bin/php -n run-tests.php \
               || (find tests -name '*.log' | xargs -r cat; exit 1)

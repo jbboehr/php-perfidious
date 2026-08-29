@@ -20,6 +20,11 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
 - `Handle::rawStream()` now accepts an optional descriptor index (`0` is the event-group leader) and throws
   `ValueError` for an invalid index instead of returning `null`. Its `resource` return is documented in PHPDoc rather
   than native reflection metadata, which PHP cannot represent safely.
+- Runtime reflection and the shipped, platform-specific PHPStan declaration set now expose the same public contract.
+  The top-level `perfidious.stub.php` remains a declarative all-platform compatibility stub, while platform-specific
+  PHPStan configurations expose only the APIs available on their selected platform.
+- `Perfidious\open()` now declares its `$pid` and `$cpu` parameters as non-nullable integers, matching the existing
+  runtime parser and their respective `0` and `-1` defaults.
 
 ### Security
 

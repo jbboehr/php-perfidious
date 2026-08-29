@@ -86,7 +86,7 @@ static PHP_FUNCTION(perfidious_get_pmu_event_info)
     }
 }
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_global_handle_arginfo, false, 0, Perfidious\\Handle, false)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_global_handle_arginfo, false, 0, Perfidious\\Handle, true)
 ZEND_END_ARG_INFO()
 
 ZEND_COLD
@@ -176,8 +176,8 @@ static PHP_FUNCTION(perfidious_list_pmu_events)
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_open_arginfo, false, 1, Perfidious\\Handle, false)
     ZEND_ARG_TYPE_INFO(false, event_names, IS_ARRAY, false)
-    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(false, pid, IS_LONG, true, "0")
-    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(false, cpu, IS_LONG, true, "-1")
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(false, pid, IS_LONG, false, "0")
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(false, cpu, IS_LONG, false, "-1")
 ZEND_END_ARG_INFO()
 
 ZEND_COLD

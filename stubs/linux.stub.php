@@ -1,0 +1,206 @@
+<?php
+/**
+ * Copyright (c) anno Domini nostri Jesu Christi MMXXIV John Boehr & contributors
+ *
+ * SPDX-License-Identifier: AGPL-3.0-only WITH romic-exception
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License version 3,
+ * as published by the Free Software Foundation, together with the Romic
+ * Exception (an additional permission under section 7 of that license).
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * and the Romic Exception along with this program.  If not, see
+ * <http://www.gnu.org/licenses/> and the LICENSE_EXCEPTION file.
+ */
+
+namespace Perfidious;
+
+/**
+ * @throws PmuNotFoundException
+ * @see https://perfmon2.sourceforge.net/manv4/pfm_get_pmu_info.html
+ */
+function get_pmu_info(int $pmu): PmuInfo
+{
+}
+
+/**
+ * @throws PmuNotFoundException|PmuEventNotFoundException
+ * @see https://perfmon2.sourceforge.net/manv4/pfm_get_event_info.html
+ */
+function get_pmu_event_info(int $pmu, int $idx): PmuEventInfo
+{
+}
+
+/**
+ * @phpstan-return ?Handle<list<string>>
+ */
+function global_handle(): ?Handle
+{
+}
+
+/**
+ * @return list<PmuInfo>
+ * @see https://perfmon2.sourceforge.net/manv4/pfm_get_pmu_info.html
+ */
+function list_pmus(): array
+{
+}
+
+/**
+ * @return list<PmuEventInfo>
+ * @throws PmuNotFoundException|PmuEventNotFoundException
+ * @see https://perfmon2.sourceforge.net/manv4/pfm_get_event_info.html
+ */
+function list_pmu_events(int $pmu): array
+{
+}
+
+/**
+ * @param list<string> $event_names a list of libpfm event names, see list_pmu_events
+ * @throws PmuEventNotFoundException|IOException|OverflowException
+ *
+ * @phpstan-template T of string
+ * @phpstan-param list<T> $event_names
+ * @phpstan-return Handle<list<T>>
+ */
+function open(array $event_names, int $pid = 0, int $cpu = -1): Handle
+{
+}
+
+/**
+ * @phpstan-return ?Handle<list<string>>
+ */
+function request_handle(): ?Handle
+{
+}
+
+/**
+ * @phpstan-template T of list<string>
+ */
+final class Handle
+{
+    /**
+     * @return $this
+     * @throws IOException
+     */
+    final public function enable(): self
+    {
+    }
+
+    /**
+     * @return $this
+     * @throws IOException
+     */
+    final public function disable(): self
+    {
+    }
+
+    /**
+     * Get a raw byte stream backed by a duplicate of one of the handle's file descriptors.
+     *
+     * Index 0 is the event-group leader; requested events begin at index 1 in request order.
+     * @note the returned stream owns an independent copy of the file descriptor, so closing it
+     *       does not affect this handle or subsequent calls to read()
+     * @return resource
+     * @throws \ValueError if idx does not reference an existing file descriptor
+     */
+    final public function rawStream(int $idx = 0)
+    {
+    }
+
+    /**
+     * @note If perfidious.overflow_mode is set to Perfidious\OVERFLOW_WARN, this method can return null, despite its
+     *       typehint. If perfidious.overflow_mode is set to any value other than Perfidious\OVERFLOW_THROW, this
+     *       method will *not* throw an OverflowException.
+     *
+     * @return ReadResult
+     * @throws OverflowException|IOException
+     *
+     * @phpstan-return ReadResult<T>
+     */
+    final public function read(): ReadResult
+    {
+    }
+
+    /**
+     * @note If perfidious.overflow_mode is set to Perfidious\OVERFLOW_WARN, this method can return null, despite its
+     *       typehint. If perfidious.overflow_mode is set to any value other than Perfidious\OVERFLOW_THROW, this
+     *       method will *not* throw an OverflowException.
+     *
+     * @return array
+     * @throws OverflowException|IOException
+     *
+     * @phpstan-return array<value-of<T>, int>
+     */
+    final public function readArray(): array
+    {
+    }
+
+    /**
+     * @return $this
+     * @throws IOException
+     */
+    final public function reset(): self
+    {
+    }
+}
+
+/**
+ * @see https://perfmon2.sourceforge.net/manv4/pfm_get_pmu_info.html
+ */
+final class PmuInfo
+{
+    /**
+     * This is the symbolic name of the PMU. This name can be used as a prefix in an event string.
+     */
+    public readonly string $name;
+    public readonly string $desc;
+    /**
+     * This is the unique PMU identification code. It is identical to the value passed in pmu and it provided only for
+     * completeness.
+     */
+    public readonly int $pmu;
+    public readonly int $type;
+    /**
+     * This is the number of available events for this PMU model based on the host processor. It is only valid is the
+     * is_present field is set to true.
+     */
+    public readonly int $nevents;
+    /**
+     * This field is set to true if the PMU model has been detected on the host system.
+     */
+    public readonly bool $is_present;
+}
+
+/**
+ * @see https://perfmon2.sourceforge.net/manv4/pfm_get_event_info.html
+ */
+final class PmuEventInfo
+{
+    public readonly string $name;
+    public readonly string $desc;
+    /**
+     * Certain events may be just variations of actual events. They may be provided as handy shortcuts to avoid
+     * supplying a long list of attributes. For those events, this field is not NULL and contains the complete
+     * equivalent event string.
+     */
+    public readonly ?string $equiv;
+    /**
+     * This is the ID of the PMU model this event belongs to.
+     */
+    public readonly int $pmu;
+    /**
+     * This is libpfm's event index and can be passed to get_pmu_event_info().
+     */
+    public readonly int $idx;
+    /**
+     * This field is set to true if the PMU model has been detected on the host system.
+     */
+    public readonly bool $is_present;
+}

@@ -50,7 +50,15 @@
    <file name="docs/STEWARD.md" role="doc" />
    <file name="LICENSE.md" role="doc" />
    <file name="README.md" role="doc" />
+   <file name="extension.darwin.neon" role="doc" />
+   <file name="extension.neon" role="doc" />
+   <file name="extension.windows.neon" role="doc" />
    <file name="perfidious.stub.php" role="doc" />
+   <file name="stubs/common.stub.php" role="doc" />
+   <file name="stubs/darwin.stub.php" role="doc" />
+   <file name="stubs/linux.stub.php" role="doc" />
+   <file name="stubs/windows.stub.php" role="doc" />
+   <file name="tools/generate-aggregate-stub.php" role="doc" />
    <file name="config.m4" role="src" />
    <file name="config.w32" role="src" />
 
@@ -156,6 +164,14 @@
    <file name="tests/list-pmu-events.phpt" role="test" />
    <file name="tests/list-pmus.phpt" role="test" />
    <file name="tests/open.phpt" role="test" />
+   <file name="tests/public-api-contract.inc" role="test" />
+   <file name="tests/public-api-contract.phpt" role="test" />
+   <file name="tests/public-api-stub.inc" role="test" />
+   <file name="tests/phpstan/aggregate.inc" role="test" />
+   <file name="tests/phpstan/aggregate.neon" role="test" />
+   <file name="tests/phpstan/darwin.inc" role="test" />
+   <file name="tests/phpstan/linux.inc" role="test" />
+   <file name="tests/phpstan/windows.inc" role="test" />
    <file name="tests/overflow/saturate.phpt" role="test" />
    <file name="tests/overflow/throw.phpt" role="test" />
    <file name="tests/overflow/warn.phpt" role="test" />

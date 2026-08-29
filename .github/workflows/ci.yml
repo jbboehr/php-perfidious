@@ -61,13 +61,29 @@ jobs:
             -   name: Install dependencies
                 run: composer install --prefer-dist --no-progress --ignore-platform-req=php+ --ignore-platform-req=ext-perfidious
 
-            -   run: php -l perfidious.stub.php && php perfidious.stub.php
+            -   name: Validate API declarations
+                run: |
+                    php tools/generate-aggregate-stub.php --check
+                    php -l tools/generate-aggregate-stub.php
+                    php -l perfidious.stub.php
+                    php -l stubs/common.stub.php
+                    php -l stubs/linux.stub.php
+                    php -l stubs/darwin.stub.php
+                    php -l stubs/windows.stub.php
+                    php perfidious.stub.php
 
             -   name: phpcs
                 run: php vendor/bin/phpcs
 
             -   name: phpstan
                 run: php vendor/bin/phpstan analyze
+
+            -   name: phpstan API declarations
+                run: |
+                    php vendor/bin/phpstan analyze -c tests/phpstan/aggregate.neon --level=max --no-progress tests/phpstan/aggregate.inc
+                    php vendor/bin/phpstan analyze -c extension.neon --level=max --no-progress tests/phpstan/linux.inc
+                    php vendor/bin/phpstan analyze -c extension.darwin.neon --level=max --no-progress tests/phpstan/darwin.inc
+                    php vendor/bin/phpstan analyze -c extension.windows.neon --level=max --no-progress tests/phpstan/windows.inc
 
     pie:
         if: >-

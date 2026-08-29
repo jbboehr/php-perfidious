@@ -1,12 +1,11 @@
 includes:
     - vendor/phpstan/phpstan/conf/bleedingEdge.neon
+    - extension.neon
 parameters:
     level: max
     paths:
-        - perfidious.stub.php
         - examples
-    stubFiles:
-        - perfidious.stub.php
+        - tools
     ignoreErrors:
         # $argv/$argc are populated for CLI scripts regardless of register_argc_argv (that ini
         # setting only matters for the web SAPI) - verified directly, but PHPStan checks the ini
