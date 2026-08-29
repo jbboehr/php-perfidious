@@ -9,6 +9,7 @@
 #endif
 
 #include <errno.h>
+#include <limits.h>
 #include <stdint.h>
 #include <string.h>
 #include <sys/resource.h>
@@ -19,10 +20,53 @@
 #include "php_perfidious.h"
 #include "../sampler.h"
 
+#if ULONG_MAX == UINT32_MAX
+struct perfidious_linux_32bit_counter
+{
+    uint32_t previous;
+    uint64_t base;
+};
+#endif
+
 struct perfidious_platform_sampler
 {
     uint32_t metrics;
+#if ULONG_MAX == UINT32_MAX
+    struct perfidious_linux_32bit_counter voluntary_context_switches;
+    struct perfidious_linux_32bit_counter involuntary_context_switches;
+    bool have_context_switches;
+#endif
 };
+
+#if ULONG_MAX == UINT32_MAX
+static bool perfidious_linux_widen_32bit_counter(
+    uint32_t current,
+    const struct perfidious_linux_32bit_counter *counter,
+    bool have_previous,
+    uint64_t *value,
+    struct perfidious_linux_32bit_counter *next
+)
+{
+    uint64_t base = counter->base;
+
+    if (have_previous && current < counter->previous) {
+        if (UNEXPECTED(base > UINT64_MAX - (UINT64_C(1) << 32))) {
+            zend_throw_exception(perfidious_overflow_exception_ce, "getrusage context-switch count overflow", 0);
+            return false;
+        }
+        base += UINT64_C(1) << 32;
+    }
+    if (UNEXPECTED(base > UINT64_MAX - (uint64_t) current)) {
+        zend_throw_exception(perfidious_overflow_exception_ce, "getrusage context-switch count overflow", 0);
+        return false;
+    }
+
+    next->previous = current;
+    next->base = base;
+    *value = base + current;
+    return true;
+}
+#endif
 
 static bool perfidious_timeval_to_ns(const struct timeval *value, uint64_t *result)
 {
@@ -50,7 +94,8 @@ PERFIDIOUS_LOCAL uint32_t perfidious_platform_sampler_supported_metrics(enum per
         return 0;
     }
 
-    return PERFIDIOUS_METRIC_CPU_TIME_MASK | PERFIDIOUS_METRIC_PAGE_FAULTS_MASK;
+    return PERFIDIOUS_METRIC_CPU_TIME_MASK | PERFIDIOUS_METRIC_PAGE_FAULTS_MASK |
+           PERFIDIOUS_METRIC_CONTEXT_SWITCHES_MASK;
 }
 
 PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_open(
@@ -105,6 +150,51 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_read(
             return FAILURE;
         }
         snapshot->values[PERFIDIOUS_METRIC_PAGE_FAULTS] = (uint64_t) usage.ru_minflt + (uint64_t) usage.ru_majflt;
+    }
+
+    if ((sampler->metrics & PERFIDIOUS_METRIC_CONTEXT_SWITCHES_MASK) != 0) {
+#if ULONG_MAX == UINT32_MAX
+        /* Linux exposes these cumulative counters through signed long fields. */
+        struct perfidious_linux_32bit_counter next_voluntary;
+        struct perfidious_linux_32bit_counter next_involuntary;
+        uint64_t voluntary;
+        uint64_t involuntary;
+
+        if (!perfidious_linux_widen_32bit_counter(
+                (uint32_t) usage.ru_nvcsw,
+                &sampler->voluntary_context_switches,
+                sampler->have_context_switches,
+                &voluntary,
+                &next_voluntary
+            ) ||
+            !perfidious_linux_widen_32bit_counter(
+                (uint32_t) usage.ru_nivcsw,
+                &sampler->involuntary_context_switches,
+                sampler->have_context_switches,
+                &involuntary,
+                &next_involuntary
+            )) {
+            return FAILURE;
+        }
+        if (UNEXPECTED(voluntary > UINT64_MAX - involuntary)) {
+            zend_throw_exception(perfidious_overflow_exception_ce, "getrusage context-switch count overflow", 0);
+            return FAILURE;
+        }
+        sampler->voluntary_context_switches = next_voluntary;
+        sampler->involuntary_context_switches = next_involuntary;
+        sampler->have_context_switches = true;
+        snapshot->values[PERFIDIOUS_METRIC_CONTEXT_SWITCHES] = voluntary + involuntary;
+#else
+        if (UNEXPECTED(usage.ru_nvcsw < 0 || usage.ru_nivcsw < 0)) {
+            zend_throw_exception(perfidious_io_exception_ce, "getrusage returned a negative context-switch count", 0);
+            return FAILURE;
+        }
+        if (UNEXPECTED((uint64_t) usage.ru_nvcsw > UINT64_MAX - (uint64_t) usage.ru_nivcsw)) {
+            zend_throw_exception(perfidious_overflow_exception_ce, "getrusage context-switch count overflow", 0);
+            return FAILURE;
+        }
+        snapshot->values[PERFIDIOUS_METRIC_CONTEXT_SWITCHES] = (uint64_t) usage.ru_nvcsw + (uint64_t) usage.ru_nivcsw;
+#endif
     }
 
     return SUCCESS;

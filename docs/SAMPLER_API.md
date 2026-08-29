@@ -1,6 +1,7 @@
 # Sampler API design
 
-Status: slice 1 is implemented for review in this changeset. Later metrics and current-thread support remain proposed.
+Status: slices 1 and 2 are implemented. Current-thread support, instruction counting, and Linux multiplex scaling remain
+proposed.
 
 ## Summary
 
@@ -325,8 +326,9 @@ resulting values are unsigned counter differences, and `elapsedTimeNs` uses a mo
 of each native read.
 
 Backends must account for the width of each native counter. In particular, Windows process page faults and thread
-context switches are 32-bit counters. The sampler should widen a single wrap across successive reads; more than one wrap
-between reads is not observable and should be documented as a native limitation.
+context switches, and Linux process context switches on 32-bit targets, are 32-bit counters. The sampler widens each
+counter independently across successive reads. More than one wrap between reads is not observable and remains a native
+limitation.
 
 Native sources are not guaranteed to produce one atomic cross-metric snapshot. A backend may call several operating
 system interfaces sequentially, so a sample is a closely grouped observation rather than a single instant. The first
@@ -349,8 +351,8 @@ The first sampler API does not:
 Implementation should proceed vertically and pause after each slice:
 
 1. Add the shared enums, value objects, validation, lifecycle, and unsupported-metric error behavior, together with
-   current-process CPU time and page faults on all three platforms. This slice is implemented in the current changeset.
-2. Add current-process context switches and cycles where the matrix permits them.
+   current-process CPU time and page faults on all three platforms. This slice is implemented.
+2. Add current-process context switches and cycles where the matrix permits them. This slice is implemented.
 3. Add current-thread CPU time, page faults, context switches, and cycles where supported. Add the low-level Windows
    `GetThreadTimes()` primitive in this slice before using it in the sampler backend.
 4. Add instruction counting and Linux multiplex scaling, retaining explicit best-effort notes for Darwin and leaving

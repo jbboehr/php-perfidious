@@ -31,40 +31,71 @@ try {
 }
 
 try {
-    Sampler::open([Metric::ContextSwitches, Metric::CpuCycles, Metric::Instructions]);
+    $supportedExtendedMetrics = match (PHP_OS_FAMILY) {
+        'Linux' => [Metric::ContextSwitches],
+        'Windows' => [Metric::CpuCycles],
+        'Darwin' => [Metric::ContextSwitches, Metric::CpuCycles],
+        default => throw new RuntimeException('Unsupported test platform'),
+    };
+    $unsupportedProcessMetrics = match (PHP_OS_FAMILY) {
+        'Linux' => [Metric::CpuCycles, Metric::Instructions],
+        'Windows' => [Metric::ContextSwitches, Metric::Instructions],
+        'Darwin' => [Metric::Instructions],
+        default => throw new RuntimeException('Unsupported test platform'),
+    };
+
+    Sampler::open($unsupportedProcessMetrics);
 } catch (UnsupportedMetricException $exception) {
+    $message = $exception->getMessage();
+    $listsEveryUnsupportedMetric = true;
+    foreach ($unsupportedProcessMetrics as $metric) {
+        $listsEveryUnsupportedMetric = $listsEveryUnsupportedMetric && str_contains($message, $metric->value);
+    }
+
     var_dump(
         $exception instanceof Perfidious\ExceptionInterface,
-        str_contains($exception->getMessage(), 'context-switches'),
-        str_contains($exception->getMessage(), 'cpu-cycles'),
-        str_contains($exception->getMessage(), 'instructions'),
-        str_contains($exception->getMessage(), 'current-process')
+        $listsEveryUnsupportedMetric,
+        str_contains($message, 'current-process')
     );
 }
 
 try {
-    Sampler::open([
-        Metric::CpuTime,
-        Metric::CpuCycles,
-        Metric::PageFaults,
-        Metric::Instructions,
-    ]);
+    Sampler::open(array_merge(
+        [Metric::CpuTime, Metric::PageFaults],
+        $supportedExtendedMetrics,
+        $unsupportedProcessMetrics,
+    ));
 } catch (UnsupportedMetricException $exception) {
-    var_dump(
-        str_contains($exception->getMessage(), 'cpu-cycles'),
-        str_contains($exception->getMessage(), 'instructions')
-    );
+    $message = $exception->getMessage();
+    $listsEveryUnsupportedMetric = true;
+    foreach ($unsupportedProcessMetrics as $metric) {
+        $listsEveryUnsupportedMetric = $listsEveryUnsupportedMetric && str_contains($message, $metric->value);
+    }
+    $omitsEverySupportedMetric = true;
+    foreach ($supportedExtendedMetrics as $metric) {
+        $omitsEverySupportedMetric = $omitsEverySupportedMetric && !str_contains($message, $metric->value);
+    }
+
+    var_dump($listsEveryUnsupportedMetric, $omitsEverySupportedMetric);
 }
 
 $afterRejectedRequest = Sampler::open([Metric::PageFaults, Metric::CpuTime]);
 var_dump($afterRejectedRequest->metrics() === [Metric::PageFaults, Metric::CpuTime]);
 $afterRejectedRequest->close();
 
-try {
-    Sampler::open([Metric::CpuTime], Scope::CurrentThread);
-} catch (UnsupportedMetricException $exception) {
-    var_dump(str_contains($exception->getMessage(), 'current-thread'));
+$allThreadMetricsRemainUnsupported = true;
+foreach (Metric::cases() as $metric) {
+    try {
+        $unexpectedSampler = Sampler::open([$metric], Scope::CurrentThread);
+        $unexpectedSampler->close();
+        $allThreadMetricsRemainUnsupported = false;
+    } catch (UnsupportedMetricException $exception) {
+        $allThreadMetricsRemainUnsupported = $allThreadMetricsRemainUnsupported &&
+            str_contains($exception->getMessage(), $metric->value) &&
+            str_contains($exception->getMessage(), 'current-thread');
+    }
 }
+var_dump($allThreadMetricsRemainUnsupported);
 
 $firstSampler = Sampler::open([Metric::CpuTime]);
 $secondSampler = Sampler::open([Metric::CpuTime]);
@@ -106,8 +137,6 @@ $secondSampler->close();
 invalid metric set
 invalid metric set
 invalid metric type
-bool(true)
-bool(true)
 bool(true)
 bool(true)
 bool(true)

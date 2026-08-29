@@ -50,7 +50,7 @@ PERFIDIOUS_LOCAL uint32_t perfidious_platform_sampler_supported_metrics(enum per
         return 0;
     }
 
-    return PERFIDIOUS_METRIC_CPU_TIME_MASK | PERFIDIOUS_METRIC_PAGE_FAULTS_MASK;
+    return PERFIDIOUS_METRIC_CPU_TIME_MASK | PERFIDIOUS_METRIC_PAGE_FAULTS_MASK | PERFIDIOUS_METRIC_CPU_CYCLES_MASK;
 }
 
 PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_open(
@@ -121,6 +121,15 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_read(
         sampler->previous_page_faults = memory.PageFaultCount;
         sampler->have_page_faults = true;
         snapshot->values[PERFIDIOUS_METRIC_PAGE_FAULTS] = sampler->page_fault_base + memory.PageFaultCount;
+    }
+
+    if ((sampler->metrics & PERFIDIOUS_METRIC_CPU_CYCLES_MASK) != 0) {
+        ULONG64 cycle_time;
+
+        if (UNEXPECTED(!QueryProcessCycleTime(GetCurrentProcess(), &cycle_time))) {
+            return perfidious_windows_throw_sampler_error("QueryProcessCycleTime", GetLastError());
+        }
+        snapshot->values[PERFIDIOUS_METRIC_CPU_CYCLES] = (uint64_t) cycle_time;
     }
 
     return SUCCESS;

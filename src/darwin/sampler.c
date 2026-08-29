@@ -33,7 +33,8 @@ PERFIDIOUS_LOCAL uint32_t perfidious_platform_sampler_supported_metrics(enum per
         return 0;
     }
 
-    return PERFIDIOUS_METRIC_CPU_TIME_MASK | PERFIDIOUS_METRIC_PAGE_FAULTS_MASK;
+    return PERFIDIOUS_METRIC_CPU_TIME_MASK | PERFIDIOUS_METRIC_PAGE_FAULTS_MASK |
+           PERFIDIOUS_METRIC_CONTEXT_SWITCHES_MASK | PERFIDIOUS_METRIC_CPU_CYCLES_MASK;
 }
 
 PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_open(
@@ -56,7 +57,7 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_read(
 {
     memset(snapshot, 0, sizeof(*snapshot));
 
-    if ((sampler->metrics & PERFIDIOUS_METRIC_CPU_TIME_MASK) != 0) {
+    if ((sampler->metrics & (PERFIDIOUS_METRIC_CPU_TIME_MASK | PERFIDIOUS_METRIC_CPU_CYCLES_MASK)) != 0) {
         struct rusage_info_v4 usage;
 
         memset(&usage, 0, sizeof(usage));
@@ -67,14 +68,20 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_read(
             );
             return FAILURE;
         }
-        if (UNEXPECTED(usage.ri_user_time > UINT64_MAX - usage.ri_system_time)) {
-            zend_throw_exception(perfidious_overflow_exception_ce, "Darwin total CPU time overflow", 0);
-            return FAILURE;
+        if ((sampler->metrics & PERFIDIOUS_METRIC_CPU_TIME_MASK) != 0) {
+            if (UNEXPECTED(usage.ri_user_time > UINT64_MAX - usage.ri_system_time)) {
+                zend_throw_exception(perfidious_overflow_exception_ce, "Darwin total CPU time overflow", 0);
+                return FAILURE;
+            }
+            snapshot->values[PERFIDIOUS_METRIC_CPU_TIME] = usage.ri_user_time + usage.ri_system_time;
         }
-        snapshot->values[PERFIDIOUS_METRIC_CPU_TIME] = usage.ri_user_time + usage.ri_system_time;
+
+        if ((sampler->metrics & PERFIDIOUS_METRIC_CPU_CYCLES_MASK) != 0) {
+            snapshot->values[PERFIDIOUS_METRIC_CPU_CYCLES] = usage.ri_cycles;
+        }
     }
 
-    if ((sampler->metrics & PERFIDIOUS_METRIC_PAGE_FAULTS_MASK) != 0) {
+    if ((sampler->metrics & (PERFIDIOUS_METRIC_PAGE_FAULTS_MASK | PERFIDIOUS_METRIC_CONTEXT_SWITCHES_MASK)) != 0) {
         struct rusage usage;
 
         memset(&usage, 0, sizeof(usage));
@@ -85,15 +92,32 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_read(
             );
             return FAILURE;
         }
-        if (UNEXPECTED(usage.ru_minflt < 0 || usage.ru_majflt < 0)) {
-            zend_throw_exception(perfidious_io_exception_ce, "getrusage returned a negative page-fault count", 0);
-            return FAILURE;
+        if ((sampler->metrics & PERFIDIOUS_METRIC_PAGE_FAULTS_MASK) != 0) {
+            if (UNEXPECTED(usage.ru_minflt < 0 || usage.ru_majflt < 0)) {
+                zend_throw_exception(perfidious_io_exception_ce, "getrusage returned a negative page-fault count", 0);
+                return FAILURE;
+            }
+            if (UNEXPECTED((uint64_t) usage.ru_minflt > UINT64_MAX - (uint64_t) usage.ru_majflt)) {
+                zend_throw_exception(perfidious_overflow_exception_ce, "Darwin page-fault count overflow", 0);
+                return FAILURE;
+            }
+            snapshot->values[PERFIDIOUS_METRIC_PAGE_FAULTS] = (uint64_t) usage.ru_minflt + (uint64_t) usage.ru_majflt;
         }
-        if (UNEXPECTED((uint64_t) usage.ru_minflt > UINT64_MAX - (uint64_t) usage.ru_majflt)) {
-            zend_throw_exception(perfidious_overflow_exception_ce, "Darwin page-fault count overflow", 0);
-            return FAILURE;
+
+        if ((sampler->metrics & PERFIDIOUS_METRIC_CONTEXT_SWITCHES_MASK) != 0) {
+            if (UNEXPECTED(usage.ru_nvcsw < 0 || usage.ru_nivcsw < 0)) {
+                zend_throw_exception(
+                    perfidious_io_exception_ce, "getrusage returned a negative context-switch count", 0
+                );
+                return FAILURE;
+            }
+            if (UNEXPECTED((uint64_t) usage.ru_nvcsw > UINT64_MAX - (uint64_t) usage.ru_nivcsw)) {
+                zend_throw_exception(perfidious_overflow_exception_ce, "Darwin context-switch count overflow", 0);
+                return FAILURE;
+            }
+            snapshot->values[PERFIDIOUS_METRIC_CONTEXT_SWITCHES] =
+                (uint64_t) usage.ru_nvcsw + (uint64_t) usage.ru_nivcsw;
         }
-        snapshot->values[PERFIDIOUS_METRIC_PAGE_FAULTS] = (uint64_t) usage.ru_minflt + (uint64_t) usage.ru_majflt;
     }
 
     return SUCCESS;

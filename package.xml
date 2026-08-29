@@ -162,6 +162,7 @@
    <file name="tests/sampler/arginfo.phpt" role="test" />
    <file name="tests/sampler/enums.phpt" role="test" />
    <file name="tests/sampler/object-model.phpt" role="test" />
+   <file name="tests/sampler/process-extended-metrics.phpt" role="test" />
    <file name="tests/sampler/process-sampler.phpt" role="test" />
    <file name="tests/sampler/sampler-delta-properties.phpt" role="test" />
    <file name="tests/sampler/sampler-errors.phpt" role="test" />
