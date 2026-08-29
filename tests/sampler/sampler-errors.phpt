@@ -31,24 +31,66 @@ try {
 }
 
 try {
+    $darwinCyclesAvailable = false;
+    if (PHP_OS_FAMILY === 'Darwin') {
+        try {
+            $cycleProbe = Sampler::open([Metric::CpuCycles]);
+            $cycleProbe->close();
+            $darwinCyclesAvailable = true;
+        } catch (UnsupportedMetricException) {
+        }
+    }
     $supportedExtendedMetrics = match (PHP_OS_FAMILY) {
         'Linux' => [Metric::ContextSwitches],
         'Windows' => [Metric::CpuCycles],
-        'Darwin' => [Metric::ContextSwitches, Metric::CpuCycles],
+        'Darwin' => $darwinCyclesAvailable
+            ? [Metric::ContextSwitches, Metric::CpuCycles]
+            : [Metric::ContextSwitches],
         default => throw new RuntimeException('Unsupported test platform'),
     };
-    $unsupportedProcessMetrics = match (PHP_OS_FAMILY) {
+    $staticallyUnsupportedProcessMetrics = match (PHP_OS_FAMILY) {
         'Linux' => [Metric::CpuCycles, Metric::Instructions],
         'Windows' => [Metric::ContextSwitches, Metric::Instructions],
         'Darwin' => [Metric::Instructions],
         default => throw new RuntimeException('Unsupported test platform'),
     };
+    $dynamicallyUnsupportedProcessMetrics = PHP_OS_FAMILY === 'Darwin' && !$darwinCyclesAvailable
+        ? [Metric::CpuCycles]
+        : [];
+    $unsupportedProcessMetrics = array_merge(
+        $staticallyUnsupportedProcessMetrics,
+        $dynamicallyUnsupportedProcessMetrics,
+    );
 
-    Sampler::open($unsupportedProcessMetrics);
+    $eachUnsupportedProcessMetricRejectedIndependently = true;
+    foreach ($unsupportedProcessMetrics as $unsupportedMetric) {
+        try {
+            $unexpectedSampler = Sampler::open([$unsupportedMetric]);
+            $unexpectedSampler->close();
+            $eachUnsupportedProcessMetricRejectedIndependently = false;
+        } catch (UnsupportedMetricException $exception) {
+            $message = $exception->getMessage();
+            $eachUnsupportedProcessMetricRejectedIndependently =
+                $eachUnsupportedProcessMetricRejectedIndependently &&
+                str_contains($message, $unsupportedMetric->value) &&
+                str_contains($message, 'current-process');
+
+            foreach ($unsupportedProcessMetrics as $otherUnsupportedMetric) {
+                if ($otherUnsupportedMetric !== $unsupportedMetric) {
+                    $eachUnsupportedProcessMetricRejectedIndependently =
+                        $eachUnsupportedProcessMetricRejectedIndependently &&
+                        !str_contains($message, $otherUnsupportedMetric->value);
+                }
+            }
+        }
+    }
+    var_dump($eachUnsupportedProcessMetricRejectedIndependently);
+
+    Sampler::open($staticallyUnsupportedProcessMetrics);
 } catch (UnsupportedMetricException $exception) {
     $message = $exception->getMessage();
     $listsEveryUnsupportedMetric = true;
-    foreach ($unsupportedProcessMetrics as $metric) {
+    foreach ($staticallyUnsupportedProcessMetrics as $metric) {
         $listsEveryUnsupportedMetric = $listsEveryUnsupportedMetric && str_contains($message, $metric->value);
     }
 
@@ -63,12 +105,12 @@ try {
     Sampler::open(array_merge(
         [Metric::CpuTime, Metric::PageFaults],
         $supportedExtendedMetrics,
-        $unsupportedProcessMetrics,
+        $staticallyUnsupportedProcessMetrics,
     ));
 } catch (UnsupportedMetricException $exception) {
     $message = $exception->getMessage();
     $listsEveryUnsupportedMetric = true;
-    foreach ($unsupportedProcessMetrics as $metric) {
+    foreach ($staticallyUnsupportedProcessMetrics as $metric) {
         $listsEveryUnsupportedMetric = $listsEveryUnsupportedMetric && str_contains($message, $metric->value);
     }
     $omitsEverySupportedMetric = true;
@@ -77,6 +119,20 @@ try {
     }
 
     var_dump($listsEveryUnsupportedMetric, $omitsEverySupportedMetric);
+}
+
+if (PHP_OS_FAMILY === 'Darwin') {
+    try {
+        Sampler::open([Metric::CpuCycles, Metric::Instructions]);
+        var_dump(false);
+    } catch (UnsupportedMetricException $exception) {
+        var_dump(
+            str_contains($exception->getMessage(), Metric::Instructions->value) &&
+            !str_contains($exception->getMessage(), Metric::CpuCycles->value)
+        );
+    }
+} else {
+    var_dump(true);
 }
 
 $afterRejectedRequest = Sampler::open([Metric::PageFaults, Metric::CpuTime]);
@@ -163,6 +219,8 @@ $secondSampler->close();
 invalid metric set
 invalid metric set
 invalid metric type
+bool(true)
+bool(true)
 bool(true)
 bool(true)
 bool(true)

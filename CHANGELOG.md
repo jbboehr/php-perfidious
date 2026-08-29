@@ -25,6 +25,8 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
   PHPStan configurations expose only the APIs available on their selected platform.
 - `Perfidious\open()` now declares its `$pid` and `$cpu` parameters as non-nullable integers, matching the existing
   runtime parser and their respective `0` and `-1` defaults.
+- On Darwin, the sampler now probes CPU-cycle accounting when opened and rejects cycle requests only when the host
+  provides no usable counter. The low-level Darwin snapshot API remains unchanged.
 
 ### Security
 

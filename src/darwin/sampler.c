@@ -27,14 +27,51 @@ struct perfidious_platform_sampler
     uint32_t metrics;
 };
 
-PERFIDIOUS_LOCAL uint32_t perfidious_platform_sampler_supported_metrics(enum perfidious_scope_id scope)
+static zend_result perfidious_darwin_read_process_usage(struct rusage_info_v4 *usage)
 {
-    if (scope != PERFIDIOUS_SCOPE_CURRENT_PROCESS) {
-        return 0;
+    memset(usage, 0, sizeof(*usage));
+    if (UNEXPECTED(proc_pid_rusage(getpid(), RUSAGE_INFO_V4, (rusage_info_t *) usage) != 0)) {
+        int error = errno;
+        zend_throw_exception_ex(
+            perfidious_io_exception_ce, error, "proc_pid_rusage failed: [%d] %s", error, strerror(error)
+        );
+        return FAILURE;
     }
 
-    return PERFIDIOUS_METRIC_CPU_TIME_MASK | PERFIDIOUS_METRIC_PAGE_FAULTS_MASK |
-           PERFIDIOUS_METRIC_CONTEXT_SWITCHES_MASK | PERFIDIOUS_METRIC_CPU_CYCLES_MASK;
+    return SUCCESS;
+}
+
+PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_supported_metrics(
+    uint32_t requested_metrics, enum perfidious_scope_id scope, uint32_t *supported_metrics
+)
+{
+    const uint32_t base_process_metrics =
+        PERFIDIOUS_METRIC_CPU_TIME_MASK | PERFIDIOUS_METRIC_PAGE_FAULTS_MASK | PERFIDIOUS_METRIC_CONTEXT_SWITCHES_MASK;
+    const uint32_t nominal_process_metrics = base_process_metrics | PERFIDIOUS_METRIC_CPU_CYCLES_MASK;
+    struct rusage_info_v4 usage;
+
+    if (scope != PERFIDIOUS_SCOPE_CURRENT_PROCESS) {
+        *supported_metrics = 0;
+        return SUCCESS;
+    }
+
+    *supported_metrics = base_process_metrics;
+    /* Let the common layer reject statically unsupported requests before this fallible host probe. */
+    if (UNEXPECTED((requested_metrics & ~nominal_process_metrics) != 0)) {
+        *supported_metrics = nominal_process_metrics;
+        return SUCCESS;
+    }
+    if ((requested_metrics & PERFIDIOUS_METRIC_CPU_CYCLES_MASK) == 0) {
+        return SUCCESS;
+    }
+    if (UNEXPECTED(FAILURE == perfidious_darwin_read_process_usage(&usage))) {
+        return FAILURE;
+    }
+    if (usage.ri_cycles != 0) {
+        *supported_metrics |= PERFIDIOUS_METRIC_CPU_CYCLES_MASK;
+    }
+
+    return SUCCESS;
 }
 
 PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_open(
@@ -60,12 +97,7 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_read(
     if ((sampler->metrics & (PERFIDIOUS_METRIC_CPU_TIME_MASK | PERFIDIOUS_METRIC_CPU_CYCLES_MASK)) != 0) {
         struct rusage_info_v4 usage;
 
-        memset(&usage, 0, sizeof(usage));
-        if (UNEXPECTED(proc_pid_rusage(getpid(), RUSAGE_INFO_V4, (rusage_info_t *) &usage) != 0)) {
-            int error = errno;
-            zend_throw_exception_ex(
-                perfidious_io_exception_ce, error, "proc_pid_rusage failed: [%d] %s", error, strerror(error)
-            );
+        if (UNEXPECTED(FAILURE == perfidious_darwin_read_process_usage(&usage))) {
             return FAILURE;
         }
         if ((sampler->metrics & PERFIDIOUS_METRIC_CPU_TIME_MASK) != 0) {
@@ -75,7 +107,6 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_read(
             }
             snapshot->values[PERFIDIOUS_METRIC_CPU_TIME] = usage.ri_user_time + usage.ri_system_time;
         }
-
         if ((sampler->metrics & PERFIDIOUS_METRIC_CPU_CYCLES_MASK) != 0) {
             snapshot->values[PERFIDIOUS_METRIC_CPU_CYCLES] = usage.ri_cycles;
         }

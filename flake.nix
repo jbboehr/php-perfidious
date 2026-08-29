@@ -454,10 +454,12 @@
 
         sanitizeStaticPhpCheck =
           pkgs.runCommand "perfidious-sanitize-static-check" {
-            nativeBuildInputs = [sanitizeStdenv.cc pkgs.php82];
+            nativeBuildInputs = [sanitizeStdenv.cc pkgs.php82 sanitizeStaticPhp.dev];
           } ''
             cp -r --no-preserve=mode,ownership ${src}/tests .
             cp -r --no-preserve=mode,ownership ${src}/stubs .
+            cp -r --no-preserve=mode,ownership ${src}/src .
+            cp --no-preserve=mode,ownership ${src}/php_perfidious.h .
             cp ${sanitizeStaticPhp.dev}/lib/build/run-tests.php .
 
             export USE_ZEND_ALLOC=0

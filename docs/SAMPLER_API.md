@@ -219,12 +219,13 @@ needed to open every nominally supported counter.
 | CPU time | Yes | Yes | Yes | Yes | Yes | Yes |
 | Page faults | Yes | Yes | Yes | No | Yes | No |
 | Context switches | Yes | Yes | No | Yes | Yes | No |
-| CPU cycles | No | Yes | Yes | Yes | Best effort | Best effort |
-| Instructions | No | Yes | No | Driver-dependent | Best effort | Best effort |
+| CPU cycles | No | Yes | Yes | Yes | Probed | No |
+| Instructions | No | Yes | No | Driver-dependent | No | No |
 
-`Best effort` means the native field exists but the operating system can return zero when the host cannot collect the
-counter. `Driver-dependent` is not advertised as cross-platform support in the first version. The only planned
-multi-metric request supported reliably across all three process backends is CPU time plus page faults.
+`Probed` means that `Sampler::open()` accepts the metric only when the host reports a positive cumulative native count;
+a zero count is treated as unavailable. `Driver-dependent` is not advertised as cross-platform support in the first
+version. The only planned multi-metric request supported reliably across all three process backends is CPU time plus
+page faults.
 
 The important consequences are:
 
@@ -235,7 +236,7 @@ The important consequences are:
 - Windows thread page faults have no honest mapping in the current backend;
 - Darwin thread page faults and context switches have no honest mapping in the current backend; and
 - Darwin cycle and instruction fields can remain zero on hardware or virtual machines where the kernel cannot collect
-  them, so these metrics are best effort even though the fields exist.
+  them, so the high-level sampler probes process cycles when opening and leaves instructions in the low-level API.
 
 Windows thread instructions should not be advertised by the first sampler implementation. `EnableThreadProfiling()`
 can expose globally configured hardware counters, but configuring those counters requires a kernel driver and the
@@ -298,14 +299,19 @@ The existing thread snapshot supplies CPU time and, where supported, cycles and 
 `thread_selfcounts()`, with `THREAD_BASIC_INFO` as the time-only fallback. It does not supply thread page faults or
 context switches.
 
-The sampler adapter should preserve the low-level Darwin warning that a zero cycle or instruction count can mean
-either no observed events or unavailable kernel accounting. It must never use zero itself as an unsupported sentinel.
+The low-level Darwin API preserves the warning that a zero cycle or instruction count can mean either no observed
+events or unavailable kernel accounting. A process has already consumed CPU cycles by the time it opens a sampler, so
+the sampler treats a positive cumulative cycle count as evidence that accounting is available and then establishes its
+native baseline. A zero count causes `Sampler::open()` to reject `Metric::CpuCycles`. Retired instructions remain
+available only through the low-level snapshot API.
 
 ## Lifecycle and errors
 
 `Sampler::open()` validates the complete request before returning. An empty metric list, duplicate metrics, or a value
 that is not a `Metric` should throw `ValueError`. If any metric is unsupported for the selected scope, it should throw
 `UnsupportedMetricException` and release every native resource acquired while evaluating the request.
+Known-unsupported metrics are rejected before fallible host-capability probes; a probe is performed only when every
+requested metric is nominally supported for the selected platform and scope.
 
 Permissions, resource exhaustion, and native call failures should continue to use `IOException`. Counter values that do
 not fit in a PHP integer should use `OverflowException`; the sampler API should always throw rather than honor a global
@@ -357,8 +363,8 @@ Implementation should proceed vertically and pause after each slice:
 3. Add current-thread CPU time, page faults, context switches, and cycles where supported. The Windows current-thread
    adapters are implemented for CPU time, context switches, and cycles; the Linux and Darwin combinations remain
    pending.
-4. Add instruction counting and Linux multiplex scaling, retaining explicit best-effort notes for Darwin and leaving
-   driver-dependent Windows instruction counters in the low-level namespace.
+4. Add instruction counting and Linux multiplex scaling, retaining Darwin hardware counters and driver-dependent
+   Windows instruction counters in their low-level namespaces until availability can be established reliably.
 
 Each slice should expose the same classes on every platform, test successful combinations, and test that unsupported
 combinations fail without leaking partially opened native resources.

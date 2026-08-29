@@ -114,6 +114,9 @@
    <file name="tests/skipif-windows-only.inc" role="test" />
    <file name="tests/darwin/info.phpt" role="test" />
    <file name="tests/darwin/process-resource-usage.phpt" role="test" />
+   <file name="tests/darwin/sampler-probe-harness.c" role="test" />
+   <file name="tests/darwin/sampler-probe-shim.phpt" role="test" />
+   <file name="tests/darwin/shim/libproc.h" role="test" />
    <file name="tests/darwin/thread-resource-usage.phpt" role="test" />
    <file name="tests/get-pmu-event-info-long-name.phpt" role="test" />
    <file name="tests/get-pmu-event-info.phpt" role="test" />

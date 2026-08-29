@@ -88,14 +88,19 @@ static bool perfidious_timeval_to_ns(const struct timeval *value, uint64_t *resu
     return true;
 }
 
-PERFIDIOUS_LOCAL uint32_t perfidious_platform_sampler_supported_metrics(enum perfidious_scope_id scope)
+PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_supported_metrics(
+    uint32_t requested_metrics, enum perfidious_scope_id scope, uint32_t *supported_metrics
+)
 {
+    (void) requested_metrics;
     if (scope != PERFIDIOUS_SCOPE_CURRENT_PROCESS) {
-        return 0;
+        *supported_metrics = 0;
+        return SUCCESS;
     }
 
-    return PERFIDIOUS_METRIC_CPU_TIME_MASK | PERFIDIOUS_METRIC_PAGE_FAULTS_MASK |
-           PERFIDIOUS_METRIC_CONTEXT_SWITCHES_MASK;
+    *supported_metrics =
+        PERFIDIOUS_METRIC_CPU_TIME_MASK | PERFIDIOUS_METRIC_PAGE_FAULTS_MASK | PERFIDIOUS_METRIC_CONTEXT_SWITCHES_MASK;
+    return SUCCESS;
 }
 
 PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_open(

@@ -369,7 +369,9 @@ static PHP_METHOD(PerfidiousSampler, open)
     ZEND_HASH_FOREACH_END();
 
     scope = perfidious_scope_from_zval(scope_value);
-    supported = perfidious_platform_sampler_supported_metrics(scope);
+    if (UNEXPECTED(FAILURE == perfidious_platform_sampler_supported_metrics(metrics, scope, &supported))) {
+        return;
+    }
     if (UNEXPECTED((metrics & ~supported) != 0)) {
         perfidious_throw_unsupported_metrics(scope, metric_order, metric_count, metrics & ~supported);
         return;

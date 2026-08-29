@@ -55,14 +55,19 @@ static zend_result perfidious_windows_throw_sampler_error(const char *operation,
     return FAILURE;
 }
 
-PERFIDIOUS_LOCAL uint32_t perfidious_platform_sampler_supported_metrics(enum perfidious_scope_id scope)
+PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_supported_metrics(
+    uint32_t requested_metrics, enum perfidious_scope_id scope, uint32_t *supported_metrics
+)
 {
+    (void) requested_metrics;
     switch (scope) {
         case PERFIDIOUS_SCOPE_CURRENT_PROCESS:
-            return PERFIDIOUS_METRIC_CPU_TIME_MASK | PERFIDIOUS_METRIC_PAGE_FAULTS_MASK |
-                   PERFIDIOUS_METRIC_CPU_CYCLES_MASK;
+            *supported_metrics = PERFIDIOUS_METRIC_CPU_TIME_MASK | PERFIDIOUS_METRIC_PAGE_FAULTS_MASK |
+                                 PERFIDIOUS_METRIC_CPU_CYCLES_MASK;
+            return SUCCESS;
         case PERFIDIOUS_SCOPE_CURRENT_THREAD:
-            return PERFIDIOUS_METRIC_CPU_TIME_MASK | PERFIDIOUS_WINDOWS_THREAD_PROFILE_METRICS;
+            *supported_metrics = PERFIDIOUS_METRIC_CPU_TIME_MASK | PERFIDIOUS_WINDOWS_THREAD_PROFILE_METRICS;
+            return SUCCESS;
     }
 
     ZEND_UNREACHABLE();

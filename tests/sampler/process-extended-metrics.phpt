@@ -7,12 +7,24 @@ perfidious
 
 use Perfidious\Metric;
 use Perfidious\Sampler;
+use Perfidious\UnsupportedMetricException;
 
 $platform = PHP_OS_FAMILY;
+$darwinCyclesAvailable = false;
+if ($platform === 'Darwin') {
+    try {
+        $cycleProbe = Sampler::open([Metric::CpuCycles]);
+        $cycleProbe->close();
+        $darwinCyclesAvailable = true;
+    } catch (UnsupportedMetricException) {
+    }
+}
 $metrics = match ($platform) {
     'Linux' => [Metric::ContextSwitches],
     'Windows' => [Metric::CpuCycles],
-    'Darwin' => [Metric::ContextSwitches, Metric::CpuCycles],
+    'Darwin' => $darwinCyclesAvailable
+        ? [Metric::ContextSwitches, Metric::CpuCycles]
+        : [Metric::ContextSwitches],
     default => throw new RuntimeException('Unsupported test platform'),
 };
 
@@ -26,7 +38,9 @@ $readNativeContextSwitches = match ($platform) {
 $readNativeCycles = match ($platform) {
     'Linux' => null,
     'Windows' => static fn(): int => Perfidious\Windows\query_current_process_cycle_time(),
-    'Darwin' => static fn(): int => Perfidious\Darwin\get_current_process_resource_usage()->cycleCount,
+    'Darwin' => $darwinCyclesAvailable
+        ? static fn(): int => Perfidious\Darwin\get_current_process_resource_usage()->cycleCount
+        : null,
 };
 $withinNativeBounds = static fn(int $value, int $lower, int $upper): bool =>
     $value >= max(0, $lower) && $value <= $upper;
@@ -104,16 +118,7 @@ for ($attempt = 0; $attempt < 4; $attempt++) {
             )
         );
     $nativeCyclesAdvancedOrUnavailable = $readNativeCycles === null ||
-        $cycleAfterUpperBound > $cycleBeforeLowerBound ||
-        (
-            $platform === 'Darwin' &&
-            $cycleOriginLowerBound === 0 &&
-            $cycleOriginUpperBound === 0 &&
-            $cycleBeforeLowerBound === 0 &&
-            $cycleBeforeUpperBound === 0 &&
-            $cycleAfterLowerBound === 0 &&
-            $cycleAfterUpperBound === 0
-        );
+        $cycleAfterUpperBound > $cycleBeforeLowerBound;
 
     if ($contextSwitchesMatchNative && $cyclesMatchNative && $nativeCyclesAdvancedOrUnavailable) {
         break;

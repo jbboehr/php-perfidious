@@ -70,7 +70,12 @@ var_dump(
 var_dump($after->voluntaryContextSwitchCount + $after->involuntaryContextSwitchCount >=
     $before->voluntaryContextSwitchCount + $before->involuntaryContextSwitchCount);
 var_dump(
-    ($after->instructionCount > $before->instructionCount && $after->cycleCount > $before->cycleCount) ||
+    (
+        $before->instructionCount > 0 &&
+        $before->cycleCount > 0 &&
+        $after->instructionCount > $before->instructionCount &&
+        $after->cycleCount > $before->cycleCount
+    ) ||
     (
         $before->instructionCount === 0 && $after->instructionCount === 0 &&
         $before->cycleCount === 0 && $after->cycleCount === 0
