@@ -75,6 +75,8 @@
    <file name="src/windows/platform.c" role="src" />
    <file name="src/windows/functions.c" role="src" />
    <file name="src/windows/sampler.c" role="src" />
+   <file name="src/windows/thread_profile.c" role="src" />
+   <file name="src/windows/thread_profile.h" role="src" />
 
    <file name="examples/sieve2.php" role="doc" />
    <file name="examples/watch.php" role="doc" />
@@ -170,6 +172,7 @@
    <file name="tests/sampler/sampler-reference-metrics.phpt" role="test" />
    <file name="tests/sampler/sampler-since-order.phpt" role="test" />
    <file name="tests/sampler/windows-thread-cpu-time.phpt" role="test" />
+   <file name="tests/sampler/windows-thread-extended-metrics.phpt" role="test" />
    <file name="tests/readonly-pmu-event-info.phpt" role="test" />
    <file name="tests/readonly-pmu-info.phpt" role="test" />
    <file name="tests/request-handle/disabled.phpt" role="test" />

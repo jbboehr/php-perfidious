@@ -18,6 +18,10 @@
 
 #include "php_perfidious.h"
 #include "../sampler.h"
+#include "thread_profile.h"
+
+#define PERFIDIOUS_WINDOWS_THREAD_PROFILE_METRICS                                                                      \
+    (PERFIDIOUS_METRIC_CONTEXT_SWITCHES_MASK | PERFIDIOUS_METRIC_CPU_CYCLES_MASK)
 
 struct perfidious_platform_sampler
 {
@@ -25,9 +29,13 @@ struct perfidious_platform_sampler
     enum perfidious_scope_id scope;
     DWORD thread_id;
     HANDLE thread_handle;
+    HANDLE profile_handle;
     DWORD previous_page_faults;
     uint64_t page_fault_base;
     bool have_page_faults;
+    DWORD previous_context_switches;
+    uint64_t context_switch_base;
+    bool have_context_switches;
 };
 
 static uint64_t perfidious_windows_filetime_to_uint64(FILETIME value)
@@ -54,7 +62,7 @@ PERFIDIOUS_LOCAL uint32_t perfidious_platform_sampler_supported_metrics(enum per
             return PERFIDIOUS_METRIC_CPU_TIME_MASK | PERFIDIOUS_METRIC_PAGE_FAULTS_MASK |
                    PERFIDIOUS_METRIC_CPU_CYCLES_MASK;
         case PERFIDIOUS_SCOPE_CURRENT_THREAD:
-            return PERFIDIOUS_METRIC_CPU_TIME_MASK;
+            return PERFIDIOUS_METRIC_CPU_TIME_MASK | PERFIDIOUS_WINDOWS_THREAD_PROFILE_METRICS;
     }
 
     ZEND_UNREACHABLE();
@@ -86,6 +94,16 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_open(
             return perfidious_windows_throw_sampler_error("DuplicateHandle", error);
         }
         result->thread_id = GetCurrentThreadId();
+
+        if ((metrics & PERFIDIOUS_WINDOWS_THREAD_PROFILE_METRICS) != 0) {
+            DWORD error = perfidious_windows_thread_profile_enable(0, &result->profile_handle);
+
+            if (UNEXPECTED(error != ERROR_SUCCESS)) {
+                CloseHandle(result->thread_handle);
+                efree(result);
+                return perfidious_windows_throw_sampler_error("EnableThreadProfiling", error);
+            }
+        }
     }
     *sampler = result;
 
@@ -96,6 +114,11 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_read(
     struct perfidious_platform_sampler *sampler, struct perfidious_sampler_snapshot *snapshot
 )
 {
+    PERFORMANCE_DATA profile_data;
+    DWORD next_previous_context_switches = sampler->previous_context_switches;
+    uint64_t next_context_switch_base = sampler->context_switch_base;
+    bool next_have_context_switches = sampler->have_context_switches;
+
     memset(snapshot, 0, sizeof(*snapshot));
 
     if (sampler->scope == PERFIDIOUS_SCOPE_CURRENT_THREAD) {
@@ -121,6 +144,14 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_read(
                 0
             );
             return FAILURE;
+        }
+
+        if ((sampler->metrics & PERFIDIOUS_WINDOWS_THREAD_PROFILE_METRICS) != 0) {
+            DWORD error = perfidious_windows_thread_profile_read(sampler->profile_handle, 0, &profile_data);
+
+            if (UNEXPECTED(error != ERROR_SUCCESS)) {
+                return perfidious_windows_throw_sampler_error("ReadThreadProfilingData", error);
+            }
         }
     }
 
@@ -184,21 +215,47 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_read(
         snapshot->values[PERFIDIOUS_METRIC_PAGE_FAULTS] = sampler->page_fault_base + memory.PageFaultCount;
     }
 
-    if ((sampler->metrics & PERFIDIOUS_METRIC_CPU_CYCLES_MASK) != 0) {
-        ULONG64 cycle_time;
+    if ((sampler->metrics & PERFIDIOUS_METRIC_CONTEXT_SWITCHES_MASK) != 0) {
+        ZEND_ASSERT(sampler->scope == PERFIDIOUS_SCOPE_CURRENT_THREAD);
 
-        ZEND_ASSERT(sampler->scope == PERFIDIOUS_SCOPE_CURRENT_PROCESS);
-        if (UNEXPECTED(!QueryProcessCycleTime(GetCurrentProcess(), &cycle_time))) {
-            return perfidious_windows_throw_sampler_error("QueryProcessCycleTime", GetLastError());
+        if (next_have_context_switches && profile_data.ContextSwitchCount < next_previous_context_switches) {
+            if (UNEXPECTED(next_context_switch_base > UINT64_MAX - (UINT64_C(1) << 32))) {
+                zend_throw_exception(perfidious_overflow_exception_ce, "Windows context-switch count overflow", 0);
+                return FAILURE;
+            }
+            next_context_switch_base += UINT64_C(1) << 32;
         }
-        snapshot->values[PERFIDIOUS_METRIC_CPU_CYCLES] = (uint64_t) cycle_time;
+        next_previous_context_switches = profile_data.ContextSwitchCount;
+        next_have_context_switches = true;
+        snapshot->values[PERFIDIOUS_METRIC_CONTEXT_SWITCHES] =
+            next_context_switch_base + profile_data.ContextSwitchCount;
     }
+
+    if ((sampler->metrics & PERFIDIOUS_METRIC_CPU_CYCLES_MASK) != 0) {
+        if (sampler->scope == PERFIDIOUS_SCOPE_CURRENT_PROCESS) {
+            ULONG64 cycle_time;
+
+            if (UNEXPECTED(!QueryProcessCycleTime(GetCurrentProcess(), &cycle_time))) {
+                return perfidious_windows_throw_sampler_error("QueryProcessCycleTime", GetLastError());
+            }
+            snapshot->values[PERFIDIOUS_METRIC_CPU_CYCLES] = (uint64_t) cycle_time;
+        } else {
+            snapshot->values[PERFIDIOUS_METRIC_CPU_CYCLES] = (uint64_t) profile_data.CycleTime;
+        }
+    }
+
+    sampler->previous_context_switches = next_previous_context_switches;
+    sampler->context_switch_base = next_context_switch_base;
+    sampler->have_context_switches = next_have_context_switches;
 
     return SUCCESS;
 }
 
 PERFIDIOUS_LOCAL void perfidious_platform_sampler_close(struct perfidious_platform_sampler *sampler)
 {
+    if (sampler->profile_handle != NULL) {
+        perfidious_windows_thread_profile_disable(sampler->profile_handle);
+    }
     if (sampler->thread_handle != NULL) {
         CloseHandle(sampler->thread_handle);
     }

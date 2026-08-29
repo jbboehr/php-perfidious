@@ -34,6 +34,7 @@
 #include "Zend/zend_long.h"
 
 #include "php_perfidious.h"
+#include "thread_profile.h"
 
 #define PHP_PERFIDIOUS_WINDOWS_NAMESPACE PHP_PERFIDIOUS_NAMESPACE "\\Windows"
 #define PERFIDIOUS_WINDOWS_HARDWARE_COUNTER_MASK_MAX 0xffff
@@ -232,28 +233,12 @@ static uint64_t perfidious_windows_filetime_to_uint64(FILETIME value)
     return combined.QuadPart;
 }
 
-static DWORD
-perfidious_windows_read_thread_profile(HANDLE handle, DWORD64 hardware_counter_mask, PERFORMANCE_DATA *data)
-{
-    DWORD flags = READ_THREAD_PROFILING_FLAG_DISPATCHING;
-
-    memset(data, 0, sizeof(*data));
-    data->Size = sizeof(*data);
-    data->Version = PERFORMANCE_DATA_VERSION;
-
-    if (hardware_counter_mask != 0) {
-        flags |= READ_THREAD_PROFILING_FLAG_HARDWARE_COUNTERS;
-    }
-
-    return ReadThreadProfilingData(handle, flags, data);
-}
-
 static void perfidious_windows_thread_profile_obj_free(zend_object *object)
 {
     struct perfidious_windows_thread_profile_obj *obj = perfidious_windows_fetch_thread_profile_object(object);
 
     if (obj->handle != NULL) {
-        DisableThreadProfiling(obj->handle);
+        perfidious_windows_thread_profile_disable(obj->handle);
         obj->handle = NULL;
     }
 
@@ -308,7 +293,7 @@ static PHP_METHOD(PerfidiousWindowsThreadProfile, read)
         return;
     }
 
-    error = perfidious_windows_read_thread_profile(obj->handle, obj->hardware_counter_mask, &data);
+    error = perfidious_windows_thread_profile_read(obj->handle, obj->hardware_counter_mask, &data);
     if (UNEXPECTED(error != ERROR_SUCCESS)) {
         perfidious_windows_throw_error("ReadThreadProfilingData", error);
         return;
@@ -415,7 +400,7 @@ static PHP_METHOD(PerfidiousWindowsThreadProfile, close)
         return;
     }
 
-    error = DisableThreadProfiling(obj->handle);
+    error = perfidious_windows_thread_profile_disable(obj->handle);
     if (UNEXPECTED(error != ERROR_SUCCESS)) {
         perfidious_windows_throw_error("DisableThreadProfiling", error);
         return;
@@ -657,16 +642,15 @@ static PHP_FUNCTION(perfidious_windows_enable_current_thread_profiling)
         return;
     }
 
-    error =
-        EnableThreadProfiling(GetCurrentThread(), THREAD_PROFILING_FLAG_DISPATCH, (DWORD64) hardware_counters, &handle);
+    error = perfidious_windows_thread_profile_enable((DWORD64) hardware_counters, &handle);
     if (UNEXPECTED(error != ERROR_SUCCESS)) {
         perfidious_windows_throw_error("EnableThreadProfiling", error);
         return;
     }
 
-    error = perfidious_windows_read_thread_profile(handle, (DWORD64) hardware_counters, &initial_data);
+    error = perfidious_windows_thread_profile_read(handle, (DWORD64) hardware_counters, &initial_data);
     if (UNEXPECTED(error != ERROR_SUCCESS)) {
-        DisableThreadProfiling(handle);
+        perfidious_windows_thread_profile_disable(handle);
         perfidious_windows_throw_error("ReadThreadProfilingData", error);
         return;
     }
