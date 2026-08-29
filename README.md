@@ -141,6 +141,7 @@ The Windows API currently exposes low-level counters in `Perfidious\Windows`:
 ```php
 $cycles = Perfidious\Windows\query_current_process_cycle_time();
 $times = Perfidious\Windows\get_current_process_times();
+$threadTimes = Perfidious\Windows\get_current_thread_times();
 $memory = Perfidious\Windows\get_current_process_memory_info();
 
 $cpuTime100ns = $times->kernelTime100ns + $times->userTime100ns;
@@ -159,8 +160,8 @@ try {
 }
 ```
 
-`ProcessTimes` distinguishes the process creation `FILETIME` timestamp from the kernel
-and user CPU durations, whose property names include their 100-nanosecond unit.
+`ProcessTimes` and `ThreadTimes` distinguish their creation `FILETIME` timestamps from
+the kernel and user CPU durations, whose property names include their 100-nanosecond unit.
 `ProcessMemoryInfo` reports `PROCESS_MEMORY_COUNTERS_EX`; despite its native name,
 `pagefileUsage` is process commit charge, while `privateUsage` is private committed memory.
 

@@ -50,6 +50,7 @@ struct perfidious_windows_thread_profile_obj
 static zend_class_entry *perfidious_windows_thread_profile_ce;
 static zend_class_entry *perfidious_windows_process_times_ce;
 static zend_class_entry *perfidious_windows_process_memory_info_ce;
+static zend_class_entry *perfidious_windows_thread_times_ce;
 static zend_class_entry *perfidious_windows_thread_profile_snapshot_ce;
 static zend_class_entry *perfidious_windows_hardware_counter_snapshot_ce;
 static zend_object_handlers perfidious_windows_thread_profile_obj_handlers;
@@ -148,6 +149,14 @@ static void perfidious_windows_register_process_result_classes(void)
 
 static void perfidious_windows_register_thread_result_classes(void)
 {
+    perfidious_windows_thread_times_ce =
+        perfidious_windows_register_result_class(ZEND_STRL(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\ThreadTimes"));
+    PERFIDIOUS_WINDOWS_DECLARE_READONLY_PROPERTY(
+        perfidious_windows_thread_times_ce, "creationTimeFiletime", MAY_BE_LONG
+    );
+    PERFIDIOUS_WINDOWS_DECLARE_READONLY_PROPERTY(perfidious_windows_thread_times_ce, "kernelTime100ns", MAY_BE_LONG);
+    PERFIDIOUS_WINDOWS_DECLARE_READONLY_PROPERTY(perfidious_windows_thread_times_ce, "userTime100ns", MAY_BE_LONG);
+
     perfidious_windows_hardware_counter_snapshot_ce = perfidious_windows_register_result_class(
         ZEND_STRL(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\HardwareCounterSnapshot")
     );
@@ -513,6 +522,44 @@ static PHP_FUNCTION(perfidious_windows_get_current_process_times)
 }
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(
+    perfidious_windows_get_current_thread_times_arginfo, false, 0, Perfidious\\Windows\\ThreadTimes, false
+)
+ZEND_END_ARG_INFO()
+
+static PHP_FUNCTION(perfidious_windows_get_current_thread_times)
+{
+    FILETIME creation_time;
+    FILETIME unused_exit_time;
+    FILETIME kernel_time;
+    FILETIME user_time;
+    zend_long values[3];
+
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    if (UNEXPECTED(!GetThreadTimes(GetCurrentThread(), &creation_time, &unused_exit_time, &kernel_time, &user_time))) {
+        perfidious_windows_throw_error("GetThreadTimes", GetLastError());
+        return;
+    }
+
+    if (!perfidious_windows_uint64_to_zend_long(perfidious_windows_filetime_to_uint64(creation_time), &values[0]) ||
+        !perfidious_windows_uint64_to_zend_long(perfidious_windows_filetime_to_uint64(kernel_time), &values[1]) ||
+        !perfidious_windows_uint64_to_zend_long(perfidious_windows_filetime_to_uint64(user_time), &values[2])) {
+        return;
+    }
+
+    object_init_ex(return_value, perfidious_windows_thread_times_ce);
+    zend_update_property_long(
+        perfidious_windows_thread_times_ce, Z_OBJ_P(return_value), ZEND_STRL("creationTimeFiletime"), values[0]
+    );
+    zend_update_property_long(
+        perfidious_windows_thread_times_ce, Z_OBJ_P(return_value), ZEND_STRL("kernelTime100ns"), values[1]
+    );
+    zend_update_property_long(
+        perfidious_windows_thread_times_ce, Z_OBJ_P(return_value), ZEND_STRL("userTime100ns"), values[2]
+    );
+}
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(
     perfidious_windows_get_current_process_memory_info_arginfo, false, 0, Perfidious\\Windows\\ProcessMemoryInfo, false
 )
 ZEND_END_ARG_INFO()
@@ -652,6 +699,7 @@ const zend_function_entry perfidious_windows_functions[] = {
     PERFIDIOUS_WINDOWS_FE(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\query_current_process_cycle_time", ZEND_FN(perfidious_windows_query_current_process_cycle_time), perfidious_windows_query_current_process_cycle_time_arginfo, 0)
     PERFIDIOUS_WINDOWS_FE(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\query_current_thread_cycle_time", ZEND_FN(perfidious_windows_query_current_thread_cycle_time), perfidious_windows_query_current_thread_cycle_time_arginfo, 0)
     PERFIDIOUS_WINDOWS_FE(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\get_current_process_times", ZEND_FN(perfidious_windows_get_current_process_times), perfidious_windows_get_current_process_times_arginfo, 0)
+    PERFIDIOUS_WINDOWS_FE(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\get_current_thread_times", ZEND_FN(perfidious_windows_get_current_thread_times), perfidious_windows_get_current_thread_times_arginfo, 0)
     PERFIDIOUS_WINDOWS_FE(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\get_current_process_memory_info", ZEND_FN(perfidious_windows_get_current_process_memory_info), perfidious_windows_get_current_process_memory_info_arginfo, 0)
     PERFIDIOUS_WINDOWS_FE(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\enable_current_thread_profiling", ZEND_FN(perfidious_windows_enable_current_thread_profiling), perfidious_windows_enable_current_thread_profiling_arginfo, 0)
     PHP_FE_END

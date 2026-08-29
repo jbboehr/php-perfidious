@@ -393,6 +393,18 @@ function get_current_process_times(): ProcessTimes
 }
 
 /**
+ * Return timing information for the current thread.
+ *
+ * The native exit timestamp is omitted because the current thread is necessarily still running.
+ *
+ * @throws \Perfidious\IOException|\Perfidious\OverflowException
+ * @see https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getthreadtimes
+ */
+function get_current_thread_times(): ThreadTimes
+{
+}
+
+/**
  * Return PROCESS_MEMORY_COUNTERS_EX values for the current process. Memory sizes are in bytes.
  * @throws \Perfidious\IOException|\Perfidious\OverflowException
  * @see https://learn.microsoft.com/en-us/windows/win32/api/psapi/nf-psapi-getprocessmemoryinfo
@@ -432,6 +444,28 @@ final class ProcessTimes
 
     /**
      * Time spent by the process in user mode, in 100-nanosecond units.
+     */
+    public readonly int $userTime100ns;
+}
+
+final class ThreadTimes
+{
+    private function __construct()
+    {
+    }
+
+    /**
+     * The thread creation timestamp as 100-nanosecond intervals since January 1, 1601 UTC.
+     */
+    public readonly int $creationTimeFiletime;
+
+    /**
+     * Time spent by the thread in kernel mode, in 100-nanosecond units.
+     */
+    public readonly int $kernelTime100ns;
+
+    /**
+     * Time spent by the thread in user mode, in 100-nanosecond units.
      */
     public readonly int $userTime100ns;
 }

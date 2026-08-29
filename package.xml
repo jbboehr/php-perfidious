@@ -183,6 +183,8 @@
    <file name="tests/windows/thread-profile-hardware-counter-data.phpt" role="test" />
    <file name="tests/windows/thread-profile.phpt" role="test" />
    <file name="tests/windows/thread-profile-hardware-counters.phpt" role="test" />
+   <file name="tests/windows/thread-times-native-oracle.phpt" role="test" />
+   <file name="tests/windows/thread-times.phpt" role="test" />
   </dir>
  </contents>
  <dependencies>

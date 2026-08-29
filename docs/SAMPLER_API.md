@@ -279,8 +279,8 @@ and cycles to
 [`QueryProcessCycleTime()`](https://learn.microsoft.com/en-us/windows/win32/api/realtimeapiset/nf-realtimeapiset-queryprocesscycletime).
 These facilities all aggregate the process or its threads as required by `Scope::CurrentProcess`.
 
-Thread CPU time requires adding a low-level `GetThreadTimes()` wrapper before the sampler adapter, preserving the
-project's rule that useful native primitives remain public. Thread context switches and cycles map to
+Thread CPU time maps to the public `Perfidious\Windows\get_current_thread_times()` wrapper around `GetThreadTimes()`.
+Thread context switches and cycles map to
 [`EnableThreadProfiling()`](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-enablethreadprofiling)
 and
 [`PERFORMANCE_DATA`](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-performance_data).

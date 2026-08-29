@@ -10,6 +10,7 @@ perfidious
 $profile = Perfidious\Windows\enable_current_thread_profiling();
 $results = [
     Perfidious\Windows\get_current_process_times(),
+    Perfidious\Windows\get_current_thread_times(),
     Perfidious\Windows\get_current_process_memory_info(),
     $profile->read(),
 ];
@@ -42,6 +43,7 @@ foreach ($results as $result) {
 
 foreach ([
     Perfidious\Windows\ProcessTimes::class,
+    Perfidious\Windows\ThreadTimes::class,
     Perfidious\Windows\ProcessMemoryInfo::class,
     Perfidious\Windows\ThreadProfileSnapshot::class,
     Perfidious\Windows\HardwareCounterSnapshot::class,
@@ -66,6 +68,12 @@ bool(true)
 bool(true)
 readonly
 no dynamic properties
+bool(true)
+bool(true)
+bool(true)
+readonly
+no dynamic properties
+bool(true)
 bool(true)
 bool(true)
 bool(true)
