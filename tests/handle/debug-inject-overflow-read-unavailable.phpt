@@ -8,5 +8,7 @@ perfidious
 --FILE--
 <?php
 var_dump(method_exists(Perfidious\Handle::class, 'debugInjectOverflowRead'));
+var_dump(method_exists(Perfidious\Handle::class, 'debugInjectScalingRead'));
 --EXPECT--
+bool(false)
 bool(false)

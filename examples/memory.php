@@ -47,8 +47,8 @@ $prev_memory_real = memory_get_usage(true);
 
 do {
     $now = time();
-    $stats = $handle->read() ?? throw new RuntimeException('Counter value overflowed the PHP integer range');
-    $arr = $handle->readArray() ?? throw new RuntimeException('Counter value overflowed the PHP integer range');
+    $stats = $handle->read();
+    $arr = $handle->readArray();
 
     if ($now - $interval > $last) {
         $handle->disable();

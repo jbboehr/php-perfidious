@@ -31,12 +31,13 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
   runtime parser and their respective `0` and `-1` defaults.
 - On Darwin, the sampler now probes CPU-cycle accounting when opened and rejects cycle requests only when the host
   provides no usable counter. The low-level Darwin snapshot API remains unchanged.
+- Linux perf-event reads now always throw `OverflowException` when a native counter or timing field cannot fit in a
+  PHP integer. The configurable overflow modes, their constants, and `perfidious.overflow_mode` have been removed.
 
 ### Fixed
 
-- `perfidious.overflow_mode` now controls conversion of Linux perf-event metric values and timing fields as originally
-  documented. Invalid configured values fail safe to the default throw policy, and `Handle::read()` and
-  `Handle::readArray()` now declare their warning-mode `null` result accurately.
+- Linux phpinfo counter scaling now uses unsigned 128-bit intermediates when available, avoiding overflow in
+  `counter * timeEnabled / timeRunning` when the final scaled value still fits in 64 bits.
 
 ### Security
 

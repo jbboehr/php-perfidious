@@ -55,41 +55,38 @@ static ZEND_INI_MH(OnUpdateStr)
 }
 #endif
 
-static PHP_INI_MH(OnUpdateOverflowMode)
-{
-    zend_long *overflow_mode = (zend_long *) (void *) ZEND_INI_GET_ADDR();
-
-    if (new_value != NULL && ZSTR_LEN(new_value) == 1) {
-        switch (ZSTR_VAL(new_value)[0]) {
-            case '1':
-                *overflow_mode = PERFIDIOUS_OVERFLOW_WARN;
-                return SUCCESS;
-            case '2':
-                *overflow_mode = PERFIDIOUS_OVERFLOW_SATURATE;
-                return SUCCESS;
-            case '3':
-                *overflow_mode = PERFIDIOUS_OVERFLOW_WRAP;
-                return SUCCESS;
-            case '0':
-                break;
-            default:
-                break;
-        }
-    }
-
-    *overflow_mode = PERFIDIOUS_OVERFLOW_THROW;
-    return SUCCESS;
-}
-
 // clang-format off
 PHP_INI_BEGIN()
-    STD_PHP_INI_ENTRY(PHP_PERFIDIOUS_NAME ".overflow_mode", "0", PHP_INI_SYSTEM, OnUpdateOverflowMode, overflow_mode, zend_perfidious_globals, perfidious_globals)
     STD_PHP_INI_ENTRY(PHP_PERFIDIOUS_NAME ".global.enable", "0", PHP_INI_SYSTEM, OnUpdateBool, global_enable, zend_perfidious_globals, perfidious_globals)
     STD_PHP_INI_ENTRY(PHP_PERFIDIOUS_NAME ".global.metrics", DEFAULT_METRICS, PHP_INI_SYSTEM, OnUpdateStr, global_metrics, zend_perfidious_globals, perfidious_globals)
     STD_PHP_INI_ENTRY(PHP_PERFIDIOUS_NAME ".request.enable", "0", PHP_INI_SYSTEM, OnUpdateBool, request_enable, zend_perfidious_globals, perfidious_globals)
     STD_PHP_INI_ENTRY(PHP_PERFIDIOUS_NAME ".request.metrics", DEFAULT_METRICS, PHP_INI_SYSTEM, OnUpdateStr, request_metrics, zend_perfidious_globals, perfidious_globals)
 PHP_INI_END()
 // clang-format on
+
+static bool perfidious_scale_uint64(uint64_t value, uint64_t multiplier, uint64_t divisor, uint64_t *result)
+{
+    ZEND_ASSERT(divisor != 0);
+
+#if defined(__SIZEOF_INT128__)
+    __extension__ typedef unsigned __int128 perfidious_uint128_t;
+    perfidious_uint128_t scaled = (perfidious_uint128_t) value * multiplier / divisor;
+
+    if (UNEXPECTED(scaled > UINT64_MAX)) {
+        return false;
+    }
+
+    *result = (uint64_t) scaled;
+    return true;
+#else
+    if (UNEXPECTED(value != 0 && multiplier > UINT64_MAX / value)) {
+        return false;
+    }
+
+    *result = value * multiplier / divisor;
+    return true;
+#endif
+}
 
 static struct perfidious_handle *split_and_open(zend_string *restrict metrics, bool persist)
 {
@@ -219,9 +216,8 @@ static zend_always_inline void minfo_handle_metrics(struct perfidious_handle *re
     }
 
     uint64_t perc_running = 0;
-    if (time_enabled > 0) {
-        perc_running = 100 * time_running / time_enabled;
-    }
+    bool perc_running_valid =
+        time_enabled == 0 || perfidious_scale_uint64(time_running, UINT64_C(100), time_enabled, &perc_running);
 
     zend_string *key;
     zval *val;
@@ -232,11 +228,21 @@ static zend_always_inline void minfo_handle_metrics(struct perfidious_handle *re
     ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL(z_metrics), key, val)
     {
         if (EXPECTED(key != NULL && Z_TYPE_P(val) == IS_LONG)) {
-            uint64_t scaled = time_running > 0 ? Z_LVAL_P(val) * time_enabled / time_running : 0;
+            uint64_t scaled = 0;
+            bool scaled_valid = time_running == 0 ||
+                                perfidious_scale_uint64((uint64_t) Z_LVAL_P(val), time_enabled, time_running, &scaled);
 
             snprintf(buf, sizeof(buf), "%lu", Z_LVAL_P(val));
-            snprintf(buf2, sizeof(buf2), "%" PRIu64, scaled);
-            snprintf(buf3, sizeof(buf3), "%" PRIu64 "%%", perc_running);
+            if (scaled_valid) {
+                snprintf(buf2, sizeof(buf2), "%" PRIu64, scaled);
+            } else {
+                snprintf(buf2, sizeof(buf2), "overflow");
+            }
+            if (perc_running_valid) {
+                snprintf(buf3, sizeof(buf3), "%" PRIu64 "%%", perc_running);
+            } else {
+                snprintf(buf3, sizeof(buf3), "overflow");
+            }
             php_info_print_table_row(4, ZSTR_VAL(key), buf, buf2, buf3);
         }
     }

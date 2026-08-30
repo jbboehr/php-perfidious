@@ -84,15 +84,6 @@ enum perfidious_error_mode
     PERFIDIOUS_ERROR_MODE_WARNING = 1,
 };
 
-enum perfidious_overflow_mode
-{
-    PERFIDIOUS_OVERFLOW_THROW = 0,
-    PERFIDIOUS_OVERFLOW_WARN = 1,
-    PERFIDIOUS_OVERFLOW_SATURATE = 2,
-    PERFIDIOUS_OVERFLOW_WRAP = 3,
-    PERFIDIOUS_OVERFLOW_MAX = 3,
-};
-
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_exception_interface_ce;
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_pmu_not_found_exception_ce;
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_pmu_event_not_found_exception_ce;
@@ -117,8 +108,6 @@ ZEND_BEGIN_MODULE_GLOBALS(perfidious)
     struct perfidious_handle *request_handle;
 
     enum perfidious_error_mode error_mode;
-    zend_long overflow_mode;
-
 #ifdef PERFIDIOUS_DEBUG
     uint32_t debug_open_ex_call_count;
 #endif

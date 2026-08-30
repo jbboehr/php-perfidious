@@ -240,9 +240,7 @@ zend_result perfidious_handle_read_to_array_with_times(
             zval tmp = {0};
 
             PERFIDIOUS_ASSERT_RETURN_EX(
-                perfidious_uint64_t_to_zend_long(
-                    value->value, &value_zl, perfidious_current_overflow_mode()
-                ),
+                perfidious_uint64_t_to_zend_long(value->value, &value_zl),
                 {
                     zval_ptr_dtor(return_value);
                     ZVAL_UNDEF(return_value);
@@ -284,17 +282,13 @@ perfidious_handle_read_to_result(const struct perfidious_handle *restrict handle
 
     zend_long time_enabled_zl = 0;
     PERFIDIOUS_ASSERT_RETURN_EX(
-        perfidious_uint64_t_to_zend_long(
-            time_enabled, &time_enabled_zl, perfidious_current_overflow_mode()
-        ),
+        perfidious_uint64_t_to_zend_long(time_enabled, &time_enabled_zl),
         { zval_ptr_dtor(&arr); }
     );
 
     zend_long time_running_zl = 0;
     PERFIDIOUS_ASSERT_RETURN_EX(
-        perfidious_uint64_t_to_zend_long(
-            time_running, &time_running_zl, perfidious_current_overflow_mode()
-        ),
+        perfidious_uint64_t_to_zend_long(time_running, &time_running_zl),
         { zval_ptr_dtor(&arr); }
     );
 
@@ -674,30 +668,24 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perfidious_handle_debug_inject_overflow_rea
 ZEND_END_ARG_INFO()
 
 ZEND_COLD
-static PHP_METHOD(PerfidiousHandle, debugInjectOverflowRead)
+static void perfidious_handle_debug_inject_read(
+    struct perfidious_handle_obj *obj, uint64_t value, uint64_t time_enabled, uint64_t time_running
+)
 {
-    struct perfidious_handle_obj *obj;
     struct perfidious_read_format *data;
     FILE *synthetic_stream;
     size_t size;
     int synthetic_fd;
     int error_number;
 
-    ZEND_PARSE_PARAMETERS_NONE();
-
-    obj = perfidious_handle_obj_require_open(Z_OBJ_P(ZEND_THIS));
-    if (UNEXPECTED(obj == NULL)) {
-        return;
-    }
-
     size = perfidious_handle_read_buffer_size(obj->handle);
     data = ecalloc(1, size);
     data->nr = obj->handle->metrics_count;
-    data->time_enabled = UINT64_MAX;
-    data->time_running = UINT64_MAX;
+    data->time_enabled = time_enabled;
+    data->time_running = time_running;
 
     for (size_t i = 0; i < obj->handle->metrics_count; i++) {
-        data->values[i].value = UINT64_MAX;
+        data->values[i].value = value;
         data->values[i].id = obj->handle->metrics[i].id;
     }
 
@@ -734,6 +722,39 @@ static PHP_METHOD(PerfidiousHandle, debugInjectOverflowRead)
     obj->handle->metrics[0].fd = synthetic_fd;
     obj->handle->enabled = false;
 }
+
+ZEND_COLD
+static PHP_METHOD(PerfidiousHandle, debugInjectOverflowRead)
+{
+    struct perfidious_handle_obj *obj;
+
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    obj = perfidious_handle_obj_require_open(Z_OBJ_P(ZEND_THIS));
+    if (UNEXPECTED(obj == NULL)) {
+        return;
+    }
+
+    perfidious_handle_debug_inject_read(obj, UINT64_MAX, UINT64_MAX, UINT64_MAX);
+}
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perfidious_handle_debug_inject_scaling_read_arginfo, IS_VOID, false)
+ZEND_END_ARG_INFO()
+
+ZEND_COLD
+static PHP_METHOD(PerfidiousHandle, debugInjectScalingRead)
+{
+    struct perfidious_handle_obj *obj;
+
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    obj = perfidious_handle_obj_require_open(Z_OBJ_P(ZEND_THIS));
+    if (UNEXPECTED(obj == NULL)) {
+        return;
+    }
+
+    perfidious_handle_debug_inject_read(obj, ZEND_LONG_MAX, UINT64_C(3), UINT64_C(3));
+}
 #endif
 
 // clang-format off
@@ -749,6 +770,7 @@ static zend_function_entry perfidious_handle_methods[] = {
     PHP_ME(PerfidiousHandle, debugCorruptMetricIds, perfidious_handle_debug_corrupt_metric_ids_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
     PHP_ME(PerfidiousHandle, debugCloseFd, perfidious_handle_debug_close_fd_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
     PHP_ME(PerfidiousHandle, debugInjectOverflowRead, perfidious_handle_debug_inject_overflow_read_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
+    PHP_ME(PerfidiousHandle, debugInjectScalingRead, perfidious_handle_debug_inject_scaling_read_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
 #endif
     PHP_FE_END
 };

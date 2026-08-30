@@ -321,8 +321,7 @@ Known-unsupported metrics are rejected before fallible host-capability probes; a
 requested metric is nominally supported for the selected platform and scope.
 
 Permissions, resource exhaustion, and native call failures should continue to use `IOException`. Counter values that do
-not fit in a PHP integer should use `OverflowException`; the sampler API should always throw rather than honor a global
-mode that can warn, wrap, or silently change the value.
+not fit in a PHP integer should use `OverflowException`.
 
 An open sampler begins counting immediately. `close()` is idempotent, and destruction closes an unclosed sampler.
 Reading a closed sampler is an error. Samplers, samples, and deltas are not cloneable or serializable.

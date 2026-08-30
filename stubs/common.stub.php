@@ -26,11 +26,6 @@ const DEBUG = false;
 
 const VERSION = "0.2.0";
 
-const OVERFLOW_THROW = 0;
-const OVERFLOW_WARN = 1;
-const OVERFLOW_SATURATE = 2;
-const OVERFLOW_WRAP = 3;
-
 const MOTD = "Think not that I am come to send peace on earth: I came not to send peace, but a sword. Matthew 10:34";
 
 interface ExceptionInterface

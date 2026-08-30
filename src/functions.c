@@ -284,32 +284,16 @@ static PHP_FUNCTION(perfidious_request_handle)
 
 #ifdef PERFIDIOUS_DEBUG
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(perfidious_debug_uint64_overflow_arginfo, false, 0, IS_LONG, false)
-    ZEND_ARG_TYPE_INFO(false, overflow_mode, IS_LONG, false)
 ZEND_END_ARG_INFO()
 
 ZEND_COLD
 static ZEND_FUNCTION(perfidious_debug_uint64_overflow)
 {
-    zend_long overflow_mode_zl = -1;
-    enum perfidious_overflow_mode overflow_mode;
     zend_long output;
 
-    ZEND_PARSE_PARAMETERS_START(0, 1)
-        Z_PARAM_OPTIONAL
-        Z_PARAM_LONG(overflow_mode_zl)
-    ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_NONE();
 
-    if (overflow_mode_zl == -1) {
-        overflow_mode = perfidious_current_overflow_mode();
-    } else {
-        if (overflow_mode_zl > PERFIDIOUS_OVERFLOW_MAX || overflow_mode_zl < 0) {
-            zend_type_error("Overflow mode out-of-range");
-            return;
-        }
-        overflow_mode = overflow_mode_zl;
-    }
-
-    if (!perfidious_uint64_t_to_zend_long(UINT64_MAX, &output, overflow_mode)) {
+    if (!perfidious_uint64_t_to_zend_long(UINT64_MAX, &output)) {
         RETURN_NULL();
     }
 

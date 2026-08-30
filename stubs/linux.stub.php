@@ -134,28 +134,20 @@ final class Handle
     }
 
     /**
-     * @note If perfidious.overflow_mode is set to Perfidious\OVERFLOW_WARN, an overflowing counter emits a warning
-     *       and this method returns null.
-     *
-     * @return ReadResult|null
      * @throws OverflowException|IOException
      *
-     * @phpstan-return ReadResult<T>|null
+     * @phpstan-return ReadResult<T>
      */
-    final public function read(): ?ReadResult
+    final public function read(): ReadResult
     {
     }
 
     /**
-     * @note If perfidious.overflow_mode is set to Perfidious\OVERFLOW_WARN, an overflowing counter emits a warning
-     *       and this method returns null.
-     *
-     * @return array|null
      * @throws OverflowException|IOException
      *
-     * @phpstan-return array<value-of<T>, int>|null
+     * @phpstan-return array<value-of<T>, int>
      */
-    final public function readArray(): ?array
+    final public function readArray(): array
     {
     }
 

@@ -87,10 +87,10 @@ ZEND_BEGIN_ARG_INFO_EX(perfidious_handle_raw_stream_arginfo, false, false, 0)
     ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(false, idx, IS_LONG, false, "0")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_handle_read_arginfo, 0, 0, Perfidious\\ReadResult, 1)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_handle_read_arginfo, 0, 0, Perfidious\\ReadResult, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perfidious_handle_read_array_arginfo, IS_ARRAY, 1)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perfidious_handle_read_array_arginfo, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_handle_reset_arginfo, 0, 0, Perfidious\\Handle, 0)
