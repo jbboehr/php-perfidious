@@ -109,6 +109,12 @@ final class SampleDelta
 
 final class UnsupportedMetricException extends \RuntimeException implements ExceptionInterface
 {
+    private function __construct();
+
+    public readonly Scope $scope;
+
+    /** @var non-empty-list<Metric> */
+    public readonly array $unsupportedMetrics;
 }
 ```
 
@@ -146,9 +152,10 @@ $sampler = Sampler::open(
 );
 ```
 
-Cross-platform applications that want to degrade gracefully should catch `UnsupportedMetricException` and retry with a
-smaller metric set. In slice 1, the exception message identifies every rejected metric, not merely the first one;
-structured exception metadata is deferred until its public shape is designed.
+Cross-platform applications that want to degrade gracefully should catch `UnsupportedMetricException`, remove its
+`$unsupportedMetrics` from the requested set, and retry. The exception's `$scope` identifies the rejected request;
+its message remains a human-readable summary rather than the machine-readable recovery interface. The exception is
+created only by the extension and is not serializable, ensuring that its readonly metadata is always initialized.
 
 An advisory capability-discovery API is deliberately omitted from the first version. Hardware availability and
 permissions can change between a capability check and `Sampler::open()`, so opening the sampler must remain the

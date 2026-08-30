@@ -44,6 +44,14 @@ final class PmuEventNotFoundException extends \InvalidArgumentException implemen
 
 final class UnsupportedMetricException extends \RuntimeException implements ExceptionInterface
 {
+    private function __construct()
+    {
+    }
+
+    public readonly Scope $scope;
+
+    /** @var non-empty-list<Metric> */
+    public readonly array $unsupportedMetrics;
 }
 
 enum Scope: string

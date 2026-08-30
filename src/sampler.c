@@ -281,6 +281,12 @@ static void perfidious_throw_unsupported_metrics(
 {
     char names[128];
     size_t used = 0;
+    zend_string *message;
+    zval message_value;
+    zval code_value;
+    zval exception;
+    zval scope_value;
+    zval unsupported_metrics;
 
     names[0] = '\0';
     for (uint8_t i = 0; i < metric_count; i++) {
@@ -299,13 +305,59 @@ static void perfidious_throw_unsupported_metrics(
         used += (size_t) written;
     }
 
-    zend_throw_exception_ex(
-        perfidious_unsupported_metric_exception_ce,
+    message = strpprintf(
         0,
         "Metrics [%s] are not supported for scope %s",
         names,
         scope == PERFIDIOUS_SCOPE_CURRENT_PROCESS ? "current-process" : "current-thread"
     );
+
+    object_init_ex(&exception, perfidious_unsupported_metric_exception_ce);
+    ZVAL_STR(&message_value, message);
+    ZVAL_LONG(&code_value, 0);
+    zend_call_known_instance_method_with_2_params(
+        zend_ce_exception->constructor, Z_OBJ(exception), NULL, &message_value, &code_value
+    );
+    zval_ptr_dtor(&message_value);
+    if (UNEXPECTED(EG(exception) != NULL)) {
+        zval_ptr_dtor(&exception);
+        return;
+    }
+
+    ZVAL_OBJ_COPY(
+        &scope_value,
+        zend_enum_get_case_cstr(
+            perfidious_scope_ce, scope == PERFIDIOUS_SCOPE_CURRENT_PROCESS ? "CurrentProcess" : "CurrentThread"
+        )
+    );
+    array_init_size(&unsupported_metrics, metric_count);
+    for (uint8_t i = 0; i < metric_count; i++) {
+        enum perfidious_metric_id metric = (enum perfidious_metric_id) metric_order[i];
+        zval metric_value;
+
+        if ((rejected & PERFIDIOUS_METRIC_MASK(metric)) == 0) {
+            continue;
+        }
+
+        ZVAL_OBJ_COPY(
+            &metric_value, zend_enum_get_case_cstr(perfidious_metric_ce, perfidious_metric_case_name(metric))
+        );
+        add_next_index_zval(&unsupported_metrics, &metric_value);
+    }
+
+    zend_update_property(
+        perfidious_unsupported_metric_exception_ce, Z_OBJ(exception), ZEND_STRL("scope"), &scope_value
+    );
+    zend_update_property(
+        perfidious_unsupported_metric_exception_ce,
+        Z_OBJ(exception),
+        ZEND_STRL("unsupportedMetrics"),
+        &unsupported_metrics
+    );
+    zval_ptr_dtor(&scope_value);
+    zval_ptr_dtor(&unsupported_metrics);
+
+    zend_throw_exception_object(&exception);
 }
 
 // clang-format off

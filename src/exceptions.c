@@ -33,6 +33,26 @@ PERFIDIOUS_PUBLIC zend_class_entry *perfidious_overflow_exception_ce;
 PERFIDIOUS_PUBLIC zend_class_entry *perfidious_io_exception_ce;
 PERFIDIOUS_PUBLIC zend_class_entry *perfidious_unsupported_metric_exception_ce;
 
+// clang-format off
+ZEND_BEGIN_ARG_INFO_EX(perfidious_unsupported_metric_exception_construct_arginfo, false, 0, 0)
+ZEND_END_ARG_INFO()
+
+static PHP_METHOD(PerfidiousUnsupportedMetricException, __construct)
+{
+    ZEND_PARSE_PARAMETERS_NONE();
+}
+
+static const zend_function_entry perfidious_unsupported_metric_exception_methods[] = {
+    PHP_ME(
+        PerfidiousUnsupportedMetricException,
+        __construct,
+        perfidious_unsupported_metric_exception_construct_arginfo,
+        ZEND_ACC_PRIVATE
+    )
+    PHP_FE_END
+};
+// clang-format on
+
 PERFIDIOUS_ATTR_RETURNS_NONNULL
 PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
 static zend_class_entry *register_class_ExceptionInterface(void)
@@ -112,11 +132,39 @@ static zend_class_entry *register_class_UnsupportedMetricException(zend_class_en
 {
     zend_class_entry ce;
     zend_class_entry *class_entry;
+    zend_string *property_name;
+    zval default_value;
 
-    INIT_CLASS_ENTRY(ce, PHP_PERFIDIOUS_NAMESPACE "\\UnsupportedMetricException", NULL);
+    INIT_CLASS_ENTRY(
+        ce, PHP_PERFIDIOUS_NAMESPACE "\\UnsupportedMetricException", perfidious_unsupported_metric_exception_methods
+    );
     class_entry = zend_register_internal_class_ex(&ce, spl_ce_RuntimeException);
-    class_entry->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NO_DYNAMIC_PROPERTIES;
+    class_entry->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NO_DYNAMIC_PROPERTIES | ZEND_ACC_NOT_SERIALIZABLE;
     zend_class_implements(class_entry, 1, iface);
+
+    ZVAL_UNDEF(&default_value);
+    property_name = zend_string_init_interned(ZEND_STRL("scope"), true);
+    zend_declare_typed_property(
+        class_entry,
+        property_name,
+        &default_value,
+        ZEND_ACC_PUBLIC | ZEND_ACC_READONLY,
+        NULL,
+        (zend_type) ZEND_TYPE_INIT_CLASS(
+            zend_string_init_interned(ZEND_STRL(PHP_PERFIDIOUS_NAMESPACE "\\Scope"), true), false, 0
+        )
+    );
+
+    ZVAL_UNDEF(&default_value);
+    property_name = zend_string_init_interned(ZEND_STRL("unsupportedMetrics"), true);
+    zend_declare_typed_property(
+        class_entry,
+        property_name,
+        &default_value,
+        ZEND_ACC_PUBLIC | ZEND_ACC_READONLY,
+        NULL,
+        (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY)
+    );
 
     return class_entry;
 }

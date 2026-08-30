@@ -13,6 +13,8 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
 - An experimental low-level Windows x64 backend for process and thread cycle counts, process CPU time and page faults,
   and current-thread profiling data, with immutable typed result objects.
 - A Darwin build foundation and macOS CI smoke coverage on Intel and ARM64, ahead of the low-level counter API.
+- Structured `scope` and `unsupportedMetrics` metadata on `UnsupportedMetricException`, allowing callers to retry
+  sampler requests without parsing exception messages.
 
 ### Changed
 

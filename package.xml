@@ -190,6 +190,7 @@
    <file name="tests/sampler/sampler-lifetime.phpt" role="test" />
    <file name="tests/sampler/sampler-reference-metrics.phpt" role="test" />
    <file name="tests/sampler/sampler-since-order.phpt" role="test" />
+   <file name="tests/sampler/unsupported-metric-exception.phpt" role="test" />
    <file name="tests/sampler/windows-thread-cpu-time.phpt" role="test" />
    <file name="tests/sampler/windows-thread-extended-metrics.phpt" role="test" />
    <file name="tests/readonly-pmu-event-info.phpt" role="test" />
