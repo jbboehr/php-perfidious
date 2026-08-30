@@ -65,7 +65,7 @@ static void perfidious_handle_obj_free(zend_object *object)
 {
     struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(object);
 
-    if (obj->handle && !obj->no_auto_close) {
+    if (obj->handle && !obj->borrowed) {
         perfidious_handle_close(obj->handle);
         obj->handle = NULL;
     }
@@ -85,6 +85,18 @@ static zend_object *perfidious_handle_obj_create(zend_class_entry *ce)
     obj->std.handlers = &perfidious_handle_obj_handlers;
 
     return &obj->std;
+}
+
+static zend_always_inline struct perfidious_handle_obj *perfidious_handle_obj_require_open(zend_object *object)
+{
+    struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(object);
+
+    if (UNEXPECTED(obj->handle == NULL)) {
+        zend_throw_exception(perfidious_io_exception_ce, "Handle is closed", 0);
+        return NULL;
+    }
+
+    return obj;
 }
 
 PERFIDIOUS_PUBLIC
@@ -444,11 +456,35 @@ cleanup:
 }
 
 ZEND_COLD
+static PHP_METHOD(PerfidiousHandle, close)
+{
+    struct perfidious_handle_obj *obj;
+    struct perfidious_handle *handle;
+
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    obj = perfidious_fetch_handle_object(Z_OBJ_P(ZEND_THIS));
+    if (obj->handle == NULL) {
+        return;
+    }
+
+    handle = obj->handle;
+    obj->handle = NULL;
+
+    if (!obj->borrowed) {
+        perfidious_handle_close(handle);
+    }
+}
+
+ZEND_COLD
 static PHP_METHOD(PerfidiousHandle, disable)
 {
     ZEND_PARSE_PARAMETERS_NONE();
 
-    struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(ZEND_THIS));
+    struct perfidious_handle_obj *obj = perfidious_handle_obj_require_open(Z_OBJ_P(ZEND_THIS));
+    if (UNEXPECTED(obj == NULL)) {
+        return;
+    }
 
     perfidious_handle_disable(obj->handle);
 
@@ -460,7 +496,10 @@ static PHP_METHOD(PerfidiousHandle, enable)
 {
     ZEND_PARSE_PARAMETERS_NONE();
 
-    struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(ZEND_THIS));
+    struct perfidious_handle_obj *obj = perfidious_handle_obj_require_open(Z_OBJ_P(ZEND_THIS));
+    if (UNEXPECTED(obj == NULL)) {
+        return;
+    }
 
     perfidious_handle_enable(obj->handle);
 
@@ -483,7 +522,10 @@ static PHP_METHOD(PerfidiousHandle, rawStream)
         return;
     }
 
-    struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(ZEND_THIS));
+    struct perfidious_handle_obj *obj = perfidious_handle_obj_require_open(Z_OBJ_P(ZEND_THIS));
+    if (UNEXPECTED(obj == NULL)) {
+        return;
+    }
 
     if (UNEXPECTED(idx < 0 || (size_t) idx >= obj->handle->metrics_count)) {
         zend_argument_value_error(1, "must reference an existing metric file descriptor");
@@ -515,7 +557,10 @@ static PHP_METHOD(PerfidiousHandle, read)
 {
     ZEND_PARSE_PARAMETERS_NONE();
 
-    struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(ZEND_THIS));
+    struct perfidious_handle_obj *obj = perfidious_handle_obj_require_open(Z_OBJ_P(ZEND_THIS));
+    if (UNEXPECTED(obj == NULL)) {
+        return;
+    }
 
     bool orig_enabled = obj->handle->enabled;
 
@@ -537,7 +582,10 @@ static PHP_METHOD(PerfidiousHandle, readArray)
 {
     ZEND_PARSE_PARAMETERS_NONE();
 
-    struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(ZEND_THIS));
+    struct perfidious_handle_obj *obj = perfidious_handle_obj_require_open(Z_OBJ_P(ZEND_THIS));
+    if (UNEXPECTED(obj == NULL)) {
+        return;
+    }
 
     bool orig_enabled = obj->handle->enabled;
 
@@ -559,7 +607,10 @@ static PHP_METHOD(PerfidiousHandle, reset)
 {
     ZEND_PARSE_PARAMETERS_NONE();
 
-    struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(ZEND_THIS));
+    struct perfidious_handle_obj *obj = perfidious_handle_obj_require_open(Z_OBJ_P(ZEND_THIS));
+    if (UNEXPECTED(obj == NULL)) {
+        return;
+    }
 
     perfidious_handle_reset(obj->handle);
 
@@ -575,7 +626,10 @@ static PHP_METHOD(PerfidiousHandle, debugCorruptMetricIds)
 {
     ZEND_PARSE_PARAMETERS_NONE();
 
-    struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(ZEND_THIS));
+    struct perfidious_handle_obj *obj = perfidious_handle_obj_require_open(Z_OBJ_P(ZEND_THIS));
+    if (UNEXPECTED(obj == NULL)) {
+        return;
+    }
 
     for (size_t i = 0; i < obj->handle->metrics_count; i++) {
         obj->handle->metrics[i].id = UINT64_MAX;
@@ -598,7 +652,10 @@ static PHP_METHOD(PerfidiousHandle, debugCloseFd)
         Z_PARAM_LONG(idx)
     ZEND_PARSE_PARAMETERS_END();
 
-    struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(ZEND_THIS));
+    struct perfidious_handle_obj *obj = perfidious_handle_obj_require_open(Z_OBJ_P(ZEND_THIS));
+    if (UNEXPECTED(obj == NULL)) {
+        return;
+    }
 
     if (UNEXPECTED((size_t) idx >= obj->handle->metrics_count)) {
         return;
@@ -610,6 +667,7 @@ static PHP_METHOD(PerfidiousHandle, debugCloseFd)
 
 // clang-format off
 static zend_function_entry perfidious_handle_methods[] = {
+    PHP_ME(PerfidiousHandle, close, perfidious_handle_close_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
     PHP_ME(PerfidiousHandle, disable, perfidious_handle_disable_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
     PHP_ME(PerfidiousHandle, enable, perfidious_handle_enable_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
     PHP_ME(PerfidiousHandle, rawStream, perfidious_handle_raw_stream_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)

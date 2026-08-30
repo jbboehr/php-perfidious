@@ -98,7 +98,7 @@ static PHP_FUNCTION(perfidious_global_handle)
         object_init_ex(return_value, perfidious_handle_ce);
 
         struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(return_value));
-        obj->no_auto_close = true;
+        obj->borrowed = true;
         obj->handle = PERFIDIOUS_G(global_handle);
     } else {
         RETURN_NULL();
@@ -275,7 +275,7 @@ static PHP_FUNCTION(perfidious_request_handle)
         object_init_ex(return_value, perfidious_handle_ce);
 
         struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(return_value));
-        obj->no_auto_close = true;
+        obj->borrowed = true;
         obj->handle = PERFIDIOUS_G(request_handle);
     } else {
         RETURN_NULL();

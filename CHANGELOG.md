@@ -15,6 +15,8 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
 - A Darwin build foundation and macOS CI smoke coverage on Intel and ARM64, ahead of the low-level counter API.
 - Structured `scope` and `unsupportedMetrics` metadata on `UnsupportedMetricException`, allowing callers to retry
   sampler requests without parsing exception messages.
+- An idempotent `Handle::close()` method for deterministic release of owned Linux performance-counter descriptors;
+  closing a borrowed global or request handle detaches only that wrapper.
 
 ### Changed
 

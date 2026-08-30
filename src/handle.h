@@ -61,7 +61,7 @@ struct perfidious_read_format
 struct perfidious_handle_obj
 {
     struct perfidious_handle *handle;
-    bool no_auto_close;
+    bool borrowed;
     zend_object std;
 };
 
@@ -78,6 +78,9 @@ ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_handle_disable_arginfo, 0, 0, 
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_handle_enable_arginfo, 0, 0, Perfidious\\Handle, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(perfidious_handle_close_arginfo, false, 0, IS_VOID, false)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(perfidious_handle_raw_stream_arginfo, false, false, 0)

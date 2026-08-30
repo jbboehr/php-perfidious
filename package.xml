@@ -122,9 +122,11 @@
    <file name="tests/get-pmu-event-info.phpt" role="test" />
    <file name="tests/get-pmu-info.phpt" role="test" />
    <file name="tests/header-linux-consumer.c" role="test" />
+   <file name="tests/global-handle/close.phpt" role="test" />
    <file name="tests/global-handle/disabled.phpt" role="test" />
    <file name="tests/global-handle/enabled.phpt" role="test" />
    <file name="tests/global-handle/stays-open.phpt" role="test" />
+   <file name="tests/handle/close.phpt" role="test" />
    <file name="tests/handle/debug-close-fd.phpt" role="test" />
    <file name="tests/handle/debug-corrupt-metric-ids-array.phpt" role="test" />
    <file name="tests/handle/debug-corrupt-metric-ids.phpt" role="test" />
@@ -195,6 +197,7 @@
    <file name="tests/sampler/windows-thread-extended-metrics.phpt" role="test" />
    <file name="tests/readonly-pmu-event-info.phpt" role="test" />
    <file name="tests/readonly-pmu-info.phpt" role="test" />
+   <file name="tests/request-handle/close.phpt" role="test" />
    <file name="tests/request-handle/disabled.phpt" role="test" />
    <file name="tests/request-handle/enabled.phpt" role="test" />
    <file name="tests/request-handle/stays-open.phpt" role="test" />

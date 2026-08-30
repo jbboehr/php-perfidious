@@ -4,8 +4,20 @@ Perfidious\Handle (open fails with missing cap, debug)
 perfidious
 --SKIPIF--
 <?php require __DIR__ . '/../skipif-linux-only.inc'; ?>
-<?php if (get_current_user() === 'root' || str_contains(get_current_user(), 'nixbld')) die("skip: would fail as root"); ?>
 <?php if (!Perfidious\DEBUG) die("skip: must be compiled in debug mode"); ?>
+<?php
+try {
+    $probe = Perfidious\open([
+        "perf::PERF_COUNT_SW_CPU_CLOCK:u",
+    ], pid: 1);
+    $probe->close();
+    die("skip: profiling pid 1 is permitted");
+} catch (Perfidious\IOException $e) {
+    if ($e->getCode() !== 13) {
+        die("skip: profiling pid 1 did not fail with EACCES");
+    }
+}
+?>
 --FILE--
 <?php
 // Note: this test will fail if run with CAP_PERFMON (e.g. as root)

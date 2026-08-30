@@ -84,11 +84,15 @@ For example, you can programmatically open and access the counters.
 
 ```php
 $handle = Perfidious\open(["perf::PERF_COUNT_SW_CPU_CLOCK:u"]);
-$handle->enable();
+try {
+    $handle->enable();
 
-for ($i = 0; $i < 3; $i++) {
-    var_dump($handle->readArray());
-    sleep(1);
+    for ($i = 0; $i < 3; $i++) {
+        var_dump($handle->readArray());
+        sleep(1);
+    }
+} finally {
+    $handle->close();
 }
 ```
 
