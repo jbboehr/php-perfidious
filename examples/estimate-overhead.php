@@ -40,6 +40,8 @@ $count = $opts['count'] ?? 10000;
 
 $handle = open($pos_args);
 $handle->enable();
+$read = static fn(): array =>
+    $handle->readArray() ?? throw new RuntimeException('Counter value overflowed the PHP integer range');
 
 $stats = [];
 
@@ -48,8 +50,8 @@ gc_disable();
 
 for ($i = 0; $i < $count; $i++) {
     $handle->reset();
-    $left = $handle->readArray();
-    $right = $handle->readArray();
+    $left = $read();
+    $right = $read();
     foreach ($left as $k => $lv) {
         $rv = $right[$k];
         $delta = abs($lv - $rv);

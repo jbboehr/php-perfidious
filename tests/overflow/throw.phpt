@@ -18,6 +18,17 @@ try {
 } catch (Perfidious\OverflowException $e) {
     var_dump($e->getMessage());
 }
+
+$handle = Perfidious\open([
+    'perf::PERF_COUNT_SW_CPU_CLOCK:u',
+]);
+$handle->debugInjectOverflowRead();
+try {
+    var_dump($handle->read());
+} catch (Perfidious\OverflowException $e) {
+    var_dump($e->getMessage());
+}
 --EXPECTF--
+string(%d) "value too large: %d > %d"
 string(%d) "value too large: %d > %d"
 string(%d) "value too large: %d > %d"

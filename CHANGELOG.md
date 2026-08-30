@@ -32,6 +32,12 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
 - On Darwin, the sampler now probes CPU-cycle accounting when opened and rejects cycle requests only when the host
   provides no usable counter. The low-level Darwin snapshot API remains unchanged.
 
+### Fixed
+
+- `perfidious.overflow_mode` now controls conversion of Linux perf-event metric values and timing fields as originally
+  documented. Invalid configured values fail safe to the default throw policy, and `Handle::read()` and
+  `Handle::readArray()` now declare their warning-mode `null` result accurately.
+
 ### Security
 
 - Updated PHP_CodeSniffer to 3.13.6 to address CVE-2026-67434.

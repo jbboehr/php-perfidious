@@ -10,6 +10,19 @@ perfidious.overflow_mode=2
 <?php
 var_dump(PHP_INT_MAX === Perfidious\debug_uint64_overflow());
 var_dump(PHP_INT_MAX === Perfidious\debug_uint64_overflow(Perfidious\OVERFLOW_SATURATE));
+
+$handle = Perfidious\open([
+    'perf::PERF_COUNT_SW_CPU_CLOCK:u',
+]);
+$handle->debugInjectOverflowRead();
+$result = $handle->read();
+
+var_dump(PHP_INT_MAX === $result->timeEnabled);
+var_dump(PHP_INT_MAX === $result->timeRunning);
+var_dump(PHP_INT_MAX === $result->values['perf::PERF_COUNT_SW_CPU_CLOCK:u']);
 --EXPECT--
+bool(true)
+bool(true)
+bool(true)
 bool(true)
 bool(true)

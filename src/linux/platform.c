@@ -55,9 +55,35 @@ static ZEND_INI_MH(OnUpdateStr)
 }
 #endif
 
+static PHP_INI_MH(OnUpdateOverflowMode)
+{
+    zend_long *overflow_mode = (zend_long *) (void *) ZEND_INI_GET_ADDR();
+
+    if (new_value != NULL && ZSTR_LEN(new_value) == 1) {
+        switch (ZSTR_VAL(new_value)[0]) {
+            case '1':
+                *overflow_mode = PERFIDIOUS_OVERFLOW_WARN;
+                return SUCCESS;
+            case '2':
+                *overflow_mode = PERFIDIOUS_OVERFLOW_SATURATE;
+                return SUCCESS;
+            case '3':
+                *overflow_mode = PERFIDIOUS_OVERFLOW_WRAP;
+                return SUCCESS;
+            case '0':
+                break;
+            default:
+                break;
+        }
+    }
+
+    *overflow_mode = PERFIDIOUS_OVERFLOW_THROW;
+    return SUCCESS;
+}
+
 // clang-format off
 PHP_INI_BEGIN()
-    STD_PHP_INI_ENTRY(PHP_PERFIDIOUS_NAME ".overflow_mode", "0", PHP_INI_SYSTEM, OnUpdateLong, overflow_mode, zend_perfidious_globals, perfidious_globals)
+    STD_PHP_INI_ENTRY(PHP_PERFIDIOUS_NAME ".overflow_mode", "0", PHP_INI_SYSTEM, OnUpdateOverflowMode, overflow_mode, zend_perfidious_globals, perfidious_globals)
     STD_PHP_INI_ENTRY(PHP_PERFIDIOUS_NAME ".global.enable", "0", PHP_INI_SYSTEM, OnUpdateBool, global_enable, zend_perfidious_globals, perfidious_globals)
     STD_PHP_INI_ENTRY(PHP_PERFIDIOUS_NAME ".global.metrics", DEFAULT_METRICS, PHP_INI_SYSTEM, OnUpdateStr, global_metrics, zend_perfidious_globals, perfidious_globals)
     STD_PHP_INI_ENTRY(PHP_PERFIDIOUS_NAME ".request.enable", "0", PHP_INI_SYSTEM, OnUpdateBool, request_enable, zend_perfidious_globals, perfidious_globals)

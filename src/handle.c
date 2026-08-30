@@ -240,7 +240,9 @@ zend_result perfidious_handle_read_to_array_with_times(
             zval tmp = {0};
 
             PERFIDIOUS_ASSERT_RETURN_EX(
-                perfidious_uint64_t_to_zend_long(value->value, &value_zl, PERFIDIOUS_OVERFLOW_THROW),
+                perfidious_uint64_t_to_zend_long(
+                    value->value, &value_zl, perfidious_current_overflow_mode()
+                ),
                 {
                     zval_ptr_dtor(return_value);
                     ZVAL_UNDEF(return_value);
@@ -282,13 +284,17 @@ perfidious_handle_read_to_result(const struct perfidious_handle *restrict handle
 
     zend_long time_enabled_zl = 0;
     PERFIDIOUS_ASSERT_RETURN_EX(
-        perfidious_uint64_t_to_zend_long(time_enabled, &time_enabled_zl, PERFIDIOUS_OVERFLOW_THROW),
+        perfidious_uint64_t_to_zend_long(
+            time_enabled, &time_enabled_zl, perfidious_current_overflow_mode()
+        ),
         { zval_ptr_dtor(&arr); }
     );
 
     zend_long time_running_zl = 0;
     PERFIDIOUS_ASSERT_RETURN_EX(
-        perfidious_uint64_t_to_zend_long(time_running, &time_running_zl, PERFIDIOUS_OVERFLOW_THROW),
+        perfidious_uint64_t_to_zend_long(
+            time_running, &time_running_zl, perfidious_current_overflow_mode()
+        ),
         { zval_ptr_dtor(&arr); }
     );
 
@@ -663,6 +669,71 @@ static PHP_METHOD(PerfidiousHandle, debugCloseFd)
 
     close(obj->handle->metrics[idx].fd);
 }
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perfidious_handle_debug_inject_overflow_read_arginfo, IS_VOID, false)
+ZEND_END_ARG_INFO()
+
+ZEND_COLD
+static PHP_METHOD(PerfidiousHandle, debugInjectOverflowRead)
+{
+    struct perfidious_handle_obj *obj;
+    struct perfidious_read_format *data;
+    FILE *synthetic_stream;
+    size_t size;
+    int synthetic_fd;
+    int error_number;
+
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    obj = perfidious_handle_obj_require_open(Z_OBJ_P(ZEND_THIS));
+    if (UNEXPECTED(obj == NULL)) {
+        return;
+    }
+
+    size = perfidious_handle_read_buffer_size(obj->handle);
+    data = ecalloc(1, size);
+    data->nr = obj->handle->metrics_count;
+    data->time_enabled = UINT64_MAX;
+    data->time_running = UINT64_MAX;
+
+    for (size_t i = 0; i < obj->handle->metrics_count; i++) {
+        data->values[i].value = UINT64_MAX;
+        data->values[i].id = obj->handle->metrics[i].id;
+    }
+
+    synthetic_stream = tmpfile();
+    if (UNEXPECTED(synthetic_stream == NULL)) {
+        efree(data);
+        perfidious_error_helper(perfidious_io_exception_ce, errno, "tmpfile failed: %s", strerror(errno));
+        return;
+    }
+
+    if (UNEXPECTED(fwrite(data, 1, size, synthetic_stream) != size || fseek(synthetic_stream, 0, SEEK_SET) != 0)) {
+        int error_number = errno != 0 ? errno : EIO;
+
+        fclose(synthetic_stream);
+        efree(data);
+        perfidious_error_helper(
+            perfidious_io_exception_ce, error_number, "failed to prepare synthetic read: %s", strerror(error_number)
+        );
+        return;
+    }
+
+    synthetic_fd = dup(fileno(synthetic_stream));
+    error_number = errno;
+
+    fclose(synthetic_stream);
+    efree(data);
+
+    if (UNEXPECTED(synthetic_fd == -1)) {
+        perfidious_error_helper(perfidious_io_exception_ce, error_number, "dup failed: %s", strerror(error_number));
+        return;
+    }
+
+    close(obj->handle->metrics[0].fd);
+    obj->handle->metrics[0].fd = synthetic_fd;
+    obj->handle->enabled = false;
+}
 #endif
 
 // clang-format off
@@ -677,6 +748,7 @@ static zend_function_entry perfidious_handle_methods[] = {
 #ifdef PERFIDIOUS_DEBUG
     PHP_ME(PerfidiousHandle, debugCorruptMetricIds, perfidious_handle_debug_corrupt_metric_ids_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
     PHP_ME(PerfidiousHandle, debugCloseFd, perfidious_handle_debug_close_fd_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
+    PHP_ME(PerfidiousHandle, debugInjectOverflowRead, perfidious_handle_debug_inject_overflow_read_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
 #endif
     PHP_FE_END
 };

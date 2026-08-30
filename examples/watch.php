@@ -51,7 +51,7 @@ $handle->enable();
 
 
 while (true) { // @phpstan-ignore-line
-    $stats = $handle->read();
+    $stats = $handle->read() ?? throw new RuntimeException('Counter value overflowed the PHP integer range');
     $percent_running = $stats->timeEnabled > 0 ? 100 * $stats->timeRunning / $stats->timeEnabled : 0;
 
     printf("cpu=%d pid=%d\n", $cpu, $pid);

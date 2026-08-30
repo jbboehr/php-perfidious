@@ -57,13 +57,27 @@ PERFIDIOUS_LOCAL extern zend_string *PERFIDIOUS_INTERNED_VALUES;
         return FAILURE;                                                                                                \
     }
 
+static inline enum perfidious_overflow_mode perfidious_current_overflow_mode(void)
+{
+    switch (PERFIDIOUS_G(overflow_mode)) {
+        case PERFIDIOUS_OVERFLOW_WARN:
+            return PERFIDIOUS_OVERFLOW_WARN;
+        case PERFIDIOUS_OVERFLOW_SATURATE:
+            return PERFIDIOUS_OVERFLOW_SATURATE;
+        case PERFIDIOUS_OVERFLOW_WRAP:
+            return PERFIDIOUS_OVERFLOW_WRAP;
+        case PERFIDIOUS_OVERFLOW_THROW:
+        default:
+            return PERFIDIOUS_OVERFLOW_THROW;
+    }
+}
+
 static inline bool
 perfidious_uint64_t_to_zend_long(uint64_t from, zend_long *restrict to, enum perfidious_overflow_mode overflow_mode)
 {
 #if SIZEOF_UINT64_T >= SIZEOF_ZEND_LONG
     if (UNEXPECTED(from > ZEND_LONG_MAX)) {
         switch (overflow_mode) {
-            default:
             case PERFIDIOUS_OVERFLOW_SATURATE:
                 from = ZEND_LONG_MAX;
                 break;
@@ -73,6 +87,7 @@ perfidious_uint64_t_to_zend_long(uint64_t from, zend_long *restrict to, enum per
                 break;
 
             case PERFIDIOUS_OVERFLOW_THROW:
+            default:
                 zend_throw_exception_ex(
                     perfidious_overflow_exception_ce,
                     0,

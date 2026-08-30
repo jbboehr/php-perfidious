@@ -300,7 +300,7 @@ static ZEND_FUNCTION(perfidious_debug_uint64_overflow)
     ZEND_PARSE_PARAMETERS_END();
 
     if (overflow_mode_zl == -1) {
-        overflow_mode = PERFIDIOUS_G(overflow_mode);
+        overflow_mode = perfidious_current_overflow_mode();
     } else {
         if (overflow_mode_zl > PERFIDIOUS_OVERFLOW_MAX || overflow_mode_zl < 0) {
             zend_type_error("Overflow mode out-of-range");
