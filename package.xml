@@ -186,6 +186,7 @@
    <file name="tests/overflow/throw-timing.phpt" role="test" />
    <file name="tests/sampler/arginfo.phpt" role="test" />
    <file name="tests/sampler/enums.phpt" role="test" />
+   <file name="tests/sampler/metric-units.phpt" role="test" />
    <file name="tests/sampler/object-model.phpt" role="test" />
    <file name="tests/sampler/process-extended-metrics.phpt" role="test" />
    <file name="tests/sampler/process-sampler.phpt" role="test" />

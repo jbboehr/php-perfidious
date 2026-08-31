@@ -78,6 +78,12 @@ enum Scope: string
     case CurrentThread = 'current-thread';
 }
 
+enum MetricUnit
+{
+    case Nanoseconds;
+    case Count;
+}
+
 enum Metric: string
 {
     case CpuTime = 'cpu-time';
@@ -85,6 +91,10 @@ enum Metric: string
     case ContextSwitches = 'context-switches';
     case CpuCycles = 'cpu-cycles';
     case Instructions = 'instructions';
+
+    public function unit(): MetricUnit
+    {
+    }
 }
 
 final class Sampler

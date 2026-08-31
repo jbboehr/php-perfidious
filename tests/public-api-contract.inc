@@ -136,26 +136,24 @@ function perfidious_contract_class(ReflectionClass $class): array
     sort($interfaces);
 
     $methods = [];
-    if (!$class->isEnum()) {
-        foreach ($class->getMethods() as $method) {
-            if ($method->getDeclaringClass()->getName() !== $class->getName()) {
-                continue;
-            }
-            if (str_starts_with(strtolower($method->getName()), 'debug')) {
-                continue;
-            }
-
-            $methods[$method->getName()] = array_merge(
-                [
-                    'visibility' => $method->isPublic() ? 'public' : ($method->isProtected() ? 'protected' : 'private'),
-                    'static' => $method->isStatic(),
-                    'final' => $method->isFinal(),
-                ],
-                perfidious_contract_callable($method),
-            );
+    foreach ($class->getMethods() as $method) {
+        if ($method->getDeclaringClass()->getName() !== $class->getName()) {
+            continue;
         }
-        ksort($methods);
+        if (str_starts_with(strtolower($method->getName()), 'debug')) {
+            continue;
+        }
+
+        $methods[$method->getName()] = array_merge(
+            [
+                'visibility' => $method->isPublic() ? 'public' : ($method->isProtected() ? 'protected' : 'private'),
+                'static' => $method->isStatic(),
+                'final' => $method->isFinal(),
+            ],
+            perfidious_contract_callable($method),
+        );
     }
+    ksort($methods);
 
     $properties = [];
     foreach ($class->getProperties() as $property) {

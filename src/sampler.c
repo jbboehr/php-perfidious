@@ -28,6 +28,7 @@
 PERFIDIOUS_LOCAL zend_class_entry *perfidious_metric_ce;
 PERFIDIOUS_LOCAL zend_class_entry *perfidious_scope_ce;
 
+static zend_class_entry *perfidious_metric_unit_ce;
 static zend_class_entry *perfidious_sampler_ce;
 static zend_class_entry *perfidious_sample_ce;
 static zend_class_entry *perfidious_sample_delta_ce;
@@ -219,6 +220,22 @@ static const char *perfidious_metric_case_name(enum perfidious_metric_id metric)
     }
 }
 
+static const char *perfidious_metric_unit_case_name(enum perfidious_metric_id metric)
+{
+    switch (metric) {
+        case PERFIDIOUS_METRIC_CPU_TIME:
+            return "Nanoseconds";
+        case PERFIDIOUS_METRIC_PAGE_FAULTS:
+        case PERFIDIOUS_METRIC_CONTEXT_SWITCHES:
+        case PERFIDIOUS_METRIC_CPU_CYCLES:
+        case PERFIDIOUS_METRIC_INSTRUCTIONS:
+            return "Count";
+        default:
+        case PERFIDIOUS_METRIC_COUNT:
+            return "";
+    }
+}
+
 static bool perfidious_metric_from_zval(zval *value, enum perfidious_metric_id *metric)
 {
     zval *backing_value;
@@ -367,6 +384,22 @@ ZEND_END_ARG_INFO()
 static PHP_METHOD(PerfidiousSamplerObject, __construct)
 {
     ZEND_PARSE_PARAMETERS_NONE();
+}
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_metric_unit_arginfo, false, 0, Perfidious\\MetricUnit, false)
+ZEND_END_ARG_INFO()
+
+static PHP_METHOD(PerfidiousMetric, unit)
+{
+    enum perfidious_metric_id metric;
+
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    if (!perfidious_metric_from_zval(ZEND_THIS, &metric)) {
+        RETURN_THROWS();
+    }
+
+    RETURN_OBJ_COPY(zend_enum_get_case_cstr(perfidious_metric_unit_ce, perfidious_metric_unit_case_name(metric)));
 }
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_sampler_open_arginfo, false, 1, Perfidious\\Sampler, false)
@@ -649,6 +682,11 @@ static PHP_METHOD(PerfidiousSampleDelta, value)
 }
 
 // clang-format off
+static const zend_function_entry perfidious_metric_methods[] = {
+    PHP_ME(PerfidiousMetric, unit, perfidious_metric_unit_arginfo, ZEND_ACC_PUBLIC)
+    PHP_FE_END
+};
+
 static const zend_function_entry perfidious_sampler_methods[] = {
     PHP_ME(PerfidiousSamplerObject, __construct, perfidious_private_construct_arginfo, ZEND_ACC_PRIVATE)
     PHP_ME(PerfidiousSampler, open, perfidious_sampler_open_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -693,7 +731,13 @@ PERFIDIOUS_LOCAL void perfidious_sampler_minit(void)
 {
     zend_class_entry class_entry;
 
-    perfidious_metric_ce = zend_register_internal_enum(PHP_PERFIDIOUS_NAMESPACE "\\Metric", IS_STRING, NULL);
+    perfidious_metric_unit_ce =
+        zend_register_internal_enum(PHP_PERFIDIOUS_NAMESPACE "\\MetricUnit", IS_UNDEF, NULL);
+    zend_enum_add_case_cstr(perfidious_metric_unit_ce, "Nanoseconds", NULL);
+    zend_enum_add_case_cstr(perfidious_metric_unit_ce, "Count", NULL);
+
+    perfidious_metric_ce =
+        zend_register_internal_enum(PHP_PERFIDIOUS_NAMESPACE "\\Metric", IS_STRING, perfidious_metric_methods);
     PERFIDIOUS_ADD_STRING_ENUM_CASE(perfidious_metric_ce, "CpuTime", "cpu-time");
     PERFIDIOUS_ADD_STRING_ENUM_CASE(perfidious_metric_ce, "PageFaults", "page-faults");
     PERFIDIOUS_ADD_STRING_ENUM_CASE(perfidious_metric_ce, "ContextSwitches", "context-switches");

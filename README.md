@@ -108,8 +108,9 @@ try {
 The sampler begins counting when it is opened. Each sample is cumulative from that point, while `since()` returns the
 difference between two samples from the same sampler.
 
-Metrics use string-backed enums, so configuration values map directly through `Metric::from()`. Opening a sampler
-validates the complete request. If the selected platform, scope, or host cannot provide a metric,
+Metrics use string-backed enums, so configuration values map directly through `Metric::from()`. Generic reporters can
+inspect `Metric::unit()` to distinguish nanoseconds from counts. Opening a sampler validates the complete request. If
+the selected platform, scope, or host cannot provide a metric,
 `UnsupportedMetricException` reports the scope and rejected metrics through its `$scope` and `$unsupportedMetrics`
 properties.
 

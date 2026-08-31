@@ -19,6 +19,8 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
   closing a borrowed global or request handle detaches only that wrapper.
 - `ClosedException`, `WrongThreadException`, and `ResourceBusyException` distinguish lifecycle misuse, Windows
   current-thread misuse, and thread-profiling conflicts from native `IOException` failures.
+- `Metric::unit()` exposes each sampler metric's `MetricUnit`, allowing generic reporters to distinguish nanoseconds
+  from unitless counts without hard-coded metric lists.
 
 ### Changed
 

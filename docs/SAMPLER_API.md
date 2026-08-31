@@ -17,6 +17,7 @@ The proposed API has these properties:
 - a sampler begins counting when it is opened and returns cumulative values relative to that point;
 - two samples from the same sampler can produce a delta;
 - samples expose values through `value(Metric)` rather than a public keyed collection;
+- metrics expose their units for generic reporting;
 - missing counters are never represented by `null` or by a synthetic zero; and
 - platform namespaces remain the place for richer platform-specific primitives.
 
@@ -29,7 +30,7 @@ the current thread.
 
 Metrics are string-backed so configuration adapters can use one canonical `Metric::from()` mapping. The backing values
 are semantic identifiers such as `cpu-time`; they are not exposed as sample array keys and do not encode presentation
-units.
+units. `Metric::unit()` exposes the measurement unit separately.
 
 ## API shape
 
@@ -44,6 +45,12 @@ enum Scope: string
     case CurrentThread = 'current-thread';
 }
 
+enum MetricUnit
+{
+    case Nanoseconds;
+    case Count;
+}
+
 enum Metric: string
 {
     case CpuTime = 'cpu-time';
@@ -51,6 +58,10 @@ enum Metric: string
     case ContextSwitches = 'context-switches';
     case CpuCycles = 'cpu-cycles';
     case Instructions = 'instructions';
+
+    public function unit(): MetricUnit
+    {
+    }
 }
 
 final class Sampler
@@ -348,7 +359,8 @@ the underlying facility is irrecoverably closed or invalidated.
 
 `Sample::value()` and `SampleDelta::value()` throw `ValueError` when asked for a metric that was not configured.
 `Sampler::metrics()` returns the configured enum cases in request order, allowing generic consumers to iterate without
-exposing the internal values collection or its storage keys.
+exposing the internal values collection or its storage keys. `Metric::unit()` returns `MetricUnit::Nanoseconds` for
+CPU time and `MetricUnit::Count` for page faults, context switches, CPU cycles, and instructions.
 
 `Sample::since()` accepts a sample from the same sampler that is not newer than the receiver. Passing a sample from
 another sampler or a later sample throws `ValueError`; subtracting a sample from itself returns a zero delta. The

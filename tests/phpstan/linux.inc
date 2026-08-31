@@ -1,6 +1,7 @@
 <?php
 
 \PHPStan\Testing\assertType('bool', \Perfidious\DEBUG);
+\PHPStan\Testing\assertType('Perfidious\MetricUnit', \Perfidious\Metric::CpuTime->unit());
 \PHPStan\Testing\assertType('int', \Perfidious\get_pmu_event_info(0, 0)->idx);
 \PHPStan\Testing\assertType(
     "Perfidious\\ReadResult<array<int, 'perf::PERF_COUNT_SW_CPU_CLOCK:u'>>",
