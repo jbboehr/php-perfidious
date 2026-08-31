@@ -118,6 +118,7 @@
    <file name="tests/darwin/sampler-probe-shim.phpt" role="test" />
    <file name="tests/darwin/shim/libproc.h" role="test" />
    <file name="tests/darwin/thread-resource-usage.phpt" role="test" />
+   <file name="tests/exception-types.phpt" role="test" />
    <file name="tests/get-pmu-event-info-long-name.phpt" role="test" />
    <file name="tests/get-pmu-event-info.phpt" role="test" />
    <file name="tests/get-pmu-info.phpt" role="test" />
@@ -171,6 +172,7 @@
    <file name="tests/list-pmu-events-unknown-pmu.phpt" role="test" />
    <file name="tests/list-pmu-events.phpt" role="test" />
    <file name="tests/list-pmus.phpt" role="test" />
+   <file name="tests/lifecycle-exceptions.phpt" role="test" />
    <file name="tests/open.phpt" role="test" />
    <file name="tests/public-api-contract.inc" role="test" />
    <file name="tests/public-api-contract.phpt" role="test" />
@@ -209,6 +211,7 @@
    <file name="tests/windows/serializable-results.phpt" role="test" />
    <file name="tests/windows/thread-profile-hardware-counter-data.phpt" role="test" />
    <file name="tests/windows/thread-profile.phpt" role="test" />
+   <file name="tests/windows/thread-profile-resource-busy.phpt" role="test" />
    <file name="tests/windows/thread-profile-hardware-counters.phpt" role="test" />
    <file name="tests/windows/thread-times-native-oracle.phpt" role="test" />
    <file name="tests/windows/thread-times.phpt" role="test" />

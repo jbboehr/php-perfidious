@@ -92,7 +92,7 @@ static zend_always_inline struct perfidious_handle_obj *perfidious_handle_obj_re
     struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(object);
 
     if (UNEXPECTED(obj->handle == NULL)) {
-        zend_throw_exception(perfidious_io_exception_ce, "Handle is closed", 0);
+        zend_throw_exception(perfidious_closed_exception_ce, "Handle is closed", 0);
         return NULL;
     }
 

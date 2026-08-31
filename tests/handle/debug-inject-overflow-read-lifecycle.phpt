@@ -49,7 +49,7 @@ $handle->close();
 try {
     $handle->debugInjectOverflowRead();
     echo "debug injection unexpectedly accepted a closed handle\n";
-} catch (Perfidious\IOException) {
+} catch (Perfidious\ClosedException) {
     echo "debug injection rejected a closed handle\n";
 }
 

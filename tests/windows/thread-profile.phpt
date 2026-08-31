@@ -45,7 +45,7 @@ $profile->close();
 
 try {
     $profile->read();
-} catch (Perfidious\IOException $e) {
+} catch (Perfidious\ClosedException $e) {
     echo "closed\n";
 }
 --EXPECT--

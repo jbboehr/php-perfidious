@@ -289,7 +289,7 @@ static PHP_METHOD(PerfidiousWindowsThreadProfile, read)
 
     obj = perfidious_windows_fetch_thread_profile_object(Z_OBJ_P(ZEND_THIS));
     if (UNEXPECTED(obj->handle == NULL)) {
-        zend_throw_exception(perfidious_io_exception_ce, "Thread profile is closed", ERROR_INVALID_HANDLE);
+        zend_throw_exception(perfidious_closed_exception_ce, "Thread profile is closed", 0);
         return;
     }
 
@@ -644,6 +644,15 @@ static PHP_FUNCTION(perfidious_windows_enable_current_thread_profiling)
 
     error = perfidious_windows_thread_profile_enable((DWORD64) hardware_counters, &handle);
     if (UNEXPECTED(error != ERROR_SUCCESS)) {
+        if (error == ERROR_WMI_ALREADY_ENABLED) {
+            zend_throw_exception_ex(
+                perfidious_resource_busy_exception_ce,
+                (zend_long) error,
+                "EnableThreadProfiling failed with Windows error %lu",
+                (unsigned long) error
+            );
+            return;
+        }
         perfidious_windows_throw_error("EnableThreadProfiling", error);
         return;
     }

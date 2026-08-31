@@ -485,7 +485,7 @@ static PHP_METHOD(PerfidiousSampler, read)
 
     obj = perfidious_fetch_sampler_object(Z_OBJ_P(ZEND_THIS));
     if (UNEXPECTED(obj->sampler == NULL)) {
-        zend_throw_exception(perfidious_io_exception_ce, "Sampler is closed", 0);
+        zend_throw_exception(perfidious_closed_exception_ce, "Sampler is closed", 0);
         return;
     }
 

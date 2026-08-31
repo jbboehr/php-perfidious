@@ -60,7 +60,7 @@ var_dump(
 try {
     $unexpectedProfile = Perfidious\Windows\enable_current_thread_profiling();
     $unexpectedProfile->close();
-} catch (Perfidious\IOException) {
+} catch (Perfidious\ResourceBusyException) {
     echo "low-level conflict rejected\n";
 }
 $afterLowLevelConflict = $sampler->read();
@@ -81,7 +81,7 @@ try {
         Scope::CurrentThread,
     );
     $unexpectedSampler->close();
-} catch (Perfidious\IOException) {
+} catch (Perfidious\ResourceBusyException) {
     echo "sampler conflict rejected\n";
 }
 $afterSamplerConflict = $profileAfterClose->read();
@@ -99,6 +99,33 @@ $profileAfterDestruction = Perfidious\Windows\enable_current_thread_profiling();
 $profileAfterDestruction->close();
 echo "released after destruction\n";
 
+$fiberSampler = Sampler::open($metrics, Scope::CurrentThread);
+$beforeFiber = $fiberSampler->read();
+$reader = new Fiber(static fn() => $fiberSampler->read());
+$reader->start();
+$fromFiber = $reader->getReturn();
+var_dump(
+    $fromFiber->value(Metric::CpuTime) >= $beforeFiber->value(Metric::CpuTime) &&
+    $fromFiber->value(Metric::ContextSwitches) >= $beforeFiber->value(Metric::ContextSwitches) &&
+    $fromFiber->value(Metric::CpuCycles) >= $beforeFiber->value(Metric::CpuCycles)
+);
+
+$closer = new Fiber(static function () use ($fiberSampler): void {
+    $fiberSampler->close();
+    $fiberSampler->close();
+});
+$closer->start();
+try {
+    $fiberSampler->read();
+    echo "sampler remained readable after fiber close\n";
+} catch (Perfidious\ClosedException) {
+    echo "fiber close released the sampler\n";
+}
+
+$profileAfterFiberClose = Perfidious\Windows\enable_current_thread_profiling();
+$profileAfterFiberClose->close();
+echo "released after fiber close\n";
+
 var_dump(is_int($accumulator));
 --EXPECT--
 bool(true)
@@ -112,4 +139,7 @@ sampler conflict rejected
 bool(true)
 released after close
 released after destruction
+bool(true)
+fiber close released the sampler
+released after fiber close
 bool(true)

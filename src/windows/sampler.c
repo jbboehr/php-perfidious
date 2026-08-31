@@ -106,6 +106,15 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_open(
             if (UNEXPECTED(error != ERROR_SUCCESS)) {
                 CloseHandle(result->thread_handle);
                 efree(result);
+                if (error == ERROR_WMI_ALREADY_ENABLED) {
+                    zend_throw_exception_ex(
+                        perfidious_resource_busy_exception_ce,
+                        (zend_long) error,
+                        "EnableThreadProfiling failed with Windows error %lu",
+                        (unsigned long) error
+                    );
+                    return FAILURE;
+                }
                 return perfidious_windows_throw_sampler_error("EnableThreadProfiling", error);
             }
         }
@@ -131,7 +140,7 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_read(
 
         if (UNEXPECTED(sampler->thread_id != GetCurrentThreadId())) {
             zend_throw_exception(
-                perfidious_io_exception_ce,
+                perfidious_wrong_thread_exception_ce,
                 "Windows current-thread sampler must be read from the thread that opened it",
                 0
             );
@@ -144,7 +153,7 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_read(
         }
         if (UNEXPECTED(wait_result != WAIT_TIMEOUT)) {
             zend_throw_exception(
-                perfidious_io_exception_ce,
+                perfidious_wrong_thread_exception_ce,
                 "Windows current-thread sampler must be read from the thread that opened it",
                 0
             );

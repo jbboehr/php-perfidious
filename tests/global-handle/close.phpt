@@ -10,7 +10,7 @@ perfidious.global.metrics=perf::PERF_COUNT_SW_CPU_CLOCK:u
 --FILE--
 <?php
 
-use Perfidious\IOException;
+use Perfidious\ClosedException;
 
 $handle = Perfidious\global_handle();
 $handle->close();
@@ -19,7 +19,7 @@ $handle->close();
 try {
     $handle->read();
     echo "detached wrapper unexpectedly remained usable\n";
-} catch (IOException) {
+} catch (ClosedException) {
     echo "global wrapper detached\n";
 }
 

@@ -89,6 +89,9 @@ PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_pmu_not_found_exception_ce
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_pmu_event_not_found_exception_ce;
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_overflow_exception_ce;
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_io_exception_ce;
+PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_closed_exception_ce;
+PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_wrong_thread_exception_ce;
+PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_resource_busy_exception_ce;
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_unsupported_metric_exception_ce;
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_read_result_ce;
 

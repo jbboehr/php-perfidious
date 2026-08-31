@@ -54,7 +54,7 @@ foreach (
     try {
         $call();
         echo "$method unexpectedly succeeded\n";
-    } catch (Perfidious\IOException) {
+    } catch (Perfidious\ClosedException) {
         echo "$method rejected closed handle\n";
     }
 }

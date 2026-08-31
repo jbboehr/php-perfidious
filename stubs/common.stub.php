@@ -36,6 +36,18 @@ final class IOException extends \RuntimeException implements ExceptionInterface
 {
 }
 
+final class ClosedException extends \LogicException implements ExceptionInterface
+{
+}
+
+final class WrongThreadException extends \LogicException implements ExceptionInterface
+{
+}
+
+final class ResourceBusyException extends \RuntimeException implements ExceptionInterface
+{
+}
+
 final class OverflowException extends \OverflowException implements ExceptionInterface
 {
 }
@@ -81,7 +93,10 @@ final class Sampler
     {
     }
 
-    /** @param non-empty-list<Metric> $metrics */
+    /**
+     * @param non-empty-list<Metric> $metrics
+     * @throws UnsupportedMetricException|ResourceBusyException|IOException|OverflowException
+     */
     public static function open(array $metrics, Scope $scope = Scope::CurrentProcess): self
     {
     }
@@ -91,6 +106,7 @@ final class Sampler
     {
     }
 
+    /** @throws ClosedException|WrongThreadException|IOException|OverflowException */
     public function read(): Sample
     {
     }

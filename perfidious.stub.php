@@ -25,6 +25,18 @@ final class IOException extends \RuntimeException implements ExceptionInterface
 {
 }
 
+final class ClosedException extends \LogicException implements ExceptionInterface
+{
+}
+
+final class WrongThreadException extends \LogicException implements ExceptionInterface
+{
+}
+
+final class ResourceBusyException extends \RuntimeException implements ExceptionInterface
+{
+}
+
 final class OverflowException extends \OverflowException implements ExceptionInterface
 {
 }
@@ -70,7 +82,10 @@ final class Sampler
     {
     }
 
-    /** @param non-empty-list<Metric> $metrics */
+    /**
+     * @param non-empty-list<Metric> $metrics
+     * @throws UnsupportedMetricException|ResourceBusyException|IOException|OverflowException
+     */
     public static function open(array $metrics, Scope $scope = Scope::CurrentProcess): self
     {
     }
@@ -80,6 +95,7 @@ final class Sampler
     {
     }
 
+    /** @throws ClosedException|WrongThreadException|IOException|OverflowException */
     public function read(): Sample
     {
     }
@@ -208,7 +224,7 @@ final class Handle
 {
     /**
      * Releases owned descriptors immediately or detaches this borrowed view.
-     * This method is idempotent; every other method throws IOException after it is called.
+     * This method is idempotent; every other method throws ClosedException after it is called.
      *
      * @throws IOException
      */
@@ -218,7 +234,7 @@ final class Handle
 
     /**
      * @return $this
-     * @throws IOException
+     * @throws ClosedException|IOException
      */
     final public function enable(): self
     {
@@ -226,7 +242,7 @@ final class Handle
 
     /**
      * @return $this
-     * @throws IOException
+     * @throws ClosedException|IOException
      */
     final public function disable(): self
     {
@@ -239,6 +255,7 @@ final class Handle
      * @note the returned stream owns an independent copy of the file descriptor, so closing it
      *       does not affect this handle or subsequent calls to read()
      * @return resource
+     * @throws ClosedException|IOException
      * @throws \ValueError if idx does not reference an existing file descriptor
      */
     final public function rawStream(int $idx = 0)
@@ -246,7 +263,7 @@ final class Handle
     }
 
     /**
-     * @throws OverflowException|IOException
+     * @throws ClosedException|OverflowException|IOException
      *
      * @phpstan-return ReadResult<T>
      */
@@ -255,7 +272,7 @@ final class Handle
     }
 
     /**
-     * @throws OverflowException|IOException
+     * @throws ClosedException|OverflowException|IOException
      *
      * @phpstan-return array<value-of<T>, int>
      */
@@ -265,7 +282,7 @@ final class Handle
 
     /**
      * @return $this
-     * @throws IOException
+     * @throws ClosedException|IOException
      */
     final public function reset(): self
     {
@@ -441,7 +458,7 @@ function get_current_process_memory_info(): ProcessMemoryInfo
  * Hardware counters are a bitmask of up to 16 globally configured counter indices. Configuring
  * those counters requires a kernel driver; an unconfigured requested counter reads as zero.
  *
- * @throws \Perfidious\IOException
+ * @throws \Perfidious\ResourceBusyException|\Perfidious\IOException
  * @see https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-enablethreadprofiling
  */
 function enable_current_thread_profiling(int $hardwareCounterMask = 0): ThreadProfile
@@ -580,7 +597,7 @@ final class ThreadProfile
     }
 
     /**
-     * @throws \Perfidious\IOException|\Perfidious\OverflowException
+     * @throws \Perfidious\ClosedException|\Perfidious\IOException|\Perfidious\OverflowException
      * @see https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-readthreadprofilingdata
      */
     final public function read(): ThreadProfileSnapshot

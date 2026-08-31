@@ -5,7 +5,7 @@ perfidious
 --FILE--
 <?php
 
-use Perfidious\IOException;
+use Perfidious\ClosedException;
 use Perfidious\Metric;
 use Perfidious\Sampler;
 use Perfidious\Scope;
@@ -210,7 +210,7 @@ var_dump($firstSampler->metrics() === [Metric::CpuTime]);
 
 try {
     $firstSampler->read();
-} catch (IOException) {
+} catch (ClosedException) {
     echo "closed\n";
 }
 

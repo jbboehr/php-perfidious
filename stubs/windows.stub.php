@@ -78,7 +78,7 @@ function get_current_process_memory_info(): ProcessMemoryInfo
  * Hardware counters are a bitmask of up to 16 globally configured counter indices. Configuring
  * those counters requires a kernel driver; an unconfigured requested counter reads as zero.
  *
- * @throws \Perfidious\IOException
+ * @throws \Perfidious\ResourceBusyException|\Perfidious\IOException
  * @see https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-enablethreadprofiling
  */
 function enable_current_thread_profiling(int $hardwareCounterMask = 0): ThreadProfile
@@ -217,7 +217,7 @@ final class ThreadProfile
     }
 
     /**
-     * @throws \Perfidious\IOException|\Perfidious\OverflowException
+     * @throws \Perfidious\ClosedException|\Perfidious\IOException|\Perfidious\OverflowException
      * @see https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-readthreadprofilingdata
      */
     final public function read(): ThreadProfileSnapshot

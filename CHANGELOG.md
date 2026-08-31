@@ -17,6 +17,8 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
   sampler requests without parsing exception messages.
 - An idempotent `Handle::close()` method for deterministic release of owned Linux performance-counter descriptors;
   closing a borrowed global or request handle detaches only that wrapper.
+- `ClosedException`, `WrongThreadException`, and `ResourceBusyException` distinguish lifecycle misuse, Windows
+  current-thread misuse, and thread-profiling conflicts from native `IOException` failures.
 
 ### Changed
 

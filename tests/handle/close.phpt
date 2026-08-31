@@ -8,7 +8,7 @@ perfidious
 --FILE--
 <?php
 
-use Perfidious\IOException;
+use Perfidious\ClosedException;
 
 function openDescriptorCount(): int
 {
@@ -44,7 +44,7 @@ foreach (
     try {
         $call();
         echo "$method unexpectedly succeeded\n";
-    } catch (IOException) {
+    } catch (ClosedException) {
         echo "$method rejected closed handle\n";
     }
 }

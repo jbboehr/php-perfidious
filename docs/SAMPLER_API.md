@@ -116,6 +116,18 @@ final class UnsupportedMetricException extends \RuntimeException implements Exce
     /** @var non-empty-list<Metric> */
     public readonly array $unsupportedMetrics;
 }
+
+final class ClosedException extends \LogicException implements ExceptionInterface
+{
+}
+
+final class WrongThreadException extends \LogicException implements ExceptionInterface
+{
+}
+
+final class ResourceBusyException extends \RuntimeException implements ExceptionInterface
+{
+}
 ```
 
 Typical use would look like this:
@@ -320,8 +332,13 @@ that is not a `Metric` should throw `ValueError`. If any metric is unsupported f
 Known-unsupported metrics are rejected before fallible host-capability probes; a probe is performed only when every
 requested metric is nominally supported for the selected platform and scope.
 
-Permissions, resource exhaustion, and native call failures should continue to use `IOException`. Counter values that do
-not fit in a PHP integer should use `OverflowException`.
+Using an explicitly closed handle, sampler, or thread profile throws `ClosedException`. Reading a Windows
+current-thread sampler from a different native thread throws `WrongThreadException`. A conflicting Windows thread
+profiling session throws `ResourceBusyException`; callers can release the existing sampler or low-level profile and
+retry. These state errors are deliberately not subclasses of `IOException`.
+
+Permissions, resource exhaustion, and native call failures continue to use `IOException`. Counter values that do not
+fit in a PHP integer use `OverflowException`.
 
 An open sampler begins counting immediately. `close()` is idempotent, and destruction closes an unclosed sampler.
 Reading a closed sampler is an error. Samplers, samples, and deltas are not cloneable or serializable.
