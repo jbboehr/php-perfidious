@@ -9,8 +9,8 @@
 ![Tag](https://img.shields.io/github/v/tag/jbboehr/php-perfidious)
 ![stability-experimental](https://img.shields.io/badge/stability-experimental-orange.svg)
 
-This extension provides access to the performance monitoring *counters* exposed
-by Linux `perf_events`, plus experimental low-level Windows and macOS APIs.
+This extension provides a common sampler for a small set of process and thread metrics, plus low-level access to Linux
+`perf_events` and experimental Windows and macOS performance APIs.
 
 ## Requirements
 
@@ -78,9 +78,46 @@ Finally, *restart the web server*.
 
 See also the [`examples`](./examples) directory and the [`stub`](./perfidious.stub.php).
 
+### Cross-platform sampler
+
+`Sampler` is the starting point when the metrics you need are available through the common API. The current process is
+the default scope, and CPU time plus page faults are supported for that scope on Linux, Windows, and macOS.
+
+```php
+use Perfidious\Metric;
+use Perfidious\Sampler;
+
+$sampler = Sampler::open([
+    Metric::CpuTime,
+    Metric::PageFaults,
+]);
+
+try {
+    $before = $sampler->read();
+
+    hash('sha256', str_repeat('x', 1_000_000));
+
+    $delta = $sampler->read()->since($before);
+    printf("CPU time: %d ns\n", $delta->value(Metric::CpuTime));
+    printf("Page faults: %d\n", $delta->value(Metric::PageFaults));
+} finally {
+    $sampler->close();
+}
+```
+
+The sampler begins counting when it is opened. Each sample is cumulative from that point, while `since()` returns the
+difference between two samples from the same sampler.
+
+Metrics use string-backed enums, so configuration values map directly through `Metric::from()`. Opening a sampler
+validates the complete request. If the selected platform, scope, or host cannot provide a metric,
+`UnsupportedMetricException` reports the scope and rejected metrics through its `$scope` and `$unsupportedMetrics`
+properties.
+
+Use the APIs below when you need counters or native details outside the common sampler.
+
 ### Linux perf_events
 
-For example, you can programmatically open and access the counters.
+`Perfidious\open()` accepts arbitrary libpfm event names and exposes Linux perf-event timing and multiplexing details.
 
 ```php
 $handle = Perfidious\open(["perf::PERF_COUNT_SW_CPU_CLOCK:u"]);
@@ -176,6 +213,21 @@ and optional hardware counters. Hardware counters are selected with a bitmask of
 unconfigured index reads as zero, which is indistinguishable from a configured counter
 that observed no events; `hardwareCounterCount` reports how many entries Windows says
 are populated.
+
+### macOS
+
+The macOS API exposes cumulative process and current-thread resource snapshots in `Perfidious\Darwin`:
+
+```php
+$process = Perfidious\Darwin\get_current_process_resource_usage();
+$thread = Perfidious\Darwin\get_current_thread_resource_usage();
+
+$processCpuTimeNs = $process->userTimeNs + $process->systemTimeNs;
+$threadCpuTimeNs = $thread->userTimeNs + $thread->systemTimeNs;
+```
+
+The process snapshot also contains page-fault and context-switch counts. Cycle and instruction counts may be zero when
+macOS cannot collect them, including on some older or virtualized systems.
 
 ## Events
 
