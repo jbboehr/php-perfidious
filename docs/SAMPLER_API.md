@@ -1,7 +1,8 @@
 # Sampler API design
 
 Status: slices 1 and 2 are implemented. Slice 3 includes Windows current-thread CPU time, context switches, and CPU
-cycles; the remaining current-thread combinations, instruction counting, and Linux multiplex scaling remain proposed.
+cycles. Linux current-thread support is intentionally deferred until a ZTS or embedded-PHP consumer demonstrates a
+need for it. The remaining Darwin current-thread combinations and instruction counting remain proposed.
 
 ## Summary
 
@@ -11,7 +12,7 @@ an operating system can provide a counter for a scope when it cannot.
 
 The proposed API has these properties:
 
-- the current process is the default scope, with the current native thread represented explicitly for later slices;
+- the current process is the default scope, while current-thread support is an opt-in platform capability;
 - the caller requests a non-empty list of metrics explicitly;
 - unsupported scope and metric combinations fail when the sampler is opened;
 - a sampler begins counting when it is opened and returns cumulative values relative to that point;
@@ -199,6 +200,11 @@ Windows supports `Metric::CpuTime`, `Metric::ContextSwitches`, and `Metric::CpuC
 current-thread page faults and instructions still throw `UnsupportedMetricException`, as do combinations whose other
 platform adapters have not been implemented.
 
+Linux intentionally rejects all `Scope::CurrentThread` requests in the first version. `perf_event_open()` can bind a
+counter group to the calling native thread without enumerating the process's threads, but PHP-FPM and CLI normally
+execute PHP on one native thread. For those callers, thread scope usually adds no useful isolation over process scope.
+Revisit this decision when a ZTS or embedded-PHP consumer needs to exclude work performed by other native threads.
+
 The first version does not target arbitrary process or thread identifiers. The platform-specific APIs can continue to
 expose facilities that do so.
 
@@ -246,20 +252,24 @@ needed to open every nominally supported counter.
 
 | Metric | Linux process | Linux thread | Windows process | Windows thread | Darwin process | Darwin thread |
 | --- | --- | --- | --- | --- | --- | --- |
-| CPU time | Yes | Yes | Yes | Yes | Yes | Yes |
-| Page faults | Yes | Yes | Yes | No | Yes | No |
-| Context switches | Yes | Yes | No | Yes | Yes | No |
-| CPU cycles | No | Yes | Yes | Yes | Probed | No |
-| Instructions | No | Yes | No | Driver-dependent | No | No |
+| CPU time | Yes | Deferred | Yes | Yes | Yes | Yes |
+| Page faults | Yes | Deferred | Yes | No | Yes | No |
+| Context switches | Yes | Deferred | No | Yes | Yes | No |
+| CPU cycles | No | Deferred | Yes | Yes | Probed | No |
+| Instructions | No | Deferred | No | Driver-dependent | No | No |
 
 `Probed` means that `Sampler::open()` accepts the metric only when the host reports a positive cumulative native count;
 a zero count is treated as unavailable. `Driver-dependent` is not advertised as cross-platform support in the first
 version. The only planned multi-metric request supported reliably across all three process backends is CPU time plus
 page faults.
 
+`Deferred` means the Linux kernel can target the current native thread, but the extension deliberately postpones that
+scope until it has a concrete PHP use case.
+
 The important consequences are:
 
 - no five-counter preset works across every platform and scope;
+- Linux current-thread support is deliberately deferred despite kernel support;
 - Linux process-wide cycles and instructions must not be implemented by attaching `perf_event_open()` only to the
   calling thread;
 - Windows process context switches and instructions have no honest mapping in the current backend;
@@ -277,9 +287,9 @@ such a driver can continue to use `Perfidious\Windows\enable_current_thread_prof
 
 ### Linux
 
-Current-thread metrics map naturally to a `perf_event_open()` group containing the five requested perf events. The
-Linux API defines `pid == 0` and `cpu == -1` as the calling process/thread, and distinguishes CPU-clock, page-fault,
-context-switch, cycle, and retired-instruction events. See the
+Current-thread metrics could map to a `perf_event_open()` group containing the five requested perf events. The Linux
+API defines `pid == 0` and `cpu == -1` as the calling thread, and distinguishes CPU-clock, page-fault, context-switch,
+cycle, and retired-instruction events. This backend is intentionally deferred as described under Scope. See the
 [Linux `perf_event_open(2)` documentation](https://www.kernel.org/pub/linux/docs/man-pages/book/man-pages-6.17.pdf).
 
 | Sampler metric | Linux event |
@@ -296,10 +306,12 @@ separate backend configuration because its CPU time, cycle, and instruction defi
 Process CPU time, page faults, and context switches can use process-wide resource accounting. Process-wide cycles and
 instructions remain unsupported until the extension has a correct all-thread implementation. Linux identifies perf
 targets by task/thread, and setting the target to the process ID would otherwise count only the thread-group leader.
+The `inherit` flag is not a substitute: it omits existing threads and is incompatible with some grouped read formats.
+The project will not add process thread tracking without a demonstrated consumer.
 
-When Linux multiplexes hardware counters, the backend should scale values using the kernel's enabled and running times
-and document that the result is an estimate. A later API revision may expose counter-quality metadata if applications
-need to distinguish scaled readings.
+If a Linux current-thread backend is added later, it must scale multiplexed hardware counters using the kernel's
+enabled and running times and document that the result is an estimate. A later API revision may expose counter-quality
+metadata if applications need to distinguish scaled readings.
 
 ### Windows
 
@@ -396,10 +408,11 @@ Implementation should proceed vertically and pause after each slice:
    current-process CPU time and page faults on all three platforms. This slice is implemented.
 2. Add current-process context switches and cycles where the matrix permits them. This slice is implemented.
 3. Add current-thread CPU time, page faults, context switches, and cycles where supported. The Windows current-thread
-   adapters are implemented for CPU time, context switches, and cycles; the Linux and Darwin combinations remain
-   pending.
-4. Add instruction counting and Linux multiplex scaling, retaining Darwin hardware counters and driver-dependent
-   Windows instruction counters in their low-level namespaces until availability can be established reliably.
+   adapters are implemented for CPU time, context switches, and cycles. The Darwin combinations remain pending, while
+   Linux current-thread support is deliberately deferred until there is a concrete consumer.
+4. Add instruction counting, retaining Darwin hardware counters and driver-dependent Windows instruction counters in
+   their low-level namespaces until availability can be established reliably. Linux multiplex scaling belongs to the
+   deferred current-thread backend rather than this slice.
 
 Each slice should expose the same classes on every platform, test successful combinations, and test that unsupported
 combinations fail without leaking partially opened native resources.
