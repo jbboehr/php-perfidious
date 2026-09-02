@@ -511,10 +511,13 @@
         devShells = builtins.mapAttrs (name: package: makeDevShell package) packages;
 
         checks =
-          {inherit pre-commit-check;}
-          // {php85-zts = php85ZtsCheck;}
-          // (builtins.mapAttrs (name: package: makeCheck package) packages)
-          // (lib.mapAttrs' (name: value: lib.nameValuePair (name + "-vmtest") (makeVmCheck value)) packages);
+          {
+            inherit pre-commit-check;
+            php85-zts = php85ZtsCheck;
+            php81-gcc-vmtest = makeVmCheck packages.php81-gcc;
+            php85-gcc-vmtest = makeVmCheck packages.php85-gcc;
+          }
+          // (builtins.mapAttrs (name: package: makeCheck package) (builtins.removeAttrs packages ["default"]));
 
         formatter = pkgs.alejandra;
       }
