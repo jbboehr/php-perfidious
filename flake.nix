@@ -310,6 +310,28 @@
 
         pkgs-phps = nix-phps.packages.${system};
 
+        php85Zts =
+          (pkgs.php85.override {
+            argon2Support = false;
+            cgiSupport = false;
+            fpmSupport = false;
+            pearSupport = false;
+            pharSupport = false;
+            phpdbgSupport = false;
+            systemdSupport = false;
+            ztsSupport = true;
+          }).buildEnv {
+            extensions = _: [];
+          };
+
+        php85ZtsCheck = (makeCheck (makePackage {php = php85Zts;})).overrideAttrs (previous: {
+          preCheck =
+            (previous.preCheck or "")
+            + ''
+              ${php85Zts}/bin/php -r 'exit(PHP_ZTS ? 0 : 1);'
+            '';
+        });
+
         matrix = with pkgs; {
           php = {
             inherit php82 php83 php85;
@@ -490,6 +512,7 @@
 
         checks =
           {inherit pre-commit-check;}
+          // {php85-zts = php85ZtsCheck;}
           // (builtins.mapAttrs (name: package: makeCheck package) packages)
           // (lib.mapAttrs' (name: value: lib.nameValuePair (name + "-vmtest") (makeVmCheck value)) packages);
 
