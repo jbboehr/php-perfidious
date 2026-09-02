@@ -325,8 +325,8 @@ error (`-Werror`).
 
 **A:** Building inside the project's own `nix develop` shell always treats
 warnings as errors by design, so we catch them during development. A plain
-`git clone` + `phpize && ./configure` build, and PECL/release-tarball installs,
-default to non-fatal warnings instead - if you hit this outside the nix
+`git clone` + `phpize && ./configure` builds and source-archive installs default
+to non-fatal warnings instead - if you hit this outside the nix
 devShell, please [file an issue](https://github.com/jbboehr/php-perfidious/issues),
 since it likely means a warning that's fine on our compilers isn't on yours.
 You can also pass `--enable-compile-warnings=yes` explicitly to `./configure`

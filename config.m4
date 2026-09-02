@@ -91,8 +91,8 @@ if test "$PHP_PERFIDIOUS" != "no"; then
     dnl checkout with a .git directory - which would make -Werror the default for every plain
     dnl `git clone && phpize && ./configure`, not just for our own dev environment. Key it off
     dnl IN_NIX_SHELL instead: -Werror stays the default inside our nix devShell (where we want it
-    dnl to catch warnings), but a plain git checkout gets the same lenient default as a PECL/
-    dnl tarball install. This can always be overridden explicitly with --enable-compile-warnings.
+    dnl to catch warnings), but a plain git checkout gets the same lenient default as a source
+    dnl archive install. This can always be overridden explicitly with --enable-compile-warnings.
     AS_IF([test -n "$IN_NIX_SHELL"],
           [AX_IS_RELEASE([never])],
           [AX_IS_RELEASE([always])])
