@@ -26,6 +26,7 @@
 #include <errno.h>
 #include <mach/mach.h>
 #include <mach/mach_time.h>
+#include <pthread.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -40,6 +41,7 @@
 #include "main/php.h"
 
 #include "php_perfidious.h"
+#include "resource_usage.h"
 
 #define PHP_PERFIDIOUS_DARWIN_NAMESPACE PHP_PERFIDIOUS_NAMESPACE "\\Darwin"
 #define PERFIDIOUS_DARWIN_THSC_TIME_CPI 3
@@ -184,6 +186,69 @@ static bool perfidious_darwin_time_value_to_ns(const time_value_t *value, uint64
     return true;
 }
 
+PERFIDIOUS_LOCAL zend_result perfidious_darwin_get_current_thread_id(uint64_t *thread_id)
+{
+    int error = pthread_threadid_np(NULL, thread_id);
+
+    if (UNEXPECTED(error != 0)) {
+        perfidious_darwin_throw_errno("pthread_threadid_np", error);
+        return FAILURE;
+    }
+
+    return SUCCESS;
+}
+
+PERFIDIOUS_LOCAL zend_result
+perfidious_darwin_read_current_thread_resource_usage(struct perfidious_darwin_thread_resource_usage *result)
+{
+    struct perfidious_darwin_thread_time_cpi usage;
+    bool have_usage = false;
+
+    memset(result, 0, sizeof(*result));
+
+    if (perfidious_darwin_thread_selfcounts != NULL) {
+        memset(&usage, 0, sizeof(usage));
+        if (perfidious_darwin_thread_selfcounts(PERFIDIOUS_DARWIN_THSC_TIME_CPI, &usage, sizeof(usage)) == 0) {
+            if (!perfidious_darwin_mach_time_to_ns(usage.user_time_mach, &result->user_time_ns) ||
+                !perfidious_darwin_mach_time_to_ns(usage.system_time_mach, &result->system_time_ns)) {
+                return FAILURE;
+            }
+
+            result->instructions = usage.instructions;
+            result->cycles = usage.cycles;
+            have_usage = true;
+        } else if (errno != ENOTSUP && errno != ENOSYS) {
+            int error = errno;
+
+            perfidious_darwin_throw_errno("thread_selfcounts", error);
+            return FAILURE;
+        }
+    }
+
+    if (!have_usage) {
+        thread_basic_info_data_t basic_usage;
+        mach_msg_type_number_t count = THREAD_BASIC_INFO_COUNT;
+        thread_t thread = mach_thread_self();
+        kern_return_t error;
+
+        memset(&basic_usage, 0, sizeof(basic_usage));
+        error = thread_info(thread, THREAD_BASIC_INFO, (thread_info_t) &basic_usage, &count);
+        (void) mach_port_deallocate(mach_task_self(), thread);
+
+        if (UNEXPECTED(error != KERN_SUCCESS)) {
+            perfidious_darwin_throw_mach("thread_info", error);
+            return FAILURE;
+        }
+
+        if (!perfidious_darwin_time_value_to_ns(&basic_usage.user_time, &result->user_time_ns) ||
+            !perfidious_darwin_time_value_to_ns(&basic_usage.system_time, &result->system_time_ns)) {
+            return FAILURE;
+        }
+    }
+
+    return SUCCESS;
+}
+
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(
     perfidious_darwin_get_current_process_resource_usage_arginfo,
     false,
@@ -278,56 +343,19 @@ ZEND_END_ARG_INFO()
 
 static PHP_FUNCTION(perfidious_darwin_get_current_thread_resource_usage)
 {
-    struct perfidious_darwin_thread_time_cpi usage;
-    uint64_t native_values[4] = {0};
+    struct perfidious_darwin_thread_resource_usage usage;
     zend_long values[4];
-    bool have_usage = false;
 
     ZEND_PARSE_PARAMETERS_NONE();
 
-    if (perfidious_darwin_thread_selfcounts != NULL) {
-        memset(&usage, 0, sizeof(usage));
-        if (perfidious_darwin_thread_selfcounts(PERFIDIOUS_DARWIN_THSC_TIME_CPI, &usage, sizeof(usage)) == 0) {
-            if (!perfidious_darwin_mach_time_to_ns(usage.user_time_mach, &native_values[0]) ||
-                !perfidious_darwin_mach_time_to_ns(usage.system_time_mach, &native_values[1])) {
-                return;
-            }
-
-            native_values[2] = usage.instructions;
-            native_values[3] = usage.cycles;
-            have_usage = true;
-        } else if (errno != ENOTSUP && errno != ENOSYS) {
-            int error = errno;
-            perfidious_darwin_throw_errno("thread_selfcounts", error);
-            return;
-        }
+    if (UNEXPECTED(FAILURE == perfidious_darwin_read_current_thread_resource_usage(&usage))) {
+        return;
     }
 
-    if (!have_usage) {
-        thread_basic_info_data_t basic_usage;
-        mach_msg_type_number_t count = THREAD_BASIC_INFO_COUNT;
-        thread_t thread = mach_thread_self();
-        kern_return_t error;
-
-        memset(&basic_usage, 0, sizeof(basic_usage));
-        error = thread_info(thread, THREAD_BASIC_INFO, (thread_info_t) &basic_usage, &count);
-        (void) mach_port_deallocate(mach_task_self(), thread);
-
-        if (UNEXPECTED(error != KERN_SUCCESS)) {
-            perfidious_darwin_throw_mach("thread_info", error);
-            return;
-        }
-
-        if (!perfidious_darwin_time_value_to_ns(&basic_usage.user_time, &native_values[0]) ||
-            !perfidious_darwin_time_value_to_ns(&basic_usage.system_time, &native_values[1])) {
-            return;
-        }
-    }
-
-    if (!perfidious_darwin_uint64_to_zend_long("thread user time", native_values[0], &values[0]) ||
-        !perfidious_darwin_uint64_to_zend_long("thread system time", native_values[1], &values[1]) ||
-        !perfidious_darwin_uint64_to_zend_long("thread instruction count", native_values[2], &values[2]) ||
-        !perfidious_darwin_uint64_to_zend_long("thread cycle count", native_values[3], &values[3])) {
+    if (!perfidious_darwin_uint64_to_zend_long("thread user time", usage.user_time_ns, &values[0]) ||
+        !perfidious_darwin_uint64_to_zend_long("thread system time", usage.system_time_ns, &values[1]) ||
+        !perfidious_darwin_uint64_to_zend_long("thread instruction count", usage.instructions, &values[2]) ||
+        !perfidious_darwin_uint64_to_zend_long("thread cycle count", usage.cycles, &values[3])) {
         return;
     }
 

@@ -21,11 +21,27 @@
 
 #include "php_perfidious.h"
 #include "../sampler.h"
+#include "resource_usage.h"
 
 struct perfidious_platform_sampler
 {
     uint32_t metrics;
+    enum perfidious_scope_id scope;
+    uint64_t thread_id;
 };
+
+static zend_result perfidious_darwin_store_cpu_time(
+    uint64_t user_time_ns, uint64_t system_time_ns, struct perfidious_sampler_snapshot *snapshot
+)
+{
+    if (UNEXPECTED(user_time_ns > UINT64_MAX - system_time_ns)) {
+        zend_throw_exception(perfidious_overflow_exception_ce, "Darwin total CPU time overflow", 0);
+        return FAILURE;
+    }
+
+    snapshot->values[PERFIDIOUS_METRIC_CPU_TIME] = user_time_ns + system_time_ns;
+    return SUCCESS;
+}
 
 static zend_result perfidious_darwin_read_process_usage(struct rusage_info_v4 *usage)
 {
@@ -50,11 +66,12 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_supported_metrics(
     const uint32_t nominal_process_metrics = base_process_metrics | PERFIDIOUS_METRIC_CPU_CYCLES_MASK;
     struct rusage_info_v4 usage;
 
-    if (scope != PERFIDIOUS_SCOPE_CURRENT_PROCESS) {
-        *supported_metrics = 0;
+    if (scope == PERFIDIOUS_SCOPE_CURRENT_THREAD) {
+        *supported_metrics = PERFIDIOUS_METRIC_CPU_TIME_MASK;
         return SUCCESS;
     }
 
+    ZEND_ASSERT(scope == PERFIDIOUS_SCOPE_CURRENT_PROCESS);
     *supported_metrics = base_process_metrics;
     /* Let the common layer reject statically unsupported requests before this fallible host probe. */
     if (UNEXPECTED((requested_metrics & ~nominal_process_metrics) != 0)) {
@@ -80,9 +97,15 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_open(
 {
     struct perfidious_platform_sampler *result;
 
-    ZEND_ASSERT(scope == PERFIDIOUS_SCOPE_CURRENT_PROCESS);
+    ZEND_ASSERT(scope == PERFIDIOUS_SCOPE_CURRENT_PROCESS || scope == PERFIDIOUS_SCOPE_CURRENT_THREAD);
     result = ecalloc(1, sizeof(*result));
     result->metrics = metrics;
+    result->scope = scope;
+    if (scope == PERFIDIOUS_SCOPE_CURRENT_THREAD &&
+        UNEXPECTED(FAILURE == perfidious_darwin_get_current_thread_id(&result->thread_id))) {
+        efree(result);
+        return FAILURE;
+    }
     *sampler = result;
 
     return SUCCESS;
@@ -94,6 +117,29 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_read(
 {
     memset(snapshot, 0, sizeof(*snapshot));
 
+    if (sampler->scope == PERFIDIOUS_SCOPE_CURRENT_THREAD) {
+        struct perfidious_darwin_thread_resource_usage usage;
+        uint64_t thread_id;
+
+        ZEND_ASSERT(sampler->metrics == PERFIDIOUS_METRIC_CPU_TIME_MASK);
+        if (UNEXPECTED(FAILURE == perfidious_darwin_get_current_thread_id(&thread_id))) {
+            return FAILURE;
+        }
+        if (UNEXPECTED(thread_id != sampler->thread_id)) {
+            zend_throw_exception(
+                perfidious_wrong_thread_exception_ce,
+                "Darwin current-thread sampler must be read from the thread that opened it",
+                0
+            );
+            return FAILURE;
+        }
+        if (UNEXPECTED(FAILURE == perfidious_darwin_read_current_thread_resource_usage(&usage))) {
+            return FAILURE;
+        }
+
+        return perfidious_darwin_store_cpu_time(usage.user_time_ns, usage.system_time_ns, snapshot);
+    }
+
     if ((sampler->metrics & (PERFIDIOUS_METRIC_CPU_TIME_MASK | PERFIDIOUS_METRIC_CPU_CYCLES_MASK)) != 0) {
         struct rusage_info_v4 usage;
 
@@ -101,11 +147,11 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_read(
             return FAILURE;
         }
         if ((sampler->metrics & PERFIDIOUS_METRIC_CPU_TIME_MASK) != 0) {
-            if (UNEXPECTED(usage.ri_user_time > UINT64_MAX - usage.ri_system_time)) {
-                zend_throw_exception(perfidious_overflow_exception_ce, "Darwin total CPU time overflow", 0);
+            if (UNEXPECTED(
+                    FAILURE == perfidious_darwin_store_cpu_time(usage.ri_user_time, usage.ri_system_time, snapshot)
+                )) {
                 return FAILURE;
             }
-            snapshot->values[PERFIDIOUS_METRIC_CPU_TIME] = usage.ri_user_time + usage.ri_system_time;
         }
         if ((sampler->metrics & PERFIDIOUS_METRIC_CPU_CYCLES_MASK) != 0) {
             snapshot->values[PERFIDIOUS_METRIC_CPU_CYCLES] = usage.ri_cycles;

@@ -1,8 +1,9 @@
 # Sampler API design
 
 Status: slices 1 and 2 are implemented. Slice 3 includes Windows current-thread CPU time, context switches, and CPU
-cycles. Linux current-thread support is intentionally deferred until a ZTS or embedded-PHP consumer demonstrates a
-need for it. The remaining Darwin current-thread combinations and instruction counting remain proposed.
+cycles, plus Darwin current-thread CPU time. Linux current-thread support is intentionally deferred until a ZTS or
+embedded-PHP consumer demonstrates a need for it. The remaining Darwin current-thread combinations and instruction
+counting remain proposed.
 
 ## Summary
 
@@ -197,8 +198,8 @@ counters that are unavailable process-wide. PHP fibers share an operating-system
 isolate one fiber from another.
 
 Windows supports `Metric::CpuTime`, `Metric::ContextSwitches`, and `Metric::CpuCycles` for this scope. Windows
-current-thread page faults and instructions still throw `UnsupportedMetricException`, as do combinations whose other
-platform adapters have not been implemented.
+current-thread page faults and instructions still throw `UnsupportedMetricException`. Darwin supports
+`Metric::CpuTime`; its other current-thread metrics remain unsupported.
 
 Linux intentionally rejects all `Scope::CurrentThread` requests in the first version. `perf_event_open()` can bind a
 counter group to the calling native thread without enumerating the process's threads, but PHP-FPM and CLI normally
@@ -355,7 +356,7 @@ that is not a `Metric` should throw `ValueError`. If any metric is unsupported f
 Known-unsupported metrics are rejected before fallible host-capability probes; a probe is performed only when every
 requested metric is nominally supported for the selected platform and scope.
 
-Using an explicitly closed handle, sampler, or thread profile throws `ClosedException`. Reading a Windows
+Using an explicitly closed handle, sampler, or thread profile throws `ClosedException`. Reading a Windows or Darwin
 current-thread sampler from a different native thread throws `WrongThreadException`. A conflicting Windows thread
 profiling session throws `ResourceBusyException`; callers can release the existing sampler or low-level profile and
 retry. These state errors are deliberately not subclasses of `IOException`.
@@ -408,8 +409,9 @@ Implementation should proceed vertically and pause after each slice:
    current-process CPU time and page faults on all three platforms. This slice is implemented.
 2. Add current-process context switches and cycles where the matrix permits them. This slice is implemented.
 3. Add current-thread CPU time, page faults, context switches, and cycles where supported. The Windows current-thread
-   adapters are implemented for CPU time, context switches, and cycles. The Darwin combinations remain pending, while
-   Linux current-thread support is deliberately deferred until there is a concrete consumer.
+   adapters are implemented for CPU time, context switches, and cycles, and Darwin current-thread CPU time is
+   implemented. The remaining Darwin combinations remain pending, while Linux current-thread support is deliberately
+   deferred until there is a concrete consumer.
 4. Add instruction counting, retaining Darwin hardware counters and driver-dependent Windows instruction counters in
    their low-level namespaces until availability can be established reliably. Linux multiplex scaling belongs to the
    deferred current-thread backend rather than this slice.

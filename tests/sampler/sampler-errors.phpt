@@ -141,10 +141,12 @@ $afterRejectedRequest->close();
 
 $threadMetricSupportMatchesPlatform = true;
 foreach (Metric::cases() as $metric) {
-    $isSupported = PHP_OS_FAMILY === 'Windows' && in_array(
-        $metric,
-        [Metric::CpuTime, Metric::ContextSwitches, Metric::CpuCycles],
-        true,
+    $isSupported = (
+        PHP_OS_FAMILY === 'Windows' &&
+        in_array($metric, [Metric::CpuTime, Metric::ContextSwitches, Metric::CpuCycles], true)
+    ) || (
+        PHP_OS_FAMILY === 'Darwin' &&
+        $metric === Metric::CpuTime
     );
 
     try {

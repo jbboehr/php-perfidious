@@ -108,6 +108,9 @@ try {
 The sampler begins counting when it is opened. Each sample is cumulative from that point, while `since()` returns the
 difference between two samples from the same sampler.
 
+Current-thread CPU time is also available through the common sampler on Windows and macOS by passing
+`Scope::CurrentThread`. Other thread metrics remain platform-dependent.
+
 Metrics use string-backed enums, so configuration values map directly through `Metric::from()`. Generic reporters can
 inspect `Metric::unit()` to distinguish nanoseconds from counts. Opening a sampler validates the complete request. If
 the selected platform, scope, or host cannot provide a metric,

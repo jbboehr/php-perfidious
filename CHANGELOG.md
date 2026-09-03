@@ -21,6 +21,7 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
   current-thread misuse, and thread-profiling conflicts from native `IOException` failures.
 - `Metric::unit()` exposes each sampler metric's `MetricUnit`, allowing generic reporters to distinguish nanoseconds
   from unitless counts without hard-coded metric lists.
+- The common sampler supports current-thread CPU time on macOS, backed by Darwin's native thread resource accounting.
 
 ### Changed
 
