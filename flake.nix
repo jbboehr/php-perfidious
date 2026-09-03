@@ -283,18 +283,18 @@
             testScript = {nodes, ...}: ''
               import json
 
-              machine.wait_for_unit("default.target")
-              machine.succeed("php -m && php -m | grep -i perfidious")
-              machine.succeed("cp -r --no-preserve=mode,ownership ${src}/* .")
-              machine.succeed("cp --no-preserve=mode,ownership ${php.unwrapped.dev}/lib/build/run-tests.php .")
-              machine.succeed("TEST_PHP_DETAILED=1 NO_INTERACTION=1 REPORT_EXIT_STATUS=1 php run-tests.php || (find tests -name '*.log' | xargs -n1 cat ; exit 1)")
+              machine1.wait_for_unit("default.target")
+              machine1.succeed("php -m && php -m | grep -i perfidious")
+              machine1.succeed("cp -r --no-preserve=mode,ownership ${src}/* .")
+              machine1.succeed("cp --no-preserve=mode,ownership ${php.unwrapped.dev}/lib/build/run-tests.php .")
+              machine1.succeed("TEST_PHP_DETAILED=1 NO_INTERACTION=1 REPORT_EXIT_STATUS=1 php run-tests.php || (find tests -name '*.log' | xargs -n1 cat ; exit 1)")
 
-              machine.wait_for_unit("nginx.service")
-              machine.wait_for_unit("phpfpm-perfidious.service")
+              machine1.wait_for_unit("nginx.service")
+              machine1.wait_for_unit("phpfpm-perfidious.service")
 
               readings = []
               for _ in range(10):
-                  out = machine.succeed("curl -fsS http://127.0.0.1:80/index.php")
+                  out = machine1.succeed("curl -fsS http://127.0.0.1:80/index.php")
                   readings.append(json.loads(out))
 
               for i, r in enumerate(readings):
