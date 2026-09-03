@@ -42,6 +42,7 @@
 
 #include "php_perfidious.h"
 #include "resource_usage.h"
+#include "../zend_helpers.h"
 
 #define PHP_PERFIDIOUS_DARWIN_NAMESPACE PHP_PERFIDIOUS_NAMESPACE "\\Darwin"
 #define PERFIDIOUS_DARWIN_THSC_TIME_CPI 3
@@ -81,25 +82,8 @@ static const zend_function_entry perfidious_darwin_result_methods[] = {
 };
 // clang-format on
 
-static void
-perfidious_darwin_declare_readonly_long_property(zend_class_entry *class_entry, const char *name, size_t name_length)
-{
-    zend_string *property_name = zend_string_init_interned(name, name_length, true);
-    zval default_value;
-
-    ZVAL_UNDEF(&default_value);
-    zend_declare_typed_property(
-        class_entry,
-        property_name,
-        &default_value,
-        ZEND_ACC_PUBLIC | ZEND_ACC_READONLY,
-        NULL,
-        (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG)
-    );
-}
-
 #define PERFIDIOUS_DARWIN_DECLARE_READONLY_LONG_PROPERTY(class_entry, name)                                            \
-    perfidious_darwin_declare_readonly_long_property(class_entry, ZEND_STRL(name))
+    PERFIDIOUS_DECLARE_READONLY_PROPERTY(class_entry, name, MAY_BE_LONG)
 
 static bool perfidious_darwin_uint64_to_zend_long(const char *field_name, uint64_t value, zend_long *result)
 {
@@ -202,7 +186,6 @@ PERFIDIOUS_LOCAL zend_result
 perfidious_darwin_read_current_thread_resource_usage(struct perfidious_darwin_thread_resource_usage *result)
 {
     struct perfidious_darwin_thread_time_cpi usage;
-    bool have_usage = false;
 
     memset(result, 0, sizeof(*result));
 
@@ -216,7 +199,7 @@ perfidious_darwin_read_current_thread_resource_usage(struct perfidious_darwin_th
 
             result->instructions = usage.instructions;
             result->cycles = usage.cycles;
-            have_usage = true;
+            return SUCCESS;
         } else if (errno != ENOTSUP && errno != ENOSYS) {
             int error = errno;
 
@@ -225,25 +208,23 @@ perfidious_darwin_read_current_thread_resource_usage(struct perfidious_darwin_th
         }
     }
 
-    if (!have_usage) {
-        thread_basic_info_data_t basic_usage;
-        mach_msg_type_number_t count = THREAD_BASIC_INFO_COUNT;
-        thread_t thread = mach_thread_self();
-        kern_return_t error;
+    thread_basic_info_data_t basic_usage;
+    mach_msg_type_number_t count = THREAD_BASIC_INFO_COUNT;
+    thread_t thread = mach_thread_self();
+    kern_return_t error;
 
-        memset(&basic_usage, 0, sizeof(basic_usage));
-        error = thread_info(thread, THREAD_BASIC_INFO, (thread_info_t) &basic_usage, &count);
-        (void) mach_port_deallocate(mach_task_self(), thread);
+    memset(&basic_usage, 0, sizeof(basic_usage));
+    error = thread_info(thread, THREAD_BASIC_INFO, (thread_info_t) &basic_usage, &count);
+    (void) mach_port_deallocate(mach_task_self(), thread);
 
-        if (UNEXPECTED(error != KERN_SUCCESS)) {
-            perfidious_darwin_throw_mach("thread_info", error);
-            return FAILURE;
-        }
+    if (UNEXPECTED(error != KERN_SUCCESS)) {
+        perfidious_darwin_throw_mach("thread_info", error);
+        return FAILURE;
+    }
 
-        if (!perfidious_darwin_time_value_to_ns(&basic_usage.user_time, &result->user_time_ns) ||
-            !perfidious_darwin_time_value_to_ns(&basic_usage.system_time, &result->system_time_ns)) {
-            return FAILURE;
-        }
+    if (!perfidious_darwin_time_value_to_ns(&basic_usage.user_time, &result->user_time_ns) ||
+        !perfidious_darwin_time_value_to_ns(&basic_usage.system_time, &result->system_time_ns)) {
+        return FAILURE;
     }
 
     return SUCCESS;
@@ -374,18 +355,11 @@ static PHP_FUNCTION(perfidious_darwin_get_current_thread_resource_usage)
     );
 }
 
-#if PHP_VERSION_ID >= 80400
-#define PERFIDIOUS_DARWIN_FE(zend_name, name, arg_info, flags)                                                         \
-    ZEND_RAW_FENTRY(zend_name, name, arg_info, flags, NULL, NULL)
-#else
-#define PERFIDIOUS_DARWIN_FE(zend_name, name, arg_info, flags) ZEND_RAW_FENTRY(zend_name, name, arg_info, flags)
-#endif
-
 // clang-format off
 PERFIDIOUS_LOCAL
 const zend_function_entry perfidious_darwin_functions[] = {
-    PERFIDIOUS_DARWIN_FE(PHP_PERFIDIOUS_DARWIN_NAMESPACE "\\get_current_process_resource_usage", ZEND_FN(perfidious_darwin_get_current_process_resource_usage), perfidious_darwin_get_current_process_resource_usage_arginfo, 0)
-    PERFIDIOUS_DARWIN_FE(PHP_PERFIDIOUS_DARWIN_NAMESPACE "\\get_current_thread_resource_usage", ZEND_FN(perfidious_darwin_get_current_thread_resource_usage), perfidious_darwin_get_current_thread_resource_usage_arginfo, 0)
+    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_DARWIN_NAMESPACE "\\get_current_process_resource_usage", ZEND_FN(perfidious_darwin_get_current_process_resource_usage), perfidious_darwin_get_current_process_resource_usage_arginfo, 0)
+    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_DARWIN_NAMESPACE "\\get_current_thread_resource_usage", ZEND_FN(perfidious_darwin_get_current_thread_resource_usage), perfidious_darwin_get_current_thread_resource_usage_arginfo, 0)
     PHP_FE_END
 };
 // clang-format on

@@ -49,8 +49,8 @@ PHP_PERFIDIOUS_LINUX_SOURCES="
 "
 
 PHP_PERFIDIOUS_DARWIN_SOURCES="
+    src/platform.c
     src/darwin/functions.c
-    src/darwin/platform.c
     src/darwin/sampler.c
 "
 

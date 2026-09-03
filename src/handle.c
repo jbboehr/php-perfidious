@@ -43,7 +43,6 @@
 #include "handle.h"
 #include "private.h"
 
-PERFIDIOUS_LOCAL zend_string *PERFIDIOUS_INTERNED_PERF_COUNT_SW_DUMMY;
 PERFIDIOUS_PUBLIC zend_class_entry *perfidious_handle_ce;
 static zend_object_handlers perfidious_handle_obj_handlers;
 
@@ -217,7 +216,7 @@ zend_result perfidious_handle_read_to_array_with_times(
     *time_enabled = data->time_enabled;
     *time_running = data->time_running;
 
-    array_init(return_value);
+    array_init_size(return_value, handle->metrics_count - 1);
 
     for (size_t i = 0; i < data->nr; i++) {
         const struct perfidious_metric *metric = &handle->metrics[i];
@@ -337,7 +336,6 @@ struct perfidious_handle *perfidious_handle_open_ex(
     struct perfidious_handle *handle = pecalloc(
         sizeof(struct perfidious_handle) + sizeof(struct perfidious_metric) * (event_names_length + 1), 1, persist
     );
-    handle->metrics_size = event_names_length + 1;
     handle->persist = persist;
 
     // Open a dummy event to hold the group
@@ -377,7 +375,7 @@ struct perfidious_handle *perfidious_handle_open_ex(
         handle->metrics[handle->metrics_count++] = (struct perfidious_metric){
             .fd = fd,
             .id = id,
-            .name = PERFIDIOUS_INTERNED_PERF_COUNT_SW_DUMMY,
+            .name = NULL,
         };
         group_fd = fd;
     } while (false);
@@ -438,13 +436,12 @@ struct perfidious_handle *perfidious_handle_open_ex(
             goto cleanup;
         }
 
-        ZEND_ASSERT(handle->metrics_count < handle->metrics_size);
+        ZEND_ASSERT(handle->metrics_count < event_names_length + 1);
 
         handle->metrics[handle->metrics_count++] = (struct perfidious_metric){
             .fd = fd,
             .id = id,
-            // can't use zend_string_copy because it doesn't persist?
-            .name = zend_string_dup(event_name, persist),
+            .name = persist ? zend_string_dup(event_name, true) : zend_string_copy(event_name),
         };
     }
 
@@ -800,7 +797,5 @@ static zend_always_inline zend_class_entry *register_class_Handle(void)
 PERFIDIOUS_LOCAL
 void perfidious_handle_minit(void)
 {
-    PERFIDIOUS_INTERNED_PERF_COUNT_SW_DUMMY = zend_string_init_interned(ZEND_STRL("perf::PERF_COUNT_SW_DUMMY"), 1);
-
     perfidious_handle_ce = register_class_Handle();
 }

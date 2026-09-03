@@ -442,7 +442,7 @@ jobs:
                         extra-trusted-public-keys = fossar.cachix.org-1:Zv6FuqIboeHPWQS7ysLCJ7UT7xExb4OE8c4LyGb5AsE=
 
             -   name: Import Nix Store Cache
-                if: "steps.nix-cache.outputs.cache-hit == 'true'"
+                if: "steps.nix-cache.outputs.cache-hit != ''"
                 run: |
                     nix-store --import < /tmp/nix-store.nar
 
@@ -470,6 +470,7 @@ jobs:
                     parallel: true
 
             -   name: Export Nix Store Cache
+                if: "steps.nix-cache.outputs.cache-hit != 'true'"
                 shell: bash
                 # partially based on https://github.com/NixOS/nix/issues/1245#issuecomment-282586759
                 run: |
@@ -512,8 +513,9 @@ jobs:
                 with:
                     context: .
                     file: .github/php-${{ matrix.DOCKER_NAME }}.Dockerfile
-                    cache-from: type=gha
-                    cache-to: type=gha,mode=max
+                    load: true
+                    cache-from: type=gha,scope=${{ matrix.DOCKER_NAME }}-${{ matrix.PHP_VERSION }}
+                    cache-to: type=gha,mode=max,scope=${{ matrix.DOCKER_NAME }}-${{ matrix.PHP_VERSION }}
                     build-args: PHP_VERSION=${{ matrix.PHP_VERSION }}
                     tags: php-perfidious-${{ matrix.DOCKER_NAME }}
             -   name: I am tired of writing this shit in YAML and learning a new DSL for every CI service so I am putting everything in a FSCKING BASH SCRIPT
@@ -547,8 +549,9 @@ jobs:
                 with:
                     context: .
                     file: .github/php-${{ matrix.DOCKER_NAME }}.Dockerfile
-                    cache-from: type=gha
-                    cache-to: type=gha,mode=max
+                    load: true
+                    cache-from: type=gha,scope=${{ matrix.DOCKER_NAME }}
+                    cache-to: type=gha,mode=max,scope=${{ matrix.DOCKER_NAME }}
                     tags: php-perfidious-${{ matrix.DOCKER_NAME }}
             -   name: I am tired of writing this shit in YAML and learning a new DSL for every CI service so I am putting everything in a FSCKING BASH SCRIPT
                 env:

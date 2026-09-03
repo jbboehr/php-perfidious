@@ -343,9 +343,6 @@
             clang = clangStdenv;
             musl = pkgsMusl.stdenv;
           };
-          libpfm = {
-            inherit libpfm;
-          };
         };
 
         # @see https://github.com/NixOS/nixpkgs/pull/110787
@@ -358,28 +355,24 @@
               # totally broken
               # "musl"
             ];
-            libpfm = ["libpfm"];
             coverageSupport = [false];
           })
           ++ [
             {
               php = "php81";
               stdenv = "gcc";
-              libpfm = "libpfm";
               debugSupport = true;
             }
           ]
           ++ (lib.cartesianProduct {
             php = ["php81" "php82" "php83" "php84" "php85"];
             stdenv = ["gcc"];
-            libpfm = ["libpfm"];
             debugSupport = [false true];
             coverageSupport = [true];
           });
 
         buildFn = {
           php,
-          libpfm,
           stdenv,
           debugSupport ? false,
           coverageSupport ? false,
@@ -389,11 +382,6 @@
             "${php}"
             "${stdenv}"
             #(if stdenv == "gcc" then "" else "${stdenv}")
-            (
-              if libpfm == "libpfm"
-              then ""
-              else "${libpfm}"
-            )
             (
               if debugSupport
               then "debug"
@@ -408,7 +396,6 @@
           (
             makePackage {
               php = matrix.php.${php};
-              libpfm = matrix.libpfm.${libpfm};
               stdenv = matrix.stdenv.${stdenv};
               inherit debugSupport coverageSupport;
             }

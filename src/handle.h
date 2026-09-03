@@ -37,7 +37,6 @@ struct perfidious_metric
 
 struct perfidious_handle
 {
-    size_t metrics_size;
     size_t metrics_count;
     bool enabled;
     bool persist;

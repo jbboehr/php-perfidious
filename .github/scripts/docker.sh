@@ -8,12 +8,6 @@ export TEST_PHP_EXECUTABLE="${TEST_PHP_EXECUTABLE:-"/usr/local/bin/php"}"
 export RUN_TESTS_PHP="${RUN_TESTS_PHP:-"/usr/local/lib/php/build/run-tests.php"}"
 export IMAGE_TAG="${IMAGE_TAG:-"php-perfidious-${DOCKER_NAME}"}"
 
-docker build \
-    -f ".github/php-${DOCKER_NAME}.Dockerfile" \
-    -t "${IMAGE_TAG}" \
-    --build-arg "PHP_VERSION=${PHP_VERSION}" \
-    .
-
 trap 'catch' ERR
 
 catch() {

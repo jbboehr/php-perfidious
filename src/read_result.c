@@ -24,6 +24,7 @@
 
 #include "Zend/zend_API.h"
 #include "php_perfidious.h"
+#include "zend_helpers.h"
 
 PERFIDIOUS_LOCAL zend_string *PERFIDIOUS_INTERNED_TIME_ENABLED;
 PERFIDIOUS_LOCAL zend_string *PERFIDIOUS_INTERNED_TIME_RUNNING;
@@ -40,44 +41,15 @@ static zend_always_inline zend_class_entry *register_class_PerfidiousReadResult(
     INIT_CLASS_ENTRY(ce, PHP_PERFIDIOUS_NAMESPACE "\\ReadResult", NULL);
     class_entry = zend_register_internal_class(&ce);
 
-    do {
-        zval default_value = {0};
-        ZVAL_UNDEF(&default_value);
-        zend_declare_typed_property(
-            class_entry,
-            PERFIDIOUS_INTERNED_TIME_ENABLED,
-            &default_value,
-            ZEND_ACC_PUBLIC | ZEND_ACC_READONLY,
-            NULL,
-            (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG)
-        );
-    } while (false);
-
-    do {
-        zval default_value = {0};
-        ZVAL_UNDEF(&default_value);
-        zend_declare_typed_property(
-            class_entry,
-            PERFIDIOUS_INTERNED_TIME_RUNNING,
-            &default_value,
-            ZEND_ACC_PUBLIC | ZEND_ACC_READONLY,
-            NULL,
-            (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG)
-        );
-    } while (false);
-
-    do {
-        zval default_value = {0};
-        ZVAL_UNDEF(&default_value);
-        zend_declare_typed_property(
-            class_entry,
-            PERFIDIOUS_INTERNED_VALUES,
-            &default_value,
-            ZEND_ACC_PUBLIC | ZEND_ACC_READONLY,
-            NULL,
-            (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY /*_OF_LONG*/)
-        );
-    } while (false);
+    perfidious_declare_readonly_property_ex(
+        class_entry, PERFIDIOUS_INTERNED_TIME_ENABLED, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG)
+    );
+    perfidious_declare_readonly_property_ex(
+        class_entry, PERFIDIOUS_INTERNED_TIME_RUNNING, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG)
+    );
+    perfidious_declare_readonly_property_ex(
+        class_entry, PERFIDIOUS_INTERNED_VALUES, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY /*_OF_LONG*/)
+    );
 
     class_entry->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NO_DYNAMIC_PROPERTIES;
 

@@ -24,6 +24,7 @@
 
 #include "php_perfidious.h"
 #include "sampler.h"
+#include "zend_helpers.h"
 
 PERFIDIOUS_LOCAL zend_class_entry *perfidious_metric_ce;
 PERFIDIOUS_LOCAL zend_class_entry *perfidious_scope_ce;
@@ -182,58 +183,39 @@ perfidious_add_string_enum_case(zend_class_entry *class_entry, const char *name,
 #define PERFIDIOUS_ADD_STRING_ENUM_CASE(class_entry, name, value)                                                      \
     perfidious_add_string_enum_case(class_entry, name, ZEND_STRL(value))
 
+struct perfidious_metric_definition
+{
+    const char *name;
+    size_t name_length;
+    const char *case_name;
+    const char *unit_case_name;
+};
+
+#define PERFIDIOUS_METRIC_DEFINITION(name, case_name, unit_case_name)                                                  \
+    {name, sizeof(name) - 1, case_name, unit_case_name}
+
+static const struct perfidious_metric_definition perfidious_metric_definitions[PERFIDIOUS_METRIC_COUNT] = {
+    [PERFIDIOUS_METRIC_CPU_TIME] = PERFIDIOUS_METRIC_DEFINITION("cpu-time", "CpuTime", "Nanoseconds"),
+    [PERFIDIOUS_METRIC_PAGE_FAULTS] = PERFIDIOUS_METRIC_DEFINITION("page-faults", "PageFaults", "Count"),
+    [PERFIDIOUS_METRIC_CONTEXT_SWITCHES] =
+        PERFIDIOUS_METRIC_DEFINITION("context-switches", "ContextSwitches", "Count"),
+    [PERFIDIOUS_METRIC_CPU_CYCLES] = PERFIDIOUS_METRIC_DEFINITION("cpu-cycles", "CpuCycles", "Count"),
+    [PERFIDIOUS_METRIC_INSTRUCTIONS] = PERFIDIOUS_METRIC_DEFINITION("instructions", "Instructions", "Count"),
+};
+
 static const char *perfidious_metric_name(enum perfidious_metric_id metric)
 {
-    switch (metric) {
-        case PERFIDIOUS_METRIC_CPU_TIME:
-            return "cpu-time";
-        case PERFIDIOUS_METRIC_PAGE_FAULTS:
-            return "page-faults";
-        case PERFIDIOUS_METRIC_CONTEXT_SWITCHES:
-            return "context-switches";
-        case PERFIDIOUS_METRIC_CPU_CYCLES:
-            return "cpu-cycles";
-        case PERFIDIOUS_METRIC_INSTRUCTIONS:
-            return "instructions";
-        default:
-        case PERFIDIOUS_METRIC_COUNT:
-            return "unknown";
-    }
+    return metric < PERFIDIOUS_METRIC_COUNT ? perfidious_metric_definitions[metric].name : "unknown";
 }
 
 static const char *perfidious_metric_case_name(enum perfidious_metric_id metric)
 {
-    switch (metric) {
-        case PERFIDIOUS_METRIC_CPU_TIME:
-            return "CpuTime";
-        case PERFIDIOUS_METRIC_PAGE_FAULTS:
-            return "PageFaults";
-        case PERFIDIOUS_METRIC_CONTEXT_SWITCHES:
-            return "ContextSwitches";
-        case PERFIDIOUS_METRIC_CPU_CYCLES:
-            return "CpuCycles";
-        case PERFIDIOUS_METRIC_INSTRUCTIONS:
-            return "Instructions";
-        default:
-        case PERFIDIOUS_METRIC_COUNT:
-            return "";
-    }
+    return metric < PERFIDIOUS_METRIC_COUNT ? perfidious_metric_definitions[metric].case_name : "";
 }
 
 static const char *perfidious_metric_unit_case_name(enum perfidious_metric_id metric)
 {
-    switch (metric) {
-        case PERFIDIOUS_METRIC_CPU_TIME:
-            return "Nanoseconds";
-        case PERFIDIOUS_METRIC_PAGE_FAULTS:
-        case PERFIDIOUS_METRIC_CONTEXT_SWITCHES:
-        case PERFIDIOUS_METRIC_CPU_CYCLES:
-        case PERFIDIOUS_METRIC_INSTRUCTIONS:
-            return "Count";
-        default:
-        case PERFIDIOUS_METRIC_COUNT:
-            return "";
-    }
+    return metric < PERFIDIOUS_METRIC_COUNT ? perfidious_metric_definitions[metric].unit_case_name : "";
 }
 
 static bool perfidious_metric_from_zval(zval *value, enum perfidious_metric_id *metric)
@@ -251,22 +233,18 @@ static bool perfidious_metric_from_zval(zval *value, enum perfidious_metric_id *
     ZEND_ASSERT(Z_TYPE_P(backing_value) == IS_STRING);
     name = Z_STR_P(backing_value);
 
-    if (zend_string_equals_literal(name, "cpu-time")) {
-        *metric = PERFIDIOUS_METRIC_CPU_TIME;
-    } else if (zend_string_equals_literal(name, "page-faults")) {
-        *metric = PERFIDIOUS_METRIC_PAGE_FAULTS;
-    } else if (zend_string_equals_literal(name, "context-switches")) {
-        *metric = PERFIDIOUS_METRIC_CONTEXT_SWITCHES;
-    } else if (zend_string_equals_literal(name, "cpu-cycles")) {
-        *metric = PERFIDIOUS_METRIC_CPU_CYCLES;
-    } else if (zend_string_equals_literal(name, "instructions")) {
-        *metric = PERFIDIOUS_METRIC_INSTRUCTIONS;
-    } else {
-        zend_throw_error(NULL, "Unknown Perfidious\\Metric backing value \"%s\"", ZSTR_VAL(name));
-        return false;
+    for (enum perfidious_metric_id candidate = 0; candidate < PERFIDIOUS_METRIC_COUNT; candidate++) {
+        const struct perfidious_metric_definition *definition = &perfidious_metric_definitions[candidate];
+
+        if (ZSTR_LEN(name) == definition->name_length &&
+            memcmp(ZSTR_VAL(name), definition->name, definition->name_length) == 0) {
+            *metric = candidate;
+            return true;
+        }
     }
 
-    return true;
+    zend_throw_error(NULL, "Unknown Perfidious\\Metric backing value \"%s\"", ZSTR_VAL(name));
+    return false;
 }
 
 static enum perfidious_scope_id perfidious_scope_from_zval(zval *value)
@@ -710,23 +688,6 @@ static const zend_function_entry perfidious_sample_delta_methods[] = {
 };
 // clang-format on
 
-static void
-perfidious_declare_readonly_long_property(zend_class_entry *class_entry, const char *name, size_t name_length)
-{
-    zend_string *property_name = zend_string_init_interned(name, name_length, true);
-    zval default_value;
-
-    ZVAL_UNDEF(&default_value);
-    zend_declare_typed_property(
-        class_entry,
-        property_name,
-        &default_value,
-        ZEND_ACC_PUBLIC | ZEND_ACC_READONLY,
-        NULL,
-        (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG)
-    );
-}
-
 PERFIDIOUS_LOCAL void perfidious_sampler_minit(void)
 {
     zend_class_entry class_entry;
@@ -738,11 +699,13 @@ PERFIDIOUS_LOCAL void perfidious_sampler_minit(void)
 
     perfidious_metric_ce =
         zend_register_internal_enum(PHP_PERFIDIOUS_NAMESPACE "\\Metric", IS_STRING, perfidious_metric_methods);
-    PERFIDIOUS_ADD_STRING_ENUM_CASE(perfidious_metric_ce, "CpuTime", "cpu-time");
-    PERFIDIOUS_ADD_STRING_ENUM_CASE(perfidious_metric_ce, "PageFaults", "page-faults");
-    PERFIDIOUS_ADD_STRING_ENUM_CASE(perfidious_metric_ce, "ContextSwitches", "context-switches");
-    PERFIDIOUS_ADD_STRING_ENUM_CASE(perfidious_metric_ce, "CpuCycles", "cpu-cycles");
-    PERFIDIOUS_ADD_STRING_ENUM_CASE(perfidious_metric_ce, "Instructions", "instructions");
+    for (enum perfidious_metric_id metric = 0; metric < PERFIDIOUS_METRIC_COUNT; metric++) {
+        const struct perfidious_metric_definition *definition = &perfidious_metric_definitions[metric];
+
+        perfidious_add_string_enum_case(
+            perfidious_metric_ce, definition->case_name, definition->name, definition->name_length
+        );
+    }
 
     perfidious_scope_ce = zend_register_internal_enum(PHP_PERFIDIOUS_NAMESPACE "\\Scope", IS_STRING, NULL);
     PERFIDIOUS_ADD_STRING_ENUM_CASE(perfidious_scope_ce, "CurrentProcess", "current-process");
@@ -773,5 +736,5 @@ PERFIDIOUS_LOCAL void perfidious_sampler_minit(void)
     memcpy(&perfidious_sample_delta_obj_handlers, &std_object_handlers, sizeof(zend_object_handlers));
     perfidious_sample_delta_obj_handlers.offset = XtOffsetOf(struct perfidious_sample_delta_obj, std);
     perfidious_sample_delta_obj_handlers.clone_obj = NULL;
-    perfidious_declare_readonly_long_property(perfidious_sample_delta_ce, ZEND_STRL("elapsedTimeNs"));
+    PERFIDIOUS_DECLARE_READONLY_PROPERTY(perfidious_sample_delta_ce, "elapsedTimeNs", MAY_BE_LONG);
 }

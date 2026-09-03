@@ -34,7 +34,9 @@
 #include "Zend/zend_long.h"
 
 #include "php_perfidious.h"
+#include "private.h"
 #include "thread_profile.h"
+#include "../zend_helpers.h"
 
 #define PHP_PERFIDIOUS_WINDOWS_NAMESPACE PHP_PERFIDIOUS_NAMESPACE "\\Windows"
 #define PERFIDIOUS_WINDOWS_HARDWARE_COUNTER_MASK_MAX 0xffff
@@ -71,26 +73,8 @@ static const zend_function_entry perfidious_windows_result_methods[] = {
 };
 // clang-format on
 
-static void perfidious_windows_declare_readonly_property(
-    zend_class_entry *class_entry, const char *name, size_t name_length, uint32_t type_mask
-)
-{
-    zend_string *property_name = zend_string_init_interned(name, name_length, true);
-    zval default_value;
-
-    ZVAL_UNDEF(&default_value);
-    zend_declare_typed_property(
-        class_entry,
-        property_name,
-        &default_value,
-        ZEND_ACC_PUBLIC | ZEND_ACC_READONLY,
-        NULL,
-        (zend_type) ZEND_TYPE_INIT_MASK(type_mask)
-    );
-}
-
 #define PERFIDIOUS_WINDOWS_DECLARE_READONLY_PROPERTY(class_entry, name, type_mask)                                     \
-    perfidious_windows_declare_readonly_property(class_entry, ZEND_STRL(name), type_mask)
+    PERFIDIOUS_DECLARE_READONLY_PROPERTY(class_entry, name, type_mask)
 
 static zend_class_entry *perfidious_windows_register_result_class(const char *name, size_t name_length)
 {
@@ -196,17 +180,6 @@ perfidious_windows_fetch_thread_profile_object(zend_object *obj)
                                                              ));
 }
 
-static void perfidious_windows_throw_error(const char *function_name, DWORD error)
-{
-    zend_throw_exception_ex(
-        perfidious_io_exception_ce,
-        (zend_long) error,
-        "%s failed with Windows error %lu",
-        function_name,
-        (unsigned long) error
-    );
-}
-
 static bool perfidious_windows_uint64_to_zend_long(uint64_t value, zend_long *result)
 {
     if (UNEXPECTED(value > (uint64_t) ZEND_LONG_MAX)) {
@@ -221,16 +194,6 @@ static bool perfidious_windows_uint64_to_zend_long(uint64_t value, zend_long *re
 
     *result = (zend_long) value;
     return true;
-}
-
-static uint64_t perfidious_windows_filetime_to_uint64(FILETIME value)
-{
-    ULARGE_INTEGER combined;
-
-    combined.LowPart = value.dwLowDateTime;
-    combined.HighPart = value.dwHighDateTime;
-
-    return combined.QuadPart;
 }
 
 static void perfidious_windows_thread_profile_obj_free(zend_object *object)
@@ -679,22 +642,15 @@ static PHP_FUNCTION(perfidious_windows_enable_current_thread_profiling)
     }
 }
 
-#if PHP_VERSION_ID >= 80400
-#define PERFIDIOUS_WINDOWS_FE(zend_name, name, arg_info, flags)                                                        \
-    ZEND_RAW_FENTRY(zend_name, name, arg_info, flags, NULL, NULL)
-#else
-#define PERFIDIOUS_WINDOWS_FE(zend_name, name, arg_info, flags) ZEND_RAW_FENTRY(zend_name, name, arg_info, flags)
-#endif
-
 // clang-format off
 PERFIDIOUS_LOCAL
 const zend_function_entry perfidious_windows_functions[] = {
-    PERFIDIOUS_WINDOWS_FE(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\query_current_process_cycle_time", ZEND_FN(perfidious_windows_query_current_process_cycle_time), perfidious_windows_query_current_process_cycle_time_arginfo, 0)
-    PERFIDIOUS_WINDOWS_FE(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\query_current_thread_cycle_time", ZEND_FN(perfidious_windows_query_current_thread_cycle_time), perfidious_windows_query_current_thread_cycle_time_arginfo, 0)
-    PERFIDIOUS_WINDOWS_FE(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\get_current_process_times", ZEND_FN(perfidious_windows_get_current_process_times), perfidious_windows_get_current_process_times_arginfo, 0)
-    PERFIDIOUS_WINDOWS_FE(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\get_current_thread_times", ZEND_FN(perfidious_windows_get_current_thread_times), perfidious_windows_get_current_thread_times_arginfo, 0)
-    PERFIDIOUS_WINDOWS_FE(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\get_current_process_memory_info", ZEND_FN(perfidious_windows_get_current_process_memory_info), perfidious_windows_get_current_process_memory_info_arginfo, 0)
-    PERFIDIOUS_WINDOWS_FE(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\enable_current_thread_profiling", ZEND_FN(perfidious_windows_enable_current_thread_profiling), perfidious_windows_enable_current_thread_profiling_arginfo, 0)
+    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\query_current_process_cycle_time", ZEND_FN(perfidious_windows_query_current_process_cycle_time), perfidious_windows_query_current_process_cycle_time_arginfo, 0)
+    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\query_current_thread_cycle_time", ZEND_FN(perfidious_windows_query_current_thread_cycle_time), perfidious_windows_query_current_thread_cycle_time_arginfo, 0)
+    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\get_current_process_times", ZEND_FN(perfidious_windows_get_current_process_times), perfidious_windows_get_current_process_times_arginfo, 0)
+    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\get_current_thread_times", ZEND_FN(perfidious_windows_get_current_thread_times), perfidious_windows_get_current_thread_times_arginfo, 0)
+    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\get_current_process_memory_info", ZEND_FN(perfidious_windows_get_current_process_memory_info), perfidious_windows_get_current_process_memory_info_arginfo, 0)
+    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\enable_current_thread_profiling", ZEND_FN(perfidious_windows_enable_current_thread_profiling), perfidious_windows_enable_current_thread_profiling_arginfo, 0)
     PHP_FE_END
 };
 // clang-format on

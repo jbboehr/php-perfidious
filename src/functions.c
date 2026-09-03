@@ -32,6 +32,7 @@
 #include "php_perfidious.h"
 #include "handle.h"
 #include "private.h"
+#include "zend_helpers.h"
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_get_pmu_info_arginfo, false, 1, Perfidious\\PmuInfo, false)
     ZEND_ARG_TYPE_INFO(false, pmu, IS_LONG, false)
@@ -215,11 +216,16 @@ static PHP_FUNCTION(perfidious_open)
     }
 #endif
 
-    // Check cpu for overflow
-    long int n_proc_onln = sysconf(_SC_NPROCESSORS_ONLN);
-    if (cpu > n_proc_onln) {
-        zend_throw_exception_ex(perfidious_overflow_exception_ce, 0, "cpu too large: %ld > %ld", cpu, n_proc_onln);
-        return;
+    // Check cpu for overflow when selecting a particular CPU.
+    if (cpu != -1) {
+        long int n_proc_onln = sysconf(_SC_NPROCESSORS_ONLN);
+
+        if (cpu > n_proc_onln) {
+            zend_throw_exception_ex(
+                perfidious_overflow_exception_ce, 0, "cpu too large: %ld > %ld", cpu, n_proc_onln
+            );
+            return;
+        }
     }
 
     size_t event_names_count = zend_array_count(event_names_ht);
@@ -338,25 +344,19 @@ static PHP_FUNCTION(perfidious_debug_get_open_ex_call_count)
 #endif
 
 // clang-format off
-#if PHP_VERSION_ID >= 80400
-#define PERFIDIOUS_FE(zend_name, name, arg_info, flags) ZEND_RAW_FENTRY(zend_name, name, arg_info, flags, NULL, NULL)
-#else
-#define PERFIDIOUS_FE(zend_name, name, arg_info, flags) ZEND_RAW_FENTRY(zend_name, name, arg_info, flags)
-#endif
-
 PERFIDIOUS_LOCAL
 const zend_function_entry perfidious_functions[] = {
-    PERFIDIOUS_FE(PHP_PERFIDIOUS_NAMESPACE "\\get_pmu_info", ZEND_FN(perfidious_get_pmu_info), perfidious_get_pmu_info_arginfo, 0)
-    PERFIDIOUS_FE(PHP_PERFIDIOUS_NAMESPACE "\\get_pmu_event_info", ZEND_FN(perfidious_get_pmu_event_info), perfidious_get_pmu_event_info_arginfo, 0)
-    PERFIDIOUS_FE(PHP_PERFIDIOUS_NAMESPACE "\\global_handle", ZEND_FN(perfidious_global_handle), perfidious_global_handle_arginfo, 0)
-    PERFIDIOUS_FE(PHP_PERFIDIOUS_NAMESPACE "\\list_pmus", ZEND_FN(perfidious_list_pmus), perfidious_list_pmus_arginfo, 0)
-    PERFIDIOUS_FE(PHP_PERFIDIOUS_NAMESPACE "\\list_pmu_events", ZEND_FN(perfidious_list_pmu_events), perfidious_list_pmu_events_arginfo, 0)
-    PERFIDIOUS_FE(PHP_PERFIDIOUS_NAMESPACE "\\open", ZEND_FN(perfidious_open), perfidious_open_arginfo, 0)
-    PERFIDIOUS_FE(PHP_PERFIDIOUS_NAMESPACE "\\request_handle", ZEND_FN(perfidious_request_handle), perfidious_request_handle_arginfo, 0)
+    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\get_pmu_info", ZEND_FN(perfidious_get_pmu_info), perfidious_get_pmu_info_arginfo, 0)
+    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\get_pmu_event_info", ZEND_FN(perfidious_get_pmu_event_info), perfidious_get_pmu_event_info_arginfo, 0)
+    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\global_handle", ZEND_FN(perfidious_global_handle), perfidious_global_handle_arginfo, 0)
+    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\list_pmus", ZEND_FN(perfidious_list_pmus), perfidious_list_pmus_arginfo, 0)
+    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\list_pmu_events", ZEND_FN(perfidious_list_pmu_events), perfidious_list_pmu_events_arginfo, 0)
+    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\open", ZEND_FN(perfidious_open), perfidious_open_arginfo, 0)
+    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\request_handle", ZEND_FN(perfidious_request_handle), perfidious_request_handle_arginfo, 0)
 #ifdef PERFIDIOUS_DEBUG
-    PERFIDIOUS_FE(PHP_PERFIDIOUS_NAMESPACE "\\debug_uint64_overflow", ZEND_FN(perfidious_debug_uint64_overflow), perfidious_debug_uint64_overflow_arginfo, 0)
-    PERFIDIOUS_FE(PHP_PERFIDIOUS_NAMESPACE "\\debug_pmu_event_info_from_names", ZEND_FN(perfidious_debug_pmu_event_info_from_names), perfidious_debug_pmu_event_info_from_names_arginfo, 0)
-    PERFIDIOUS_FE(PHP_PERFIDIOUS_NAMESPACE "\\debug_get_open_ex_call_count", ZEND_FN(perfidious_debug_get_open_ex_call_count), perfidious_debug_get_open_ex_call_count_arginfo, 0)
+    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\debug_uint64_overflow", ZEND_FN(perfidious_debug_uint64_overflow), perfidious_debug_uint64_overflow_arginfo, 0)
+    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\debug_pmu_event_info_from_names", ZEND_FN(perfidious_debug_pmu_event_info_from_names), perfidious_debug_pmu_event_info_from_names_arginfo, 0)
+    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\debug_get_open_ex_call_count", ZEND_FN(perfidious_debug_get_open_ex_call_count), perfidious_debug_get_open_ex_call_count_arginfo, 0)
 #endif
     PHP_FE_END
 };

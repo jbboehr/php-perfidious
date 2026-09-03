@@ -27,6 +27,7 @@
 
 #include "php_perfidious.h"
 #include "private.h"
+#include "zend_helpers.h"
 
 PERFIDIOUS_LOCAL zend_string *PERFIDIOUS_INTERNED_EQUIV;
 PERFIDIOUS_LOCAL zend_string *PERFIDIOUS_INTERNED_IDX;
@@ -133,83 +134,24 @@ static zend_always_inline zend_class_entry *register_class_PmuEventInfo(void)
     INIT_CLASS_ENTRY(ce, PHP_PERFIDIOUS_NAMESPACE "\\PmuEventInfo", NULL);
     class_entry = zend_register_internal_class(&ce);
 
-    do {
-        zval default_value = {0};
-        ZVAL_UNDEF(&default_value);
-        zend_declare_typed_property(
-            class_entry,
-            PERFIDIOUS_INTERNED_NAME,
-            &default_value,
-            ZEND_ACC_PUBLIC | ZEND_ACC_READONLY,
-            NULL,
-            (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING)
-        );
-    } while (false);
-
-    do {
-        zval default_value = {0};
-        ZVAL_UNDEF(&default_value);
-        zend_declare_typed_property(
-            class_entry,
-            PERFIDIOUS_INTERNED_DESC,
-            &default_value,
-            ZEND_ACC_PUBLIC | ZEND_ACC_READONLY,
-            NULL,
-            (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING)
-        );
-    } while (false);
-
-    do {
-        zval default_value = {0};
-        ZVAL_UNDEF(&default_value);
-        zend_declare_typed_property(
-            class_entry,
-            PERFIDIOUS_INTERNED_EQUIV,
-            &default_value,
-            ZEND_ACC_PUBLIC | ZEND_ACC_READONLY,
-            NULL,
-            (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING | MAY_BE_NULL)
-        );
-    } while (false);
-
-    do {
-        zval default_value = {0};
-        ZVAL_UNDEF(&default_value);
-        zend_declare_typed_property(
-            class_entry,
-            PERFIDIOUS_INTERNED_PMU,
-            &default_value,
-            ZEND_ACC_PUBLIC | ZEND_ACC_READONLY,
-            NULL,
-            (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG)
-        );
-    } while (false);
-
-    do {
-        zval default_value = {0};
-        ZVAL_UNDEF(&default_value);
-        zend_declare_typed_property(
-            class_entry,
-            PERFIDIOUS_INTERNED_IDX,
-            &default_value,
-            ZEND_ACC_PUBLIC | ZEND_ACC_READONLY,
-            NULL,
-            (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG)
-        );
-    } while (false);
-
-    do {
-        zval default_value = {0};
-        ZVAL_UNDEF(&default_value);
-        zend_declare_typed_property(
-            class_entry,
-            PERFIDIOUS_INTERNED_IS_PRESENT,
-            &default_value,
-            ZEND_ACC_PUBLIC | ZEND_ACC_READONLY,
-            NULL,
-            (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_BOOL)
-        );
-    } while (false);
+    perfidious_declare_readonly_property_ex(
+        class_entry, PERFIDIOUS_INTERNED_NAME, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING)
+    );
+    perfidious_declare_readonly_property_ex(
+        class_entry, PERFIDIOUS_INTERNED_DESC, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING)
+    );
+    perfidious_declare_readonly_property_ex(
+        class_entry, PERFIDIOUS_INTERNED_EQUIV, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING | MAY_BE_NULL)
+    );
+    perfidious_declare_readonly_property_ex(
+        class_entry, PERFIDIOUS_INTERNED_PMU, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG)
+    );
+    perfidious_declare_readonly_property_ex(
+        class_entry, PERFIDIOUS_INTERNED_IDX, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG)
+    );
+    perfidious_declare_readonly_property_ex(
+        class_entry, PERFIDIOUS_INTERNED_IS_PRESENT, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_BOOL)
+    );
 
     class_entry->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NO_DYNAMIC_PROPERTIES;
 

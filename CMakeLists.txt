@@ -24,8 +24,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     add_compile_definitions(PERFIDIOUS_PLATFORM_LINUX=1)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     set(PLATFORM_SOURCE_FILES
+        src/platform.c
         src/darwin/functions.c
-        src/darwin/platform.c
         src/darwin/sampler.c
     )
     add_compile_definitions(PERFIDIOUS_PLATFORM_DARWIN=1)

@@ -18,6 +18,7 @@
 
 #include "php_perfidious.h"
 #include "../sampler.h"
+#include "private.h"
 #include "thread_profile.h"
 
 #define PERFIDIOUS_WINDOWS_THREAD_PROFILE_METRICS                                                                      \
@@ -37,23 +38,6 @@ struct perfidious_platform_sampler
     uint64_t context_switch_base;
     bool have_context_switches;
 };
-
-static uint64_t perfidious_windows_filetime_to_uint64(FILETIME value)
-{
-    ULARGE_INTEGER combined;
-
-    combined.LowPart = value.dwLowDateTime;
-    combined.HighPart = value.dwHighDateTime;
-    return combined.QuadPart;
-}
-
-static zend_result perfidious_windows_throw_sampler_error(const char *operation, DWORD error)
-{
-    zend_throw_exception_ex(
-        perfidious_io_exception_ce, (zend_long) error, "%s failed with Windows error %lu", operation, error
-    );
-    return FAILURE;
-}
 
 PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_supported_metrics(
     uint32_t requested_metrics, enum perfidious_scope_id scope, uint32_t *supported_metrics
@@ -96,7 +80,7 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_open(
             DWORD error = GetLastError();
 
             efree(result);
-            return perfidious_windows_throw_sampler_error("DuplicateHandle", error);
+            return perfidious_windows_throw_error("DuplicateHandle", error);
         }
         result->thread_id = GetCurrentThreadId();
 
@@ -115,7 +99,7 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_open(
                     );
                     return FAILURE;
                 }
-                return perfidious_windows_throw_sampler_error("EnableThreadProfiling", error);
+                return perfidious_windows_throw_error("EnableThreadProfiling", error);
             }
         }
     }
@@ -149,7 +133,7 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_read(
 
         wait_result = WaitForSingleObject(sampler->thread_handle, 0);
         if (UNEXPECTED(wait_result == WAIT_FAILED)) {
-            return perfidious_windows_throw_sampler_error("WaitForSingleObject", GetLastError());
+            return perfidious_windows_throw_error("WaitForSingleObject", GetLastError());
         }
         if (UNEXPECTED(wait_result != WAIT_TIMEOUT)) {
             zend_throw_exception(
@@ -164,7 +148,7 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_read(
             DWORD error = perfidious_windows_thread_profile_read(sampler->profile_handle, 0, &profile_data);
 
             if (UNEXPECTED(error != ERROR_SUCCESS)) {
-                return perfidious_windows_throw_sampler_error("ReadThreadProfilingData", error);
+                return perfidious_windows_throw_error("ReadThreadProfilingData", error);
             }
         }
     }
@@ -188,7 +172,7 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_read(
             success = GetThreadTimes(sampler->thread_handle, &creation_time, &exit_time, &kernel_time, &user_time);
         }
         if (UNEXPECTED(!success)) {
-            return perfidious_windows_throw_sampler_error(operation, GetLastError());
+            return perfidious_windows_throw_error(operation, GetLastError());
         }
 
         kernel_time_100ns = perfidious_windows_filetime_to_uint64(kernel_time);
@@ -214,7 +198,7 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_read(
         if (UNEXPECTED(
                 !GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS *) &memory, sizeof(memory))
             )) {
-            return perfidious_windows_throw_sampler_error("GetProcessMemoryInfo", GetLastError());
+            return perfidious_windows_throw_error("GetProcessMemoryInfo", GetLastError());
         }
 
         if (sampler->have_page_faults && memory.PageFaultCount < sampler->previous_page_faults) {
@@ -250,7 +234,7 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_read(
             ULONG64 cycle_time;
 
             if (UNEXPECTED(!QueryProcessCycleTime(GetCurrentProcess(), &cycle_time))) {
-                return perfidious_windows_throw_sampler_error("QueryProcessCycleTime", GetLastError());
+                return perfidious_windows_throw_error("QueryProcessCycleTime", GetLastError());
             }
             snapshot->values[PERFIDIOUS_METRIC_CPU_CYCLES] = (uint64_t) cycle_time;
         } else {
