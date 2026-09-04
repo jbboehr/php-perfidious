@@ -22,6 +22,7 @@
 #include "config.h"
 #endif
 
+#include <string.h>
 #include <unistd.h>
 #include <sys/capability.h>
 #include <perfmon/pfmlib.h>
@@ -278,6 +279,29 @@ static PHP_FUNCTION(perfidious_request_handle)
     ZEND_PARSE_PARAMETERS_NONE();
 
     if (EXPECTED(PERFIDIOUS_G(request_enable) && PERFIDIOUS_G(request_handle))) {
+        if (UNEXPECTED(PERFIDIOUS_G(request_handle_error) != 0)) {
+            int error_number = PERFIDIOUS_G(request_handle_error);
+            const char *operation = PERFIDIOUS_G(request_handle_error_operation) != NULL
+                                        ? PERFIDIOUS_G(request_handle_error_operation)
+                                        : "lifecycle operation";
+
+            PERFIDIOUS_G(request_handle_error) = 0;
+            PERFIDIOUS_G(request_handle_error_operation) = NULL;
+
+            perfidious_error_helper(
+                perfidious_io_exception_ce,
+                error_number,
+                "request handle unavailable after %s failed: %s",
+                operation,
+                strerror(error_number)
+            );
+            RETURN_NULL();
+        }
+
+        if (UNEXPECTED(!PERFIDIOUS_G(request_handle_ready))) {
+            RETURN_NULL();
+        }
+
         object_init_ex(return_value, perfidious_handle_ce);
 
         struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(return_value));
@@ -341,6 +365,19 @@ static PHP_FUNCTION(perfidious_debug_get_open_ex_call_count)
 
     RETURN_LONG((zend_long) PERFIDIOUS_G(debug_open_ex_call_count));
 }
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
+    perfidious_debug_fail_next_request_handle_shutdown_arginfo, false, 0, IS_VOID, false
+)
+ZEND_END_ARG_INFO()
+
+ZEND_COLD
+static PHP_FUNCTION(perfidious_debug_fail_next_request_handle_shutdown)
+{
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    PERFIDIOUS_G(debug_fail_next_request_handle_shutdown) = true;
+}
 #endif
 
 // clang-format off
@@ -357,6 +394,7 @@ const zend_function_entry perfidious_functions[] = {
     PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\debug_uint64_overflow", ZEND_FN(perfidious_debug_uint64_overflow), perfidious_debug_uint64_overflow_arginfo, 0)
     PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\debug_pmu_event_info_from_names", ZEND_FN(perfidious_debug_pmu_event_info_from_names), perfidious_debug_pmu_event_info_from_names_arginfo, 0)
     PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\debug_get_open_ex_call_count", ZEND_FN(perfidious_debug_get_open_ex_call_count), perfidious_debug_get_open_ex_call_count_arginfo, 0)
+    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\debug_fail_next_request_handle_shutdown", ZEND_FN(perfidious_debug_fail_next_request_handle_shutdown), perfidious_debug_fail_next_request_handle_shutdown_arginfo, 0)
 #endif
     PHP_FE_END
 };

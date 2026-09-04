@@ -1,5 +1,5 @@
 --TEST--
-Perfidious\Handle::debugCloseFd() exercised directly against read()/readArray()/enable()
+Perfidious\Handle::debugCloseFd() exercises read and explicit ioctl failures
 --EXTENSIONS--
 perfidious
 --SKIPIF--
@@ -30,10 +30,12 @@ try {
     echo $e->getMessage(), "\n";
 }
 
-try {
-    $handle->enable();
-} catch (Perfidious\IOException $e) {
-    echo $e->getMessage(), "\n";
+foreach (["reset", "enable", "disable"] as $operation) {
+    try {
+        $handle->$operation();
+    } catch (Perfidious\IOException $e) {
+        echo "$operation: ", $e->getMessage(), "\n";
+    }
 }
 
 try {
@@ -84,7 +86,9 @@ $cleanupHandle->close();
 --EXPECTF--
 failed to read: Bad file descriptor
 failed to read: Bad file descriptor
-ioctl failed: Bad file descriptor
+reset: ioctl failed: Bad file descriptor
+enable: ioctl failed: Bad file descriptor
+disable: ioctl failed: Bad file descriptor
 close failed: Bad file descriptor
 closed after failure
 debugCorruptMetricIds rejected closed handle

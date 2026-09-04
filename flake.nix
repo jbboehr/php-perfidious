@@ -83,6 +83,7 @@
               *.md
               *.nix
               flake.*
+              nix/vm-test/
             '';
           };
         };
@@ -175,7 +176,10 @@
             '';
           };
 
-        makeVmCheck = package: let
+        makeVmCheck = {
+          package,
+          runPhpt ? true,
+        }: let
           php = package.php.buildEnv {
             extensions = {
               enabled,
@@ -200,26 +204,7 @@
           # RINIT/RSHUTDOWN cycles (i.e. real requests) without global_handle()/request_handle()
           # erroring, returning corrupt data, or crashing the worker: exactly the class of
           # use-after-free / double-reset bug a one-shot-per-process CLI test can never catch.
-          fpmDocroot = pkgs.writeTextDir "index.php" ''
-            <?php
-            $g = \Perfidious\global_handle();
-            $r = \Perfidious\request_handle();
-            if ($g === null || $r === null) {
-                http_response_code(500);
-                echo json_encode(["error" => "global/request handle not enabled"]);
-                exit;
-            }
-            foreach (["global" => $g, "request" => $r] as $name => $h) {
-                foreach ($h->readArray() as $metric => $v) {
-                    if (!is_int($v) || $v < 0) {
-                        http_response_code(500);
-                        echo json_encode(["error" => "corrupt $name counter $metric: " . var_export($v, true)]);
-                        exit;
-                    }
-                }
-            }
-            echo json_encode(["pid" => getmypid()]);
-          '';
+          fpmDocroot = ./nix/vm-test;
         in
           pkgs.testers.runNixOSTest {
             name = "php-perfidious-vm-test";
@@ -283,19 +268,22 @@
             testScript = {nodes, ...}: ''
               import json
 
+              def request(query=""):
+                  out = machine1.succeed(f"curl -fsS 'http://127.0.0.1:80/index.php{query}'")
+                  return json.loads(out)
+
               machine1.wait_for_unit("default.target")
               machine1.succeed("php -m && php -m | grep -i perfidious")
-              machine1.succeed("cp -r --no-preserve=mode,ownership ${src}/* .")
-              machine1.succeed("cp --no-preserve=mode,ownership ${php.unwrapped.dev}/lib/build/run-tests.php .")
-              machine1.succeed("TEST_PHP_DETAILED=1 NO_INTERACTION=1 REPORT_EXIT_STATUS=1 php run-tests.php || (find tests -name '*.log' | xargs -n1 cat ; exit 1)")
+              ${lib.optionalString runPhpt ''
+                machine1.succeed("cp -r --no-preserve=mode,ownership ${src}/* .")
+                machine1.succeed("cp --no-preserve=mode,ownership ${php.unwrapped.dev}/lib/build/run-tests.php .")
+                machine1.succeed("TEST_PHP_DETAILED=1 NO_INTERACTION=1 REPORT_EXIT_STATUS=1 php run-tests.php || (find tests -name '*.log' | xargs -n1 cat ; exit 1)")
+              ''}
 
               machine1.wait_for_unit("nginx.service")
               machine1.wait_for_unit("phpfpm-perfidious.service")
 
-              readings = []
-              for _ in range(10):
-                  out = machine1.succeed("curl -fsS http://127.0.0.1:80/index.php")
-                  readings.append(json.loads(out))
+              readings = [request() for _ in range(10)]
 
               for i, r in enumerate(readings):
                   assert "error" not in r, f"request #{i}: global_handle()/request_handle() broken under php-fpm: {r}"
@@ -305,6 +293,32 @@
                   f"expected all {len(readings)} requests to land on the same persistent php-fpm "
                   f"worker (pm=static, pm.max_children=1), got worker pids: {sorted(pids)}"
               )
+
+              ${lib.optionalString package.debugSupport ''
+                injected = request("?failRequestHandleShutdown=1")
+                assert injected["requestHandleShutdownFailureInjected"] is True
+
+                recovered_error = request()
+                assert recovered_error["pid"] == injected["pid"], (
+                    f"transient request-handle lifecycle failure killed worker {injected['pid']}; "
+                    f"replacement worker is {recovered_error['pid']}"
+                )
+                assert recovered_error["requestHandleError"] != 0, recovered_error
+
+                recovered = request()
+                assert recovered["pid"] == injected["pid"], recovered
+                assert "error" not in recovered and "requestHandleError" not in recovered, recovered
+
+                broken = request("?breakRequestHandle=1")
+                assert broken["requestHandleBroken"] is True
+
+                unavailable = request()
+                assert unavailable["pid"] == broken["pid"], (
+                    f"request-handle lifecycle failure killed worker {broken['pid']}; "
+                    f"replacement worker is {unavailable['pid']}"
+                )
+                assert unavailable["requestHandleError"] != 0, unavailable
+              ''}
             '';
           };
 
@@ -501,8 +515,12 @@
           {
             inherit pre-commit-check;
             php85-zts = php85ZtsCheck;
-            php81-gcc-vmtest = makeVmCheck packages.php81-gcc;
-            php85-gcc-vmtest = makeVmCheck packages.php85-gcc;
+            php81-gcc-vmtest = makeVmCheck {package = packages.php81-gcc;};
+            php81-gcc-debug-vmtest = makeVmCheck {
+              package = packages.php81-gcc-debug;
+              runPhpt = false;
+            };
+            php85-gcc-vmtest = makeVmCheck {package = packages.php85-gcc;};
           }
           // (builtins.mapAttrs (name: package: makeCheck package) (builtins.removeAttrs packages ["default"]));
 

@@ -22,6 +22,7 @@
 #include "config.h"
 #endif
 
+#include <errno.h>
 #include <inttypes.h>
 #include <stdio.h>
 
@@ -45,6 +46,26 @@
 PERFIDIOUS_LOCAL void perfidious_handle_minit(void);
 PERFIDIOUS_LOCAL void perfidious_pmu_event_info_minit(void);
 PERFIDIOUS_LOCAL void perfidious_pmu_info_minit(void);
+
+static void perfidious_request_handle_record_error(const char *operation, int error_number)
+{
+    if (error_number != 0 && PERFIDIOUS_G(request_handle_error) == 0) {
+        PERFIDIOUS_G(request_handle_error) = error_number;
+        PERFIDIOUS_G(request_handle_error_operation) = operation;
+    }
+}
+
+static int perfidious_request_handle_try_shutdown_reset(struct perfidious_handle *restrict handle)
+{
+#ifdef PERFIDIOUS_DEBUG
+    if (PERFIDIOUS_G(debug_fail_next_request_handle_shutdown)) {
+        PERFIDIOUS_G(debug_fail_next_request_handle_shutdown) = false;
+        return EIO;
+    }
+#endif
+
+    return perfidious_handle_try_reset(handle);
+}
 
 #if PHP_VERSION_ID < 80200
 static ZEND_INI_MH(OnUpdateStr)
@@ -184,9 +205,19 @@ PERFIDIOUS_LOCAL PHP_MSHUTDOWN_FUNCTION(perfidious_platform)
 
 PERFIDIOUS_LOCAL PHP_RINIT_FUNCTION(perfidious_platform)
 {
+    int error_number;
+
+    PERFIDIOUS_G(request_handle_ready) = false;
+
     if (PERFIDIOUS_G(request_handle)) {
-        perfidious_handle_reset(PERFIDIOUS_G(request_handle));
-        perfidious_handle_enable(PERFIDIOUS_G(request_handle));
+        error_number = perfidious_handle_try_reset(PERFIDIOUS_G(request_handle));
+        if (UNEXPECTED(error_number != 0)) {
+            perfidious_request_handle_record_error("reset", error_number);
+        } else {
+            error_number = perfidious_handle_try_set_enabled(PERFIDIOUS_G(request_handle), true);
+            perfidious_request_handle_record_error("enable", error_number);
+            PERFIDIOUS_G(request_handle_ready) = error_number == 0;
+        }
     }
 
     return SUCCESS;
@@ -194,10 +225,17 @@ PERFIDIOUS_LOCAL PHP_RINIT_FUNCTION(perfidious_platform)
 
 PERFIDIOUS_LOCAL PHP_RSHUTDOWN_FUNCTION(perfidious_platform)
 {
+    int error_number;
+
     if (PERFIDIOUS_G(request_handle)) {
-        perfidious_handle_reset(PERFIDIOUS_G(request_handle));
-        perfidious_handle_disable(PERFIDIOUS_G(request_handle));
+        error_number = perfidious_request_handle_try_shutdown_reset(PERFIDIOUS_G(request_handle));
+        perfidious_request_handle_record_error("reset", error_number);
+
+        error_number = perfidious_handle_try_set_enabled(PERFIDIOUS_G(request_handle), false);
+        perfidious_request_handle_record_error("disable", error_number);
     }
+
+    PERFIDIOUS_G(request_handle_ready) = false;
 
     return SUCCESS;
 }

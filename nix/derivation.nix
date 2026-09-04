@@ -47,7 +47,7 @@
     ++ lib.optional coverageSupport lcov;
 
   passthru = {
-    inherit php libpfm stdenv;
+    inherit php libpfm stdenv debugSupport;
   };
 
   configureFlags =

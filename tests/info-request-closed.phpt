@@ -16,4 +16,3 @@ phpinfo(INFO_MODULES);
 --EXPECTF--
 %A READ ERROR %A
 %A Uncaught Perfidious\IOException: failed to read: Bad file descriptor %A
-%A Uncaught Perfidious\IOException: ioctl failed: Bad file descriptor %A

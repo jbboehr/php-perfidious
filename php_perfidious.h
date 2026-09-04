@@ -109,10 +109,14 @@ ZEND_BEGIN_MODULE_GLOBALS(perfidious)
     zend_bool request_enable;
     zend_string *request_metrics;
     struct perfidious_handle *request_handle;
+    zend_bool request_handle_ready;
+    int request_handle_error;
+    const char *request_handle_error_operation;
 
     enum perfidious_error_mode error_mode;
 #ifdef PERFIDIOUS_DEBUG
     uint32_t debug_open_ex_call_count;
+    zend_bool debug_fail_next_request_handle_shutdown;
 #endif
 ZEND_END_MODULE_GLOBALS(perfidious)
 

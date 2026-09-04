@@ -80,6 +80,7 @@ function open(array $event_names, int $pid = 0, int $cpu = -1): Handle
  * Returns a borrowed view of the persistent request handle.
  * Closing the returned object detaches only that view.
  *
+ * @throws IOException if the handle could not be prepared for the current request
  * @phpstan-return ?Handle<list<string>>
  */
 function request_handle(): ?Handle

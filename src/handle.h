@@ -64,6 +64,16 @@ struct perfidious_handle_obj
     zend_object std;
 };
 
+PERFIDIOUS_LOCAL
+PERFIDIOUS_ATTR_NONNULL_ALL
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
+int perfidious_handle_try_reset(struct perfidious_handle *restrict handle);
+
+PERFIDIOUS_LOCAL
+PERFIDIOUS_ATTR_NONNULL_ALL
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
+int perfidious_handle_try_set_enabled(struct perfidious_handle *restrict handle, bool enabled);
+
 ZEND_HOT
 PERFIDIOUS_ATTR_NONNULL_ALL
 PERFIDIOUS_ATTR_RETURNS_NONNULL

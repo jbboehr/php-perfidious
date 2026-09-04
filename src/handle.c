@@ -46,18 +46,34 @@
 PERFIDIOUS_PUBLIC zend_class_entry *perfidious_handle_ce;
 static zend_object_handlers perfidious_handle_obj_handlers;
 
-static void perfidious_handle_ioctl_error(void)
+static void perfidious_handle_ioctl_error(int error_number)
 {
-    perfidious_error_helper(perfidious_io_exception_ce, errno, "ioctl failed: %s", strerror(errno));
+    perfidious_error_helper(
+        perfidious_io_exception_ce, error_number, "ioctl failed: %s", strerror(error_number)
+    );
 }
 
-#define HANDLE_IOCTL_ERROR(err)                                                                                        \
-    do {                                                                                                               \
-        if (UNEXPECTED(err == -1)) {                                                                                   \
-            perfidious_handle_ioctl_error();                                                                           \
-            return FAILURE;                                                                                            \
-        }                                                                                                              \
-    } while (false)
+static zend_always_inline int
+perfidious_handle_try_ioctl(struct perfidious_handle *restrict handle, unsigned long request)
+{
+    ZEND_ASSERT(handle->metrics_count > 0);
+
+    if (UNEXPECTED(ioctl(handle->metrics[0].fd, request, PERF_IOC_FLAG_GROUP) == -1)) {
+        return errno != 0 ? errno : EIO;
+    }
+
+    return 0;
+}
+
+static zend_always_inline zend_result perfidious_handle_report_ioctl_result(int error_number)
+{
+    if (UNEXPECTED(error_number != 0)) {
+        perfidious_handle_ioctl_error(error_number);
+        return FAILURE;
+    }
+
+    return SUCCESS;
+}
 
 PERFIDIOUS_ATTR_NONNULL_ALL
 static void perfidious_handle_obj_free(zend_object *object)
@@ -102,14 +118,14 @@ PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
 zend_result perfidious_handle_reset(struct perfidious_handle *restrict handle)
 {
-    int err;
-
     PERFIDIOUS_ASSERT_RETURN(handle->metrics_count > 0);
 
-    err = ioctl(handle->metrics[0].fd, PERF_EVENT_IOC_RESET, PERF_IOC_FLAG_GROUP);
-    HANDLE_IOCTL_ERROR(err);
+    return perfidious_handle_report_ioctl_result(perfidious_handle_try_reset(handle));
+}
 
-    return SUCCESS;
+PERFIDIOUS_LOCAL int perfidious_handle_try_reset(struct perfidious_handle *restrict handle)
+{
+    return perfidious_handle_try_ioctl(handle, PERF_EVENT_IOC_RESET);
 }
 
 ZEND_HOT
@@ -117,16 +133,22 @@ PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
 zend_result perfidious_handle_enable(struct perfidious_handle *restrict handle)
 {
-    int err;
-
     PERFIDIOUS_ASSERT_RETURN(handle->metrics_count > 0);
 
-    err = ioctl(handle->metrics[0].fd, PERF_EVENT_IOC_ENABLE, PERF_IOC_FLAG_GROUP);
-    HANDLE_IOCTL_ERROR(err);
+    return perfidious_handle_report_ioctl_result(perfidious_handle_try_set_enabled(handle, true));
+}
 
-    handle->enabled = true;
+PERFIDIOUS_LOCAL int
+perfidious_handle_try_set_enabled(struct perfidious_handle *restrict handle, bool enabled)
+{
+    unsigned long request = enabled ? PERF_EVENT_IOC_ENABLE : PERF_EVENT_IOC_DISABLE;
+    int error_number = perfidious_handle_try_ioctl(handle, request);
 
-    return SUCCESS;
+    if (EXPECTED(error_number == 0)) {
+        handle->enabled = enabled;
+    }
+
+    return error_number;
 }
 
 ZEND_HOT
@@ -134,16 +156,9 @@ PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
 zend_result perfidious_handle_disable(struct perfidious_handle *restrict handle)
 {
-    int err;
-
     PERFIDIOUS_ASSERT_RETURN(handle->metrics_count > 0);
 
-    err = ioctl(handle->metrics[0].fd, PERF_EVENT_IOC_DISABLE, PERF_IOC_FLAG_GROUP);
-    HANDLE_IOCTL_ERROR(err);
-
-    handle->enabled = false;
-
-    return SUCCESS;
+    return perfidious_handle_report_ioctl_result(perfidious_handle_try_set_enabled(handle, false));
 }
 
 PERFIDIOUS_PUBLIC
@@ -362,13 +377,15 @@ struct perfidious_handle *perfidious_handle_open_ex(
         }
         err = ioctl(fd, PERF_EVENT_IOC_ID, &id);
         if (err == -1) {
-            perfidious_handle_ioctl_error();
+            err = errno != 0 ? errno : EIO;
+            perfidious_handle_ioctl_error(err);
             close(fd);
             goto cleanup;
         }
         err = ioctl(fd, PERF_EVENT_IOC_RESET, fd);
         if (err == -1) {
-            perfidious_handle_ioctl_error();
+            err = errno != 0 ? errno : EIO;
+            perfidious_handle_ioctl_error(err);
             close(fd);
             goto cleanup;
         }
@@ -424,14 +441,16 @@ struct perfidious_handle *perfidious_handle_open_ex(
 
         err = ioctl(fd, PERF_EVENT_IOC_ID, &id);
         if (err == -1) {
-            perfidious_handle_ioctl_error();
+            err = errno != 0 ? errno : EIO;
+            perfidious_handle_ioctl_error(err);
             close(fd);
             goto cleanup;
         }
 
         err = ioctl(fd, PERF_EVENT_IOC_RESET, fd);
         if (err == -1) {
-            perfidious_handle_ioctl_error();
+            err = errno != 0 ? errno : EIO;
+            perfidious_handle_ioctl_error(err);
             close(fd);
             goto cleanup;
         }
