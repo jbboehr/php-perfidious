@@ -83,7 +83,9 @@
               *.md
               *.nix
               flake.*
+              nix/checks/
               nix/vm-test/
+              tests/valgrind/
             '';
           };
         };
@@ -109,6 +111,68 @@
             checkSupport = true;
             WerrorSupport = true;
           };
+
+        makeCapabilityLeakCheck = package:
+          pkgs.runCommand "perfidious-capability-leak-check" {
+            nativeBuildInputs = [
+              pkgs.stdenv.cc
+              pkgs.valgrind
+            ];
+          } ''
+            export USE_ZEND_ALLOC=0
+            valgrind \
+              --quiet \
+              --keep-debuginfo=yes \
+              --leak-check=full \
+              --show-leak-kinds=definite \
+              --errors-for-leak-kinds=definite \
+              --error-exitcode=1 \
+              --suppressions=${./tests/valgrind/libpfm-initialize.supp} \
+              ${package.php.unwrapped}/bin/php \
+              -n \
+              -d extension=${package}/lib/php/extensions/perfidious.so \
+              ${./nix/checks/capability-leak.php}
+
+            cc \
+              -shared \
+              -fPIC \
+              -g \
+              -O1 \
+              -fno-omit-frame-pointer \
+              -fno-optimize-sibling-calls \
+              -Wall \
+              -Wextra \
+              -Werror \
+              $(${package.php.unwrapped.dev}/bin/php-config --includes) \
+              ${./tests/valgrind/libpfm-suppression-scope.c} \
+              -o libpfm-suppression-scope.so
+
+            if valgrind \
+              --quiet \
+              --keep-debuginfo=yes \
+              --leak-check=full \
+              --show-leak-kinds=definite \
+              --errors-for-leak-kinds=definite \
+              --error-exitcode=41 \
+              --suppressions=${./tests/valgrind/libpfm-initialize.supp} \
+              ${package.php.unwrapped}/bin/php \
+              -n \
+              -d extension=./libpfm-suppression-scope.so \
+              -r ""
+            then
+              echo "libpfm suppression hid the unrelated MINIT leak" >&2
+              exit 1
+            else
+              status=$?
+            fi
+
+            if [ "$status" -ne 41 ]; then
+              echo "Valgrind returned unexpected status $status for the suppression-scope fixture" >&2
+              exit 1
+            fi
+
+            touch $out
+          '';
 
         pre-commit-check = pre-commit-hooks.lib.${system}.run {
           src = src';
@@ -514,6 +578,7 @@
         checks =
           {
             inherit pre-commit-check;
+            php81-gcc-capability-leak = makeCapabilityLeakCheck packages.php81-gcc;
             php85-zts = php85ZtsCheck;
             php81-gcc-vmtest = makeVmCheck {package = packages.php81-gcc;};
             php81-gcc-debug-vmtest = makeVmCheck {

@@ -22,6 +22,7 @@
 #include "config.h"
 #endif
 
+#include <errno.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/capability.h>
@@ -208,7 +209,29 @@ static PHP_FUNCTION(perfidious_open)
         cap_t cap = cap_get_proc();
         if (cap != NULL) {
             cap_flag_value_t v = CAP_CLEAR;
-            cap_get_flag(cap, CAP_PERFMON, CAP_EFFECTIVE, &v);
+            int get_flag_result = cap_get_flag(cap, CAP_PERFMON, CAP_EFFECTIVE, &v);
+            int get_flag_error = errno;
+            int free_result = cap_free(cap);
+            int free_error = errno;
+
+            if (UNEXPECTED(get_flag_result == -1)) {
+                perfidious_error_helper(
+                    perfidious_io_exception_ce,
+                    get_flag_error,
+                    "cap_get_flag() failed: %s",
+                    strerror(get_flag_error)
+                );
+                return;
+            }
+            if (UNEXPECTED(free_result == -1)) {
+                perfidious_error_helper(
+                    perfidious_io_exception_ce,
+                    free_error,
+                    "cap_free() failed: %s",
+                    strerror(free_error)
+                );
+                return;
+            }
             if (v == CAP_CLEAR) {
                 zend_throw_exception_ex(perfidious_io_exception_ce, 0, "pid greater than zero and CAP_PERFMON not set");
                 return;

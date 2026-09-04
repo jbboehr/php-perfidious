@@ -1,0 +1,11 @@
+{
+   libpfm-initialize
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:calloc
+   fun:pfm_intel_x86_arch_init
+   fun:pfm_initialize
+   fun:zm_startup_perfidious_platform
+   fun:zm_startup_perfidious
+   fun:zend_startup_module_ex
+}
