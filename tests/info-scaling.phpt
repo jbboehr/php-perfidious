@@ -8,8 +8,8 @@ perfidious
 <?php if (PHP_INT_SIZE !== 8) die('skip: requires 64-bit PHP integers'); ?>
 <?php if (!is_dir('/proc/self/fd')) die('skip: /proc/self/fd is unavailable'); ?>
 --INI--
-perfidious.global.enable=1
-perfidious.global.metrics=perf::PERF_COUNT_SW_CPU_CLOCK:u
+perfidious.request.enable=1
+perfidious.request.metrics=perf::PERF_COUNT_SW_CPU_CLOCK:u
 --FILE--
 <?php
 require __DIR__ . '/inject-scaling-read.inc';
@@ -29,7 +29,7 @@ function metricRow(): string
     throw new RuntimeException('Could not find the phpinfo metric row');
 }
 
-$handle = Perfidious\global_handle();
+$handle = Perfidious\request_handle();
 
 $handle->debugInjectScalingRead();
 echo "intermediate overflow: ", metricRow(), "\n";

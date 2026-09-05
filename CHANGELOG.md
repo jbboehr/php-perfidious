@@ -16,7 +16,7 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
 - Structured `scope` and `unsupportedMetrics` metadata on `UnsupportedMetricException`, allowing callers to retry
   sampler requests without parsing exception messages.
 - An idempotent `Handle::close()` method for deterministic release of owned Linux performance-counter descriptors;
-  closing a borrowed global or request handle detaches only that wrapper.
+  closing a borrowed request handle detaches only that wrapper.
 - `ClosedException`, `WrongThreadException`, and `ResourceBusyException` distinguish lifecycle misuse, Windows
   current-thread misuse, and thread-profiling conflicts from native `IOException` failures.
 - `Metric::unit()` exposes each sampler metric's `MetricUnit`, allowing generic reporters to distinguish nanoseconds
@@ -38,6 +38,12 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
   provides no usable counter. The low-level Darwin snapshot API remains unchanged.
 - Linux perf-event reads now always throw `OverflowException` when a native counter or timing field cannot fit in a
   PHP integer. The configurable overflow modes, their constants, and `perfidious.overflow_mode` have been removed.
+
+### Removed
+
+- The Linux `Perfidious\global_handle()` API and the `perfidious.global.enable` / `perfidious.global.metrics` INI
+  settings. This is a breaking change: automatic cumulative counters across requests are no longer provided. The
+  per-request handle and explicitly owned handles remain available.
 
 ### Fixed
 

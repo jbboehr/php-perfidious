@@ -78,8 +78,6 @@ static ZEND_INI_MH(OnUpdateStr)
 
 // clang-format off
 PHP_INI_BEGIN()
-    STD_PHP_INI_ENTRY(PHP_PERFIDIOUS_NAME ".global.enable", "0", PHP_INI_SYSTEM, OnUpdateBool, global_enable, zend_perfidious_globals, perfidious_globals)
-    STD_PHP_INI_ENTRY(PHP_PERFIDIOUS_NAME ".global.metrics", DEFAULT_METRICS, PHP_INI_SYSTEM, OnUpdateStr, global_metrics, zend_perfidious_globals, perfidious_globals)
     STD_PHP_INI_ENTRY(PHP_PERFIDIOUS_NAME ".request.enable", "0", PHP_INI_SYSTEM, OnUpdateBool, request_enable, zend_perfidious_globals, perfidious_globals)
     STD_PHP_INI_ENTRY(PHP_PERFIDIOUS_NAME ".request.metrics", DEFAULT_METRICS, PHP_INI_SYSTEM, OnUpdateStr, request_metrics, zend_perfidious_globals, perfidious_globals)
 PHP_INI_END()
@@ -161,17 +159,6 @@ PERFIDIOUS_LOCAL PHP_MINIT_FUNCTION(perfidious_platform)
     perfidious_pmu_event_info_minit();
     perfidious_pmu_info_minit();
 
-    if (PERFIDIOUS_G(global_enable)) {
-        struct perfidious_handle *handle = NULL;
-        if (EXPECTED(PERFIDIOUS_G(global_metrics) != NULL)) {
-            handle = split_and_open(PERFIDIOUS_G(global_metrics), true);
-        }
-        PERFIDIOUS_G(global_handle) = handle;
-        if (UNEXPECTED(handle == NULL)) {
-            PERFIDIOUS_G(global_enable) = false;
-        }
-    }
-
     if (PERFIDIOUS_G(request_enable)) {
         struct perfidious_handle *handle = NULL;
         if (EXPECTED(PERFIDIOUS_G(request_metrics) != NULL)) {
@@ -191,11 +178,6 @@ PERFIDIOUS_LOCAL PHP_MSHUTDOWN_FUNCTION(perfidious_platform)
     if (PERFIDIOUS_G(request_handle)) {
         perfidious_handle_close(PERFIDIOUS_G(request_handle));
         PERFIDIOUS_G(request_handle) = NULL;
-    }
-
-    if (PERFIDIOUS_G(global_handle)) {
-        perfidious_handle_close(PERFIDIOUS_G(global_handle));
-        PERFIDIOUS_G(global_handle) = NULL;
     }
 
     UNREGISTER_INI_ENTRIES();
@@ -292,14 +274,6 @@ static zend_always_inline void minfo_handle_metrics(struct perfidious_handle *re
 PERFIDIOUS_LOCAL PHP_MINFO_FUNCTION(perfidious_platform)
 {
     DISPLAY_INI_ENTRIES();
-
-    if (PERFIDIOUS_G(global_enable) && PERFIDIOUS_G(global_handle) != NULL) {
-        php_info_print_table_start();
-        php_info_print_table_colspan_header(4, "Global Metrics");
-        php_info_print_table_header(4, "Event", "Counter", "Scaled", "% Running");
-        minfo_handle_metrics(PERFIDIOUS_G(global_handle));
-        php_info_print_table_end();
-    }
 
     if (PERFIDIOUS_G(request_enable) && PERFIDIOUS_G(request_handle) != NULL) {
         php_info_print_table_start();

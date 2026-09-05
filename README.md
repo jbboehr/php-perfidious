@@ -152,7 +152,7 @@ array(1) {
 }
 ```
 
-Or you can configure a global or per-request handle:
+Or you can configure an automatic per-request handle:
 
 ```php
 // with the following INI settings:
@@ -251,18 +251,16 @@ Some notable generic perf events are:
 
 | Name | Default | Changeable | Description |
 | --------------------- | -------- | ----------- | ------------ |
-| `perfidious.global.enable` | `0` | `PHP_INI_SYSTEM` | Set to `1` to enable the global handle. This handle is kept open between requests. You can read from this handle via e.g. `var_dump(Perfidious\global_handle()?->read());`. |
-| `perfidious.global.metrics` | `perf::PERF_COUNT_HW_CPU_CYCLES:u`, `perf::PERF_COUNT_HW_INSTRUCTIONS:u` | `PHP_INI_SYSTEM` | The metrics to monitor with the global handle. |
 | `perfidious.request.enable` | `0` | `PHP_INI_SYSTEM` | Set to `1` to enable the per-request handle. This handle is kept open between requests, but reset before and after. You can read from this handle via e.g. `var_dump(Perfidious\request_handle()?->read());` |
 | `perfidious.request.metrics` | `perf::PERF_COUNT_HW_CPU_CYCLES:u`, `perf::PERF_COUNT_HW_INSTRUCTIONS:u` | `PHP_INI_SYSTEM` | The metrics to monitor with the request handle. |
 
-`global.enable` and `request.enable` only really do something useful under a
-persistent-worker SAPI like php-fpm: the global handle is opened once and
-never reset, so it accumulates across every request the worker ever
-handles; the request handle is reset at the start and end of each request,
-so it reflects just that one request. Under the CLI SAPI, every invocation
-is its own process with exactly one "request", so the two behave
-identically there.
+The request handle is kept open between requests under a persistent-worker SAPI like php-fpm and reset at the start and
+end of each request. Under the CLI SAPI, one invocation is one PHP request; use an explicitly owned handle from
+`Perfidious\open()` to choose measurement intervals within a long-running script.
+
+`Perfidious\global_handle()`, `perfidious.global.enable`, and `perfidious.global.metrics` have been removed. Remove those
+settings from existing configuration. Automatic cumulative counters across requests are no longer provided;
+`request_handle()` measures individual PHP requests.
 
 ## Troubleshooting
 

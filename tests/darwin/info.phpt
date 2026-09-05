@@ -18,7 +18,7 @@ var_dump(is_subclass_of('Perfidious\\IOException', 'Perfidious\\ExceptionInterfa
 var_dump(is_subclass_of('Perfidious\\OverflowException', 'Perfidious\\ExceptionInterface'));
 var_dump(str_contains($info, 'perfidious'));
 var_dump(str_contains($info, 'Version'));
-var_dump(str_contains($info, 'perfidious.global.enable'));
+var_dump(str_contains($info, 'perfidious.request.enable'));
 var_dump(function_exists('Perfidious\\open'));
 var_dump(function_exists('Perfidious\\Darwin\\get_current_process_resource_usage'));
 var_dump(function_exists('Perfidious\\Darwin\\get_current_thread_resource_usage'));

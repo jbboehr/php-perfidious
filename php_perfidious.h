@@ -102,10 +102,6 @@ PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_handle_ce;
 #endif
 
 ZEND_BEGIN_MODULE_GLOBALS(perfidious)
-    zend_bool global_enable;
-    zend_string *global_metrics;
-    struct perfidious_handle *global_handle;
-
     zend_bool request_enable;
     zend_string *request_metrics;
     struct perfidious_handle *request_handle;

@@ -13,7 +13,7 @@ $info = ob_get_clean();
 
 var_dump(str_contains($info, 'perfidious'));
 var_dump(str_contains($info, 'Version'));
-var_dump(str_contains($info, 'perfidious.global.enable'));
+var_dump(str_contains($info, 'perfidious.request.metrics'));
 var_dump(str_contains($info, 'perfidious.request.enable'));
 var_dump(ini_get('perfidious.overflow_mode'));
 --EXPECT--

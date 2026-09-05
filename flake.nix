@@ -254,10 +254,8 @@
               enabled ++ lib.optional (all ? opcache) all.opcache ++ [package];
           };
 
-          # CLI-based tests only ever see one "request" per process, so they can't exercise
-          # perfidious.global.enable / perfidious.request.enable's actual point: a handle that
-          # persists across requests (global) vs. one that's reset every request (request). This
-          # docroot is served over php-fpm (a real persistent-worker SAPI) below to cover that.
+          # CLI tests see one request per process. Serve this docroot over php-fpm to exercise
+          # the request handle's reuse across requests and its repeated reset/enable/disable lifecycle.
           #
           # note: this deliberately does NOT assert on real counter magnitudes (e.g. timeEnabled
           # growing across requests) - perf counters were found to be unreliable/frozen inside
@@ -265,7 +263,7 @@
           # process), which is also why the CLI .phpt suite never asserts real counter values.
           # What's actually novel/valuable here - and fully deterministic regardless of PMU/timer
           # virtualization quirks - is proving the *same* worker process survives many repeated
-          # RINIT/RSHUTDOWN cycles (i.e. real requests) without global_handle()/request_handle()
+          # RINIT/RSHUTDOWN cycles (i.e. real requests) without request_handle()
           # erroring, returning corrupt data, or crashing the worker: exactly the class of
           # use-after-free / double-reset bug a one-shot-per-process CLI test can never catch.
           fpmDocroot = ./nix/vm-test;
@@ -308,14 +306,12 @@
                   user = "nginx";
                   phpPackage = php;
                   # pinned to exactly one static worker: every request must land on the same
-                  # process so global_handle()'s persistence-across-requests is actually exercised
+                  # process so the request handle's repeated reset/enable/disable lifecycle is exercised
                   # software events, not the default perf::PERF_COUNT_HW_* metrics: nested-virtualized
                   # CI runners (e.g. GitHub Actions) commonly don't expose a hardware PMU to the guest
                   # at all, so perf_event_open() for a HW event fails outright there ("No such file or
                   # directory") - software events don't depend on hardware PMU virtualization support
                   phpOptions = ''
-                    perfidious.global.enable = 1
-                    perfidious.global.metrics = "perf::PERF_COUNT_SW_TASK_CLOCK:u"
                     perfidious.request.enable = 1
                     perfidious.request.metrics = "perf::PERF_COUNT_SW_TASK_CLOCK:u"
                   '';
@@ -350,7 +346,7 @@
               readings = [request() for _ in range(10)]
 
               for i, r in enumerate(readings):
-                  assert "error" not in r, f"request #{i}: global_handle()/request_handle() broken under php-fpm: {r}"
+                  assert "error" not in r, f"request #{i}: request_handle() broken under php-fpm: {r}"
 
               pids = {r["pid"] for r in readings}
               assert len(pids) == 1, (

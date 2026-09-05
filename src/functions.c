@@ -89,25 +89,6 @@ static PHP_FUNCTION(perfidious_get_pmu_event_info)
     }
 }
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_global_handle_arginfo, false, 0, Perfidious\\Handle, true)
-ZEND_END_ARG_INFO()
-
-ZEND_COLD
-static PHP_FUNCTION(perfidious_global_handle)
-{
-    ZEND_PARSE_PARAMETERS_NONE();
-
-    if (EXPECTED(PERFIDIOUS_G(global_enable) && PERFIDIOUS_G(global_handle))) {
-        object_init_ex(return_value, perfidious_handle_ce);
-
-        struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(return_value));
-        obj->borrowed = true;
-        obj->handle = PERFIDIOUS_G(global_handle);
-    } else {
-        RETURN_NULL();
-    }
-}
-
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(perfidious_list_pmus_arginfo, IS_ARRAY, false)
 ZEND_END_ARG_INFO()
 
@@ -408,7 +389,6 @@ PERFIDIOUS_LOCAL
 const zend_function_entry perfidious_functions[] = {
     PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\get_pmu_info", ZEND_FN(perfidious_get_pmu_info), perfidious_get_pmu_info_arginfo, 0)
     PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\get_pmu_event_info", ZEND_FN(perfidious_get_pmu_event_info), perfidious_get_pmu_event_info_arginfo, 0)
-    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\global_handle", ZEND_FN(perfidious_global_handle), perfidious_global_handle_arginfo, 0)
     PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\list_pmus", ZEND_FN(perfidious_list_pmus), perfidious_list_pmus_arginfo, 0)
     PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\list_pmu_events", ZEND_FN(perfidious_list_pmu_events), perfidious_list_pmu_events_arginfo, 0)
     PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_NAMESPACE "\\open", ZEND_FN(perfidious_open), perfidious_open_arginfo, 0)

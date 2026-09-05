@@ -32,22 +32,19 @@ if (isset($_GET["breakRequestHandle"])) {
     respond(["pid" => $pid, "requestHandleBroken" => true]);
 }
 
-$g = \Perfidious\global_handle();
 try {
-    $r = \Perfidious\request_handle();
+    $requestHandle = \Perfidious\request_handle();
 } catch (\Perfidious\IOException $error) {
     respond(["pid" => $pid, "requestHandleError" => $error->getCode()]);
 }
 
-if ($g === null || $r === null) {
-    respond(["error" => "global/request handle not enabled"], 500);
+if ($requestHandle === null) {
+    respond(["error" => "request handle not enabled"], 500);
 }
 
-foreach (["global" => $g, "request" => $r] as $name => $h) {
-    foreach ($h->readArray() as $metric => $v) {
-        if (!is_int($v) || $v < 0) {
-            respond(["error" => "corrupt $name counter $metric: " . var_export($v, true)], 500);
-        }
+foreach ($requestHandle->readArray() as $metric => $v) {
+    if (!is_int($v) || $v < 0) {
+        respond(["error" => "corrupt request counter $metric: " . var_export($v, true)], 500);
     }
 }
 

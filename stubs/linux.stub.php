@@ -38,16 +38,6 @@ function get_pmu_event_info(int $pmu, int $idx): PmuEventInfo
 }
 
 /**
- * Returns a borrowed view of the persistent global handle.
- * Closing the returned object detaches only that view.
- *
- * @phpstan-return ?Handle<list<string>>
- */
-function global_handle(): ?Handle
-{
-}
-
-/**
  * @return list<PmuInfo>
  * @see https://perfmon2.sourceforge.net/manv4/pfm_get_pmu_info.html
  */
@@ -89,7 +79,7 @@ function request_handle(): ?Handle
 
 /**
  * Handles returned by open() own their native descriptors and release them on close() or destruction.
- * Handles returned by global_handle() and request_handle() are borrowed views of persistent native state.
+ * Handles returned by request_handle() are borrowed views of persistent native state.
  *
  * @phpstan-template T of list<string>
  */
