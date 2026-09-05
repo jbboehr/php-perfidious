@@ -23,6 +23,7 @@
 #endif
 
 #include <stdlib.h>
+#include <fcntl.h>
 #include <linux/perf_event.h>
 #include <sys/ioctl.h>
 #include <sys/syscall.h>
@@ -438,7 +439,7 @@ PERFIDIOUS_LOCAL struct perfidious_handle *perfidious_handle_try_open_ex(
             .exclude_hv = 1,
             .read_format = format,
         };
-        fd = (int) perf_event_open(&attr, pid, cpu, -1, 0);
+        fd = (int) perf_event_open(&attr, pid, cpu, -1, PERF_FLAG_FD_CLOEXEC);
         if (UNEXPECTED(fd == -1)) {
             perfidious_error_set(
                 error,
@@ -500,7 +501,7 @@ PERFIDIOUS_LOCAL struct perfidious_handle *perfidious_handle_try_open_ex(
         attr.exclude_hv = 1;
         attr.read_format = format;
 
-        fd = (int) perf_event_open(&attr, pid, cpu, group_fd, 0);
+        fd = (int) perf_event_open(&attr, pid, cpu, group_fd, PERF_FLAG_FD_CLOEXEC);
 
         if (UNEXPECTED(fd == -1)) {
             perfidious_error_set(
@@ -625,13 +626,11 @@ static PHP_METHOD(PerfidiousHandle, rawStream)
         return;
     }
 
-    // dup() so the returned stream owns an independent fd: php_stream_fopen_from_fd() takes
-    // ownership of what it's given and closes it when the stream is closed/GC'd, and we don't
-    // want that to leave handle->metrics[idx].fd dangling (or, worse, silently reused by the OS
-    // for something unrelated) for the rest of the handle's lifetime
-    int fd = dup(obj->handle->metrics[idx].fd);
+    // The stream owns its duplicate, so closing it leaves the handle's fd intact.
+    // Set close-on-exec atomically; dup() would clear it on the new descriptor.
+    int fd = fcntl(obj->handle->metrics[idx].fd, F_DUPFD_CLOEXEC, 0);
     if (UNEXPECTED(fd == -1)) {
-        perfidious_error_helper(perfidious_io_exception_ce, errno, "dup failed: %s", strerror(errno));
+        perfidious_error_helper(perfidious_io_exception_ce, errno, "fcntl failed: %s", strerror(errno));
         return;
     }
 

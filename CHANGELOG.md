@@ -47,6 +47,8 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
 
 ### Fixed
 
+- Linux counter descriptors and raw streams now close automatically when a child executes another program.
+  This requires kernel support for `PERF_FLAG_FD_CLOEXEC`, introduced in Linux 3.14.
 - Unix configure now honors debug, coverage, and sanitizer options when run by Dash or another POSIX shell.
 - Linux handle, common sampler, and Windows thread-profile factories now create their PHP cleanup owners before
   acquiring resources, and attach acquired resources before further PHP allocations or sampler reads.

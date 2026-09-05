@@ -30,7 +30,7 @@ try {
     echo $e->getMessage(), "\n";
 }
 
-foreach (["reset", "enable", "disable"] as $operation) {
+foreach (["reset", "enable", "disable", "rawStream"] as $operation) {
     try {
         $handle->$operation();
     } catch (Perfidious\IOException $e) {
@@ -89,6 +89,7 @@ failed to read: Bad file descriptor
 reset: reset failed: Bad file descriptor
 enable: ioctl failed: Bad file descriptor
 disable: ioctl failed: Bad file descriptor
+rawStream: fcntl failed: Bad file descriptor
 close failed: Bad file descriptor
 closed after failure
 debugCorruptMetricIds rejected closed handle

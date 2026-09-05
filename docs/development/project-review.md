@@ -528,6 +528,103 @@ zero failures**. This accounts for the difference between the external review's 
 
 The handoff file was removed after evaluation and checks. Nothing was committed.
 
+## Follow-up: R06 close-on-exec counter descriptors
+
+Implementation review base: `0efc1c7`.
+
+Counter descriptors now close automatically when their process executes another program. Both the dummy group leader
+and each member are created with `PERF_FLAG_FD_CLOEXEC`. `rawStream()` duplicates its descriptor with
+`fcntl(fd, F_DUPFD_CLOEXEC, 0)`, because plain `dup()` clears close-on-exec on the duplicate. This covers owned handles,
+automatic request counters, and their raw streams through the same native opening and duplication paths.
+
+The reason for this change is resource ownership: a program launched by PHP should not accidentally keep PHP's
+counters open. Closing or destroying a handle still releases its own descriptors, and a raw stream still owns a
+separate descriptor that can outlive the handle. Close-on-exec takes effect when a process executes another program.
+A fork without exec still inherits descriptors.
+
+Both operations set the flag atomically. The
+[event-creation API](https://man7.org/linux/man-pages/man2/perf_event_open.2.html) supports this flag starting with
+Linux 3.14, and [atomic duplication](https://man7.org/linux/man-pages/man2/F_DUPFD.2const.html) is available starting
+with Linux 2.6.24. Setting the flag later would leave a window for another thread to fork and exec. The fix uses these
+operations directly without a fallback that reintroduces that window. Native errors retain the existing exception and
+cleanup paths. A raw-stream duplication failure now identifies `fcntl` in its diagnostic.
+
+### R06 experimental evidence
+
+The new [descriptor regression](../../tests/handle/close-on-exec.phpt) first inspects `/proc/self/fdinfo`. Before the
+implementation change, it found **zero close-on-exec descriptors out of ten**: two request-counter descriptors, three
+owned-handle descriptors, and five raw-stream duplicates. The PHPT failed for those missing flags and stopped before
+launching children. After rebuilding with the fix, all ten descriptors had the flag and the test passed.
+
+With the corrected extension, the test launches a PHP child through `proc_open()` with an argument array, `proc_open()`
+with a shell command, and `exec()`. Each child disables automatic request counters, reports **zero perf descriptors**,
+and exits successfully. The parent retains all ten descriptors after those launches. The test also checks that closing
+a raw stream leaves its handle usable, a raw stream remains readable after its handle closes, and closing the owned
+handle and all raw streams leaves only the request-counter descriptors.
+
+An additional `strace -e trace=perf_event_open,fcntl` run of the corrected regression confirmed five event opens using
+`PERF_FLAG_FD_CLOEXEC` and five duplications using `F_DUPFD_CLOEXEC`. This checks the actual syscalls, beyond the final
+flags inspected by the PHPT. The existing debug failure test now also checks that duplicating a closed descriptor
+raises `Perfidious\IOException`.
+
+Verification on Linux x86-64 with PHP 8.1.34 debug:
+
+- `make -j2` passed with fatal compiler warnings enabled.
+- `NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test TESTS='tests/handle/close-on-exec.phpt tests/handle/raw-stream.phpt tests/handle/close.phpt tests/handle/debug-close-fd.phpt tests/handle/open-failure-cleanup.phpt'` passed all five tests.
+- The full suite with `PERFIDIOUS_TEST_OPCACHE` pointing to the installed opcache module passed **83 tests, with
+  21 skipped and zero failures**.
+- The same five focused tests under `USE_ZEND_ALLOC=0 make test TEST_PHP_ARGS='-n -m'` passed with zero reported leaks.
+- Composer validation, generated-stub freshness, PHP_CodeSniffer, PHPStan, and all four declaration-analysis
+  configurations passed.
+
+### R06 reliability review
+
+Verdict: **PASS_WITH_RESIDUAL_RISK**. The independent Breaker found no actionable correctness defect in the five-file
+slice, affected callers, or cleanup paths. The independent Test Attacker reran all five focused tests twice, checked
+the atomic event-opening and duplication syscalls, and found no demonstrated failure or needed test additions.
+No production fix was required after these reviews.
+
+The Breaker noted that the project had no stated minimum Linux kernel version. The new event-opening flag requires
+kernel support introduced in Linux 3.14. That compatibility requirement is now explicit in the changelog.
+
+The child-process checks establish the corrected behavior for those three local PHP launch paths. They do not
+reproduce inheritance with the old implementation or cover every PHP launcher. Concurrent ZTS fork/exec, older Linux
+kernels, native Windows/macOS, and remote CI remain unverified. Failure to allocate a PHP stream after successful native
+duplication was not injected. The production change is confined to the Linux backend. Changes remain uncommitted for
+review.
+
+### R06 review follow-up
+
+Review base: `0efc1c7`.
+
+The external review message and `tmp.md` were read and considered alongside a separate Codex review of the current
+diff, request-counter callers, descriptor ownership, error paths, and regression assertions. No actionable production
+defect was found. No production or test changes were needed in this follow-up.
+
+The handoff's low-priority concern about `fdinfo` reporting stale close-on-exec flags on duplicates was rejected. The
+[Linux manual](https://man7.org/linux/man-pages/man5/proc_pid_fdinfo.5.html) identifies that behavior as a bug fixed in
+Linux 3.1, before this patch's Linux 3.14 requirement. The
+[kernel formatter](https://github.com/torvalds/linux/blob/master/fs/proc/fd.c) includes the current descriptor's
+close-on-exec bit, and [anonymous-file creation](https://github.com/torvalds/linux/blob/master/fs/anon_inodes.c) masks
+`O_CLOEXEC` out of the shared file flags.
+
+A bounded local experiment opened `/dev/null` with `O_CLOEXEC`, then created one libc `dup()` and one
+`F_DUPFD_CLOEXEC` duplicate. `F_GETFD` and `/proc/self/fdinfo` agreed in all three cases: the original and protected
+duplicate had close-on-exec, while the plain duplicate did not. The experiment closed all three descriptors and
+launched no children. The existing PHPT retains its process-boundary checks as separate behavioral coverage.
+
+The external review's explicit stream-transfer check was independently repeated with the corrected extension.
+Passing a raw stream deliberately through `proc_open()`'s descriptor specification let the child read 32 bytes and
+exit successfully. The parent's stream and handle remained usable afterward. This verifies that intentional stream
+transfer still works alongside prevention of accidental descriptor inheritance.
+
+Fresh verification passed the Linux build, all five focused PHPTs, and the full PHP 8.1.34 suite with the installed
+opcache module: **83 passed, 21 skipped, zero failures**. Composer validation, generated-stub freshness, PHP syntax,
+PHP_CodeSniffer, PHPStan and all four declaration-analysis configurations passed. Markdown and final diff checks
+also passed. Other platform/version combinations and the earlier runtime verification limits remain unverified.
+
+The handoff file was removed after evaluation and checks. Nothing was committed.
+
 The findings, source line numbers, and examples below describe the reviewed revision identified above. Examples using
 the removed global API require that revision; they are retained as historical experimental evidence.
 
@@ -540,7 +637,7 @@ the removed global API require that revision; they are retained as historical ex
 | R03 | Reset counts are scaled with lifetime timing fields | Live reset behavior and actual scaling output verified; multiplex timing supplied by a fixture |
 | R04 | Allocation bailout can strand native resources before ownership transfer | Factories reordered; controlled ownership/error-path fixture passed; no allocation-failure experiment |
 | R05 | Dash silently disables requested instrumentation | Fixed; twelve Dash/Bash configure cases and a Dash-configured Linux debug build passed |
-| R06 | Counter descriptors lack close-on-exec flags | Live descriptor flags inspected; inheritance through PHP child-launch APIs not tested |
+| R06 | Counter descriptors lack close-on-exec flags | Fixed; ten descriptor flags and three PHP child-launch paths checked, with atomic syscalls confirmed |
 | R07 | Identifier validation narrows values or rejects sparse CPU IDs | PMU/event aliasing reproduced; PID/CPU bounds and sparse topology remain source findings |
 | R08 | Referenced event strings are rejected | Reproduced through the public PHP API |
 | R09 | PMU/event lookup can combine unrelated metadata | Reproduced through the public PHP API |
