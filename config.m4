@@ -124,18 +124,18 @@ if test "$PHP_PERFIDIOUS" != "no"; then
     CFLAGS="$WARN_CFLAGS $CFLAGS"
     LDFLAGS="$WARN_LDFLAGS $LDFLAGS"
 
-    if test "$PHP_PERFIDIOUS_DEBUG" == "yes"; then
+    if test "$PHP_PERFIDIOUS_DEBUG" = "yes"; then
         AC_DEFINE([PERFIDIOUS_DEBUG], [1], [Enable vyrtue debug support])
     else
         AC_DEFINE([NDEBUG], [1], [Disable debug support])
     fi
 
-    if test "$PHP_PERFIDIOUS_COVERAGE" == "yes"; then
+    if test "$PHP_PERFIDIOUS_COVERAGE" = "yes"; then
         CFLAGS="-fprofile-arcs -ftest-coverage $CFLAGS"
         LDFLAGS="--coverage $LDFLAGS"
     fi
 
-    if test "$PHP_PERFIDIOUS_SANITIZE" == "yes"; then
+    if test "$PHP_PERFIDIOUS_SANITIZE" = "yes"; then
         PERFIDIOUS_EXTRA_CFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -g"
     fi
 

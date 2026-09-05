@@ -47,6 +47,7 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
 
 ### Fixed
 
+- Unix configure now honors debug, coverage, and sanitizer options when run by Dash or another POSIX shell.
 - Linux handle, common sampler, and Windows thread-profile factories now create their PHP cleanup owners before
   acquiring resources, and attach acquired resources before further PHP allocations or sampler reads.
 - Linux phpinfo request-counter scaling now uses enabled/running times since the latest reset, so earlier requests'

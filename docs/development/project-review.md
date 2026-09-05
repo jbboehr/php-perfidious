@@ -464,6 +464,70 @@ independently rebuilt and ran the updated fixture on the available PHP 8.5.9 ZTS
 debug result remains the external review's evidence. Neither run establishes concurrent ZTS behavior or a full
 extension suite on PHP 8.5. The handoff file was removed after evaluation and checks; nothing was committed.
 
+## Follow-up: R05 portable configure comparisons
+
+Implementation review base: `4873177`.
+
+The debug, coverage, and sanitizer option predicates now use POSIX `test` equality (`=`). Their enabled and disabled
+branches retain the same definitions and flags. This lets Dash honor the requested options while preserving their
+behavior under Bash.
+
+The new [configure regression check](../../tests/configure-options.py) runs `phpize` against a temporary source copy,
+then configures a separate build directory for each case. It checks the generated `PERFIDIOUS_DEBUG` and `NDEBUG`
+definitions and uses `make -n` to inspect every compiler/linker recipe for the requested instrumentation flags.
+It covers all options enabled, all explicitly disabled, each option enabled individually, and the defaults under both
+Dash and Bash: twelve cases. The check runs once in the Linux PHP 8.1 CI job, which now explicitly installs Dash and
+Python 3.
+
+Run it with a PHP development toolchain, compiler, Make, Dash, Bash, and Python 3 available:
+
+```sh
+python3 tests/configure-options.py
+```
+
+The `--dash` and `--bash` arguments accept executable paths when either shell is outside `PATH`. The check leaves the
+working checkout's generated configuration and built extension untouched.
+
+### R05 experimental evidence
+
+Before changing `config.m4`, the new check failed in the Dash all-enabled case. Configure itself returned zero but
+emitted three `unexpected operator` diagnostics; the debug definition was absent, `NDEBUG` was enabled, and the
+coverage and sanitizer flags were missing from the generated recipes. After changing the three comparisons, all
+twelve cases passed. An isolated mutation that made coverage depend on the debug option was rejected in the debug-only
+case because coverage flags appeared when coverage had been explicitly disabled.
+
+The existing Linux debug build was then regenerated and configured with Dash using its saved `config.nice` options,
+including fatal compiler warnings. `make -j2` passed, the generated Makefile selected Dash, and loading the rebuilt
+module confirmed `Perfidious\DEBUG` was true. Three focused debug/error-path PHPTs passed, followed by the full
+PHP 8.1.34 suite: **82 passed, 21 skipped, zero failures**.
+
+Composer validation, generated-stub freshness, PHP_CodeSniffer, PHPStan and all four declaration-analysis
+configurations passed. Python syntax, Actionlint, Markdown, and final diff checks also passed.
+
+The configure matrix verifies definitions and generated build commands; it does not run coverage collection or an
+ASan/UBSan-instrumented PHP process. Native Darwin configuration/builds and the remote CI run remain unverified.
+
+### R05 review follow-up
+
+Review base: `7db50dc`.
+
+The external review message and `tmp.md` were read and considered alongside a separate Codex review of the
+uncommitted comparisons, surrounding option handling, test harness, and CI selection. No actionable defect was found,
+so no production or test changes were needed. The handoff's sanitizer-linker note concerns pre-existing settings;
+no regression from this predicate change was demonstrated. Native instrumentation execution and remote CI remain
+verification limits rather than additional changes in this slice.
+
+Fresh verification passed all twelve Dash/Bash configure cases, the Linux build, Composer validation, generated-stub
+freshness, PHP_CodeSniffer, PHPStan and all four declaration-analysis configurations. Python syntax, Actionlint,
+Markdown, and final diff checks also passed.
+
+Both suite counts were reproduced locally. Without `PERFIDIOUS_TEST_OPCACHE`, the suite reported **80 passed,
+23 skipped, zero failures**: the two FPM preload tests skipped because the opcache shared module was not found.
+Providing the installed module path through that variable made both tests pass, producing **82 passed, 21 skipped,
+zero failures**. This accounts for the difference between the external review's count and the earlier verification.
+
+The handoff file was removed after evaluation and checks. Nothing was committed.
+
 The findings, source line numbers, and examples below describe the reviewed revision identified above. Examples using
 the removed global API require that revision; they are retained as historical experimental evidence.
 
@@ -475,7 +539,7 @@ the removed global API require that revision; they are retained as historical ex
 | R02 | Darwin process CPU time exposes Mach ticks as nanoseconds | Source trace and compiled Linux sampler shim; no native macOS run |
 | R03 | Reset counts are scaled with lifetime timing fields | Live reset behavior and actual scaling output verified; multiplex timing supplied by a fixture |
 | R04 | Allocation bailout can strand native resources before ownership transfer | Factories reordered; controlled ownership/error-path fixture passed; no allocation-failure experiment |
-| R05 | Dash silently disables requested instrumentation | All three options reproduced; portable correction verified in an isolated checkout |
+| R05 | Dash silently disables requested instrumentation | Fixed; twelve Dash/Bash configure cases and a Dash-configured Linux debug build passed |
 | R06 | Counter descriptors lack close-on-exec flags | Live descriptor flags inspected; inheritance through PHP child-launch APIs not tested |
 | R07 | Identifier validation narrows values or rejects sparse CPU IDs | PMU/event aliasing reproduced; PID/CPU bounds and sparse topology remain source findings |
 | R08 | Referenced event strings are rejected | Reproduced through the public PHP API |
@@ -722,7 +786,8 @@ fi
 **Correction check:** a separate temporary checkout changed only the three equality operators to `=`, regenerated
 configure with `phpize`, and reran the same three options under Dash. Both commands exited zero. The generated files
 contained `#define PERFIDIOUS_DEBUG 1`, `-fprofile-arcs -ftest-coverage`, `--coverage`, and
-`-fsanitize=address,undefined`; no `unexpected operator` diagnostic remained. The project's source was not patched.
+`-fsanitize=address,undefined`; no `unexpected operator` diagnostic remained. Those experiments did not patch the
+reviewed source; the R05 follow-up above applies the correction.
 
 Add configuration checks that assert the requested instrumentation is present. These experiments checked generation of
 flags; they did not compile or execute an instrumented sanitizer build.

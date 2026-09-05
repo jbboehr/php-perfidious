@@ -231,7 +231,7 @@ jobs:
         steps:
             -   uses: actions/checkout@v7
 
-            -   run: sudo apt-get update && sudo apt-get install -y libcap-dev libpfm4-dev valgrind
+            -   run: sudo apt-get update && sudo apt-get install -y libcap-dev libpfm4-dev valgrind dash python3
 
             -   name: Install PHP
                 uses: shivammathur/setup-php@v2
@@ -240,6 +240,10 @@ jobs:
                     extensions: json, opcache
                     php-version: "${{ matrix.php-version }}"
                     tools: composer:v2
+
+            -   name: Verify instrumentation options under Dash and Bash
+                if: matrix.php-version == '8.1' && matrix.debug == ''
+                run: python3 tests/configure-options.py
 
             -   run: phpize
 
