@@ -373,6 +373,97 @@ PHP_CodeSniffer, PHPStan and all four declaration-analysis configurations, PHP s
 checks passed. The external review's 78 suite tests plus two separately rerun preload tests are its own verification
 record. Concurrent ZTS execution, the skipped platform tests, and full VM execution remain unverified.
 
+## Follow-up: R04 factory resource ownership
+
+Implementation review base: `6224216`.
+
+Linux `Perfidious\open()`, common `Sampler::open()`, and Windows
+`enable_current_thread_profiling()` now allocate an empty PHP cleanup owner before acquiring native resources.
+The sampler also allocates its identity first and attaches backend state before its initial read. Ordinary open/read
+failures destroy the partial PHP object immediately; successful construction keeps the existing public behavior.
+The backend ownership contract is documented in `src/sampler.h`.
+
+The earlier question about whether a bailout exits PHP needs a distinction: a request bailout can unwind to the
+request runner while an FPM worker continues serving requests. PHP 8.1 wraps script execution in a bailout boundary in
+[php_execute_script()](https://github.com/php/php-src/blob/PHP-8.1/main/main.c), and the
+[FPM request loop](https://github.com/php/php-src/blob/PHP-8.1/sapi/fpm/fpm/fpm_main.c) runs request shutdown afterward.
+Request-heap reclamation alone cannot release an unregistered native resource.
+
+Persistent allocation is different. Inspection of PHP 8.1's
+[allocator](https://github.com/php/php-src/blob/PHP-8.1/Zend/zend_alloc.c) and
+[string helpers](https://github.com/php/php-src/blob/PHP-8.1/Zend/zend_string.h) showed that persistent event-name
+duplication uses the system allocator, whose allocation failure exits the process. Nonpersistent event-name copies
+do not allocate. The Linux native constructor therefore needs no additional request-bailout guard:
+its request allocations precede descriptor acquisition, and its native failure paths release descriptors before
+raising PHP diagnostics. The sampler backends likewise publish successful acquisition without another PHP allocation;
+their ordinary acquisition failures release native resources before allocating diagnostic objects.
+
+### R04 experimental evidence
+
+The new [construction fixture](../../tests/sampler/construction.phpt) compiles the actual common sampler factory and
+object destructor against a small substitute backend. It checks for a registered empty owner before acquisition and
+an attached owner before reading. It also verifies no extra retained resources after ordinary open/read failures,
+continued use of another sampler across those failures, separate live resources for two samplers, idempotent close,
+and destructor cleanup. Before the production change, it failed with
+`No empty owner before native acquisition`; afterward, it passed. These are bounded ownership and error-path checks,
+not a memory-exhaustion experiment or an observed production descriptor leak.
+
+The new Linux [partial-open cleanup test](../../tests/handle/open-failure-cleanup.phpt) checks descriptor counts after
+three invalid-event failures following valid events, a subsequent successful open, and object destruction.
+It characterizes existing cleanup behavior while exercising the new empty-owner failure path. It is not a regression
+reproduction of the original allocation-order concern.
+
+### R04 review and final verification
+
+**Verdict: PASS_WITH_RESIDUAL_RISK.** Independent correctness and test reviews found no production defect in this slice.
+The test review added the surviving-sampler assertion and confirmed that the Linux cleanup test also passes against
+a fresh `6224216` build. In temporary copies, delaying attachment until after the initial read made the construction
+fixture fail with `Native resource has no owner before read`; dropping the pointer before failure destruction made
+its resource-count assertion fail. These mutations exercise only the bounded substitute backend.
+
+Final verification after both reviews:
+
+- `make -j2` and five focused PHPTs covering construction, partial-open cleanup, close, sampler errors, and lifetime:
+  passed.
+- `NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test`, with `PERFIDIOUS_TEST_OPCACHE` set to the available opcache module:
+  **82 passed, 21 skipped, zero failures**.
+- Four real-backend cleanup/lifetime PHPTs under `USE_ZEND_ALLOC=0 make test TEST_PHP_ARGS='-n -m'`:
+  four passed, zero reported leaks.
+- The strengthened construction fixture built separately and ran directly under Valgrind against the PHP executable,
+  with `USE_ZEND_ALLOC=0` and `--leak-check=full --errors-for-leak-kinds=definite --error-exitcode=99`:
+  zero errors and zero bytes in use at exit. The compiler and child PHP process are not covered merely by running the
+  enclosing PHPT under Valgrind, so this was a separate run.
+- Composer validation, generated-stub freshness and loading, PHP_CodeSniffer, PHPStan, all four declaration-analysis
+  configurations, PHP syntax, Markdown, and final diff checks: passed.
+
+Native Windows/macOS compilation and execution, actual allocation-bailout cleanup, concurrent ZTS behavior, and full
+NixOS VM integration remain unverified. The Windows factory change follows the same ownership order, but Linux tests
+do not establish its native runtime behavior.
+
+### R04 review follow-up
+
+The external review message and `tmp.md` were both read and considered alongside a separate Codex review of the
+uncommitted diff, native acquisition helpers, and object cleanup paths. No production change was needed.
+
+The handoff identified a minor fixture limitation: `has_owner(NULL)` also matches a closed sampler retained in the
+object store. The first construction and failure-isolation cases already detect the original ordering error, but the
+closed `$survivor` could weaken the empty-owner check in later construction cases. The test now unsets that closed
+object before opening the next samplers. This removes the ambiguous owner without adding internal state to the fixture
+or changing production behavior. A bounded `WeakReference` check with the substitute backend confirmed that `close()`
+leaves the object alive and `unset()` destroys it, with zero native resources at both points. The other review notes
+remain verification limits, not additional fixes.
+
+After this test change, the build, five focused PHPTs, and the full Linux PHP 8.1.34 suite passed: **82 passed,
+21 skipped, zero failures**. Composer validation, generated-stub freshness, PHP_CodeSniffer, PHPStan and all four
+declaration-analysis configurations passed. Changed PHP syntax, Markdown, and final diff checks also passed.
+The updated construction fixture ran directly under Valgrind with Zend allocation disabled: zero errors and no
+allocations left at exit.
+
+The external review also reported a passing construction fixture on PHP 8.5 NTS and ZTS debug builds. This follow-up
+independently rebuilt and ran the updated fixture on the available PHP 8.5.9 ZTS debug runtime; it passed. The NTS
+debug result remains the external review's evidence. Neither run establishes concurrent ZTS behavior or a full
+extension suite on PHP 8.5. The handoff file was removed after evaluation and checks; nothing was committed.
+
 The findings, source line numbers, and examples below describe the reviewed revision identified above. Examples using
 the removed global API require that revision; they are retained as historical experimental evidence.
 
@@ -383,7 +474,7 @@ the removed global API require that revision; they are retained as historical ex
 | R01 | Persistent FPM counters target the initializing process | Reproduced with two local FPM workers |
 | R02 | Darwin process CPU time exposes Mach ticks as nanoseconds | Source trace and compiled Linux sampler shim; no native macOS run |
 | R03 | Reset counts are scaled with lifetime timing fields | Live reset behavior and actual scaling output verified; multiplex timing supplied by a fixture |
-| R04 | Allocation bailout can strand native resources before ownership transfer | Source concern; no allocation-failure experiment |
+| R04 | Allocation bailout can strand native resources before ownership transfer | Factories reordered; controlled ownership/error-path fixture passed; no allocation-failure experiment |
 | R05 | Dash silently disables requested instrumentation | All three options reproduced; portable correction verified in an isolated checkout |
 | R06 | Counter descriptors lack close-on-exec flags | Live descriptor flags inspected; inheritance through PHP child-launch APIs not tested |
 | R07 | Identifier validation narrows values or rejects sparse CPU IDs | PMU/event aliasing reproduced; PID/CPU bounds and sparse topology remain source findings |
@@ -584,10 +675,11 @@ perform further allocations and populate the result
 let the registered cleanup release any partially acquired state on failure
 ```
 
-This is a design sketch, not an implemented fix. Inspect allocations inside native construction and diagnostic paths
-as well as the final wrapper allocation. Simply moving `object_init_ex()` earlier is insufficient if native resources
-remain unpublished until a helper returns. Where ownership cannot be published incrementally, consider narrowly scoped
-bailout cleanup that releases the native resources and propagates the bailout.
+The follow-up above implements this order. Inspect allocations inside native construction and diagnostic paths
+as well as the final wrapper allocation. Moving `object_init_ex()` earlier is insufficient if a helper makes further
+request allocations while acquired native resources remain unpublished. Where those allocations cannot move earlier
+and ownership cannot be published incrementally, consider narrowly scoped bailout cleanup that releases the native
+resources and propagates the bailout.
 
 ## R05: Dash silently disables requested instrumentation
 

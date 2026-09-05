@@ -605,8 +605,14 @@ static PHP_FUNCTION(perfidious_windows_enable_current_thread_profiling)
         return;
     }
 
+    // Register the cleanup owner before enabling native profiling.
+    object_init_ex(return_value, perfidious_windows_thread_profile_ce);
+    obj = perfidious_windows_fetch_thread_profile_object(Z_OBJ_P(return_value));
+
     error = perfidious_windows_thread_profile_enable((DWORD64) hardware_counters, &handle);
     if (UNEXPECTED(error != ERROR_SUCCESS)) {
+        zval_ptr_dtor(return_value);
+        ZVAL_UNDEF(return_value);
         if (error == ERROR_WMI_ALREADY_ENABLED) {
             zend_throw_exception_ex(
                 perfidious_resource_busy_exception_ce,
@@ -619,17 +625,16 @@ static PHP_FUNCTION(perfidious_windows_enable_current_thread_profiling)
         perfidious_windows_throw_error("EnableThreadProfiling", error);
         return;
     }
+    obj->handle = handle;
 
-    error = perfidious_windows_thread_profile_read(handle, (DWORD64) hardware_counters, &initial_data);
+    error = perfidious_windows_thread_profile_read(obj->handle, (DWORD64) hardware_counters, &initial_data);
     if (UNEXPECTED(error != ERROR_SUCCESS)) {
-        perfidious_windows_thread_profile_disable(handle);
+        zval_ptr_dtor(return_value);
+        ZVAL_UNDEF(return_value);
         perfidious_windows_throw_error("ReadThreadProfilingData", error);
         return;
     }
 
-    object_init_ex(return_value, perfidious_windows_thread_profile_ce);
-    obj = perfidious_windows_fetch_thread_profile_object(Z_OBJ_P(return_value));
-    obj->handle = handle;
     obj->hardware_counter_mask = (DWORD64) hardware_counters;
     // HCP can expose an unsigned implementation-specific baseline (notably under virtualization),
     // so normalize it to the API's documented "since profiling was enabled" meaning.

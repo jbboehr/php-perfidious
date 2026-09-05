@@ -47,6 +47,8 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
 
 ### Fixed
 
+- Linux handle, common sampler, and Windows thread-profile factories now create their PHP cleanup owners before
+  acquiring resources, and attach acquired resources before further PHP allocations or sampler reads.
 - Linux phpinfo request-counter scaling now uses enabled/running times since the latest reset, so earlier requests'
   scheduling ratios do not affect the current estimate. Public reads retain kernel-lifetime timing totals.
 - Darwin process CPU-time readings now convert Mach clock units to nanoseconds, matching the API's declared units

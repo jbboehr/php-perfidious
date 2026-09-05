@@ -49,6 +49,8 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_supported_metrics(
     uint32_t requested_metrics, enum perfidious_scope_id scope, uint32_t *supported_metrics
 );
 
+/* On success, publish ownership before returning without further PHP allocations.
+ * On failure, release native resources before reporting a PHP diagnostic and leave *sampler unchanged. */
 PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_open(
     uint32_t metrics, enum perfidious_scope_id scope, struct perfidious_platform_sampler **sampler
 );

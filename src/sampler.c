@@ -396,8 +396,6 @@ static PHP_METHOD(PerfidiousSampler, open)
     uint32_t supported;
     uint8_t metric_order[PERFIDIOUS_METRIC_COUNT];
     uint8_t metric_count = 0;
-    struct perfidious_platform_sampler *platform_sampler = NULL;
-    struct perfidious_sampler_snapshot origin;
     struct perfidious_sampler_obj *obj;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
@@ -440,24 +438,23 @@ static PHP_METHOD(PerfidiousSampler, open)
         return;
     }
 
-    if (UNEXPECTED(FAILURE == perfidious_platform_sampler_open(metrics, scope, &platform_sampler))) {
-        return;
-    }
-    if (UNEXPECTED(FAILURE == perfidious_platform_sampler_read(platform_sampler, &origin))) {
-        perfidious_platform_sampler_close(platform_sampler);
+    // Register the cleanup owner before native acquisition or read diagnostics can bail out.
+    object_init_ex(return_value, perfidious_sampler_ce);
+    obj = perfidious_fetch_sampler_object(Z_OBJ_P(return_value));
+    obj->identity = emalloc(sizeof(*obj->identity));
+    obj->identity->refcount = 1;
+
+    if (UNEXPECTED(FAILURE == perfidious_platform_sampler_open(metrics, scope, &obj->sampler)) ||
+        UNEXPECTED(FAILURE == perfidious_platform_sampler_read(obj->sampler, &obj->origin))) {
+        zval_ptr_dtor(return_value);
+        ZVAL_UNDEF(return_value);
         return;
     }
 
-    object_init_ex(return_value, perfidious_sampler_ce);
-    obj = perfidious_fetch_sampler_object(Z_OBJ_P(return_value));
-    obj->sampler = platform_sampler;
-    obj->origin = origin;
     obj->time_origin_ns = perfidious_hrtime_current();
     obj->metrics = metrics;
     memcpy(obj->metric_order, metric_order, metric_count);
     obj->metric_count = metric_count;
-    obj->identity = emalloc(sizeof(*obj->identity));
-    obj->identity->refcount = 1;
 }
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(perfidious_sampler_metrics_arginfo, false, 0, IS_ARRAY, false)

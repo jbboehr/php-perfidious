@@ -262,16 +262,15 @@ static PHP_FUNCTION(perfidious_open)
 
     arr[arr_count] = NULL;
 
-    struct perfidious_handle *handle = perfidious_handle_open_ex(arr, arr_count, pid, (int) cpu, false);
+    // Register the cleanup owner before acquiring descriptors.
+    object_init_ex(return_value, perfidious_handle_ce);
+    struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(return_value));
+    obj->handle = perfidious_handle_open_ex(arr, arr_count, pid, (int) cpu, false);
 
-    if (UNEXPECTED(NULL == handle)) {
+    if (UNEXPECTED(NULL == obj->handle)) {
+        zval_ptr_dtor(return_value);
         RETURN_NULL();
     }
-
-    object_init_ex(return_value, perfidious_handle_ce);
-
-    struct perfidious_handle_obj *obj = perfidious_fetch_handle_object(Z_OBJ_P(return_value));
-    obj->handle = handle;
 }
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_request_handle_arginfo, false, 0, Perfidious\\Handle, true)
