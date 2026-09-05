@@ -54,11 +54,11 @@ static void perfidious_handle_ioctl_error(int error_number)
 }
 
 static zend_always_inline int
-perfidious_handle_try_ioctl(struct perfidious_handle *restrict handle, unsigned long request)
+perfidious_handle_try_ioctl(struct perfidious_handle *restrict handle, unsigned long request, unsigned long flags)
 {
     ZEND_ASSERT(handle->metrics_count > 0);
 
-    if (UNEXPECTED(ioctl(handle->metrics[0].fd, request, PERF_IOC_FLAG_GROUP) == -1)) {
+    if (UNEXPECTED(ioctl(handle->metrics[0].fd, request, flags) == -1)) {
         return errno != 0 ? errno : EIO;
     }
 
@@ -120,12 +120,57 @@ zend_result perfidious_handle_reset(struct perfidious_handle *restrict handle)
 {
     PERFIDIOUS_ASSERT_RETURN(handle->metrics_count > 0);
 
-    return perfidious_handle_report_ioctl_result(perfidious_handle_try_reset(handle));
+    int error_number = perfidious_handle_try_reset(handle);
+    if (UNEXPECTED(error_number != 0)) {
+        perfidious_error_helper(
+            perfidious_io_exception_ce, error_number, "reset failed: %s", strerror(error_number)
+        );
+        return FAILURE;
+    }
+    return SUCCESS;
 }
 
 PERFIDIOUS_LOCAL int perfidious_handle_try_reset(struct perfidious_handle *restrict handle)
 {
-    return perfidious_handle_try_ioctl(handle, PERF_EVENT_IOC_RESET);
+    size_t size = perfidious_handle_read_buffer_size(handle);
+    // This helper also runs during request startup/shutdown: report native errors
+    // to the caller without PHP allocation failures or diagnostics.
+    struct perfidious_read_format *data = malloc(size);
+    if (UNEXPECTED(data == NULL)) {
+        return ENOMEM;
+    }
+
+    bool enabled = handle->enabled;
+    int error_number = 0;
+    if (enabled) {
+        error_number = perfidious_handle_try_set_enabled(handle, false);
+        if (UNEXPECTED(error_number != 0)) {
+            free(data);
+            return error_number;
+        }
+    }
+
+    // RESET clears counts but leaves lifetime timing intact. Keep the group
+    // disabled so the baseline and count reset share one measurement boundary.
+    ssize_t bytes_read = read(handle->metrics[0].fd, data, size);
+    if (UNEXPECTED(bytes_read != (ssize_t) size)) {
+        error_number = bytes_read < 0 && errno != 0 ? errno : EIO;
+    } else {
+        error_number = perfidious_handle_try_ioctl(handle, PERF_EVENT_IOC_RESET, PERF_IOC_FLAG_GROUP);
+        if (error_number == 0) {
+            handle->time_enabled_at_reset = data->time_enabled;
+            handle->time_running_at_reset = data->time_running;
+        }
+    }
+    free(data);
+
+    if (enabled) {
+        int enable_error = perfidious_handle_try_set_enabled(handle, true);
+        if (error_number == 0) {
+            error_number = enable_error;
+        }
+    }
+    return error_number;
 }
 
 ZEND_HOT
@@ -142,7 +187,9 @@ PERFIDIOUS_LOCAL int
 perfidious_handle_try_set_enabled(struct perfidious_handle *restrict handle, bool enabled)
 {
     unsigned long request = enabled ? PERF_EVENT_IOC_ENABLE : PERF_EVENT_IOC_DISABLE;
-    int error_number = perfidious_handle_try_ioctl(handle, request);
+    // The leader gates the whole group. Leave siblings enabled so resuming the
+    // leader schedules them together rather than enabling each one afterward.
+    int error_number = perfidious_handle_try_ioctl(handle, request, 0);
 
     if (EXPECTED(error_number == 0)) {
         handle->enabled = enabled;

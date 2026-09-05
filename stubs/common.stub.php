@@ -159,7 +159,9 @@ final class SampleDelta
  */
 final class ReadResult
 {
+    /** Total nanoseconds enabled over the handle's lifetime, including before reset(). */
     public readonly int $timeEnabled;
+    /** Total nanoseconds running over the handle's lifetime, including before reset(). */
     public readonly int $timeRunning;
     /**
      * @var array<string, int>

@@ -262,6 +262,117 @@ Composer validation, stub freshness, PHP_CodeSniffer, PHPStan and all four decla
 PHP syntax, Markdown, and staged/unstaged diff checks passed. Native macOS compilation and execution remain
 unverified. This follow-up changes the development report only.
 
+## Follow-up: R03 reset timing and request scaling
+
+Implementation review base: `345c84b`.
+
+Each handle now records the kernel's enabled/running totals at its latest successful reset. `phpinfo()` subtracts
+those baselines before calculating the scaled count and running percentage. The public `read()` timing fields,
+`rawStream()`, and native raw-read API retain their kernel-lifetime semantics. Counts still start at zero after reset.
+The README and declarations now explain this distinction for callers doing their own scaling.
+
+Reset briefly disables an active group, reads its timing totals, resets every count, and restores the prior enabled
+state. Keeping the group disabled aligns the timing snapshot with the count reset. A failed read or reset retains
+the previous baseline; a failed resume leaves the handle disabled and returns an error. The lifecycle helper uses
+native allocation and errno results without PHP diagnostics, preserving deferred request-startup/shutdown errors.
+Request shutdown now disables before resetting, avoiding an unnecessary resume during shutdown.
+
+The active-reset regression exposed a related group-control problem that blocked this implementation. On the local
+Linux 7.1.5-xanmod1 kernel, disabling and enabling each sibling through `PERF_IOC_FLAG_GROUP` could leave software
+counts stopped until another scheduling event. A 10 ms PHP workload after an ordinary disable/enable cycle returned
+only 1,720 ns; after the initial reset implementation it returned zero. A standalone native group experiment also
+undercounted with that flag. Enabling/disabling the leader with argument zero counted the full interval. This follows
+the documented [group-leader control semantics](https://man7.org/linux/man-pages/man2/perf_event_open.2.html).
+The helper now controls the group's enabled state through its leader, keeping siblings eligible to run together.
+The reset ioctl still uses the group flag because it must clear every member's count.
+
+### R03 experimental evidence
+
+Before implementation, a real software task-clock reading was 49,995,196 ns for the count and both timing fields.
+After reset, the count was zero and both public timing fields remained 49,995,196 ns.
+
+The new [scaling regression](../../tests/info-reset-scaling.phpt) performs two real intervals and resets, checks that
+counts clear while public timings stay cumulative, then supplies a controlled next interval using the existing
+synthetic-read fixture. Its count is 50, enabled duration 100, and running duration 50. Before the fix, the actual
+phpinfo row was `50 => 50 => 99%`; afterward it is `50 => 100 => 50%`.
+The test uses the latest real baseline and preserves the complete group layout and event IDs.
+
+The [active-reset test](../../tests/handle/reset-enabled.phpt) failed with a zero count after the first implementation.
+After correcting leader control, it confirms counting resumes after an active reset. The independent test review
+strengthened it to check two software-event members, all-member reset, and unchanged counts/timing throughout a
+workload after a disabled reset. No sleep was added to hide the scheduling behavior.
+
+Eight local `strace` fault-injection experiments exercised the new reset path. Each first traced a marked reset call,
+located the target read/ioctl's syscall ordinal, then repeated the same program with `-e inject=SYSCALL:error=EIO:when=N`
+or `-e inject=read:retval=0:when=N`. The trace confirmed injection occurred inside that reset call.
+
+| Initial state | Injected failure | Observed result |
+| --- | --- | --- |
+| Disabled | Read error, empty read, or reset ioctl error | `IOException` with EIO; counts and previous scaling baseline retained |
+| Enabled | Disable, read, empty read, or reset ioctl error | `IOException` with EIO; counting remains enabled or resumes |
+| Enabled | Resume ioctl error | `IOException` with EIO; counting remains disabled |
+
+The retained-baseline checks supplied a subsequent interval and verified the phpinfo result `50 => 100 => 50%`.
+These fault experiments are supplementary local checks, not permanent PHPT coverage. An independent test pass also
+injected disable/read/reset/resume errors and checked recovery with two members, plus prior-baseline retention.
+A direct `rawStream()` experiment decoded the group record after reset: its count was zero, and both timing totals
+equaled the public pre-reset reading.
+
+### R03 review and final verification
+
+**Verdict: PASS_WITH_RESIDUAL_RISK.** The independent correctness review found no actionable defects. The independent
+test review added the multi-member state checks above without finding a production defect. Final verification after
+that test change passed:
+
+- `make -j2` and `make test TESTS='tests/handle/reset-enabled.phpt tests/info-reset-scaling.phpt'`: both focused tests.
+- `NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test`, with `PERFIDIOUS_TEST_OPCACHE` set to the available opcache module:
+  80 passed, 21 skipped, zero failures, including the local FPM preload tests.
+- Seven focused tests under `USE_ZEND_ALLOC=0 make test TEST_PHP_ARGS='-n -m'`: seven passed, zero reported leaks.
+  These covered reset, enabled/disabled state, scaling, broken descriptors, and deferred lifecycle errors.
+- Composer validation, generated-stub freshness, PHP_CodeSniffer, PHPStan and all four declaration-analysis
+  configurations, changed PHP syntax, Markdown, and final diff checks.
+
+Native allocation failure and persistent FPM startup/shutdown syscall-fault sequences were not injected. Changing
+hardware multiplex ratios were not induced; the exact scaling oracle uses synthetic timing increments after a real
+reset. Native Windows/macOS, concurrent ZTS request execution, and the full NixOS VM were not run for this slice.
+
+### R03 review follow-up
+
+The `tmp.md` handoff and the separate review summary were read and considered alongside Codex's own independent
+review of the complete uncommitted diff, reset/error transitions, request lifecycle, raw reads, group opening and
+control, scaling, and tests. No further production or test change was warranted.
+
+The handoff's optional shutdown-retry observation is accurate under a transient injected failure. A local CLI
+experiment marked the end of user code, located the first shutdown-disable syscall, and injected one EIO with
+`strace`. The resulting native sequence was:
+
+```text
+DISABLE leader: EIO (injected)
+DISABLE leader: success
+RESET group:   success
+ENABLE leader: success
+```
+
+The mitigation is deferred, rather than treating the observation as incorrect. Remaining enabled after a failed
+shutdown disable was already possible at the review base, and the next successful RINIT reset still establishes
+fresh count/timing boundaries. No naturally occurring fail-once/succeed-on-retry trigger or incorrect next-request
+measurement was established. The upstream
+[perf ioctl path](https://github.com/torvalds/linux/blob/master/kernel/events/core.c#L6205) checks security authorization
+and event revocation, then applies the disable operation; that source check does not establish a transient failure.
+This remains a possible error-recovery improvement, with injected CLI evidence rather than an observed FPM incident.
+
+The other handoff notes do not require fixes: the three-column read-error header predates R03; the overflow fixture's
+zero baseline matches its first CLI request on a never-enabled group; allocation-failure and kernel-portability
+limits remain documented. Leader-only enable/disable is retained.
+
+Fresh verification rebuilt the module, passed five focused tests, and reported 80 passed / 21 skipped in the full
+suite with the opcache module configured, including both FPM preload cases. A separate real mixed
+hardware-instruction/software-task-clock group resumed both members after active reset, cleared both counts on
+disabled reset, and kept public timing totals frozen during subsequent work. Composer validation, stub freshness,
+PHP_CodeSniffer, PHPStan and all four declaration-analysis configurations, PHP syntax, Markdown, and final diff
+checks passed. The external review's 78 suite tests plus two separately rerun preload tests are its own verification
+record. Concurrent ZTS execution, the skipped platform tests, and full VM execution remain unverified.
+
 The findings, source line numbers, and examples below describe the reviewed revision identified above. Examples using
 the removed global API require that revision; they are retained as historical experimental evidence.
 

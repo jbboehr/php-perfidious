@@ -233,11 +233,11 @@ PERFIDIOUS_LOCAL PHP_RSHUTDOWN_FUNCTION(perfidious_platform)
     int error_number;
 
     if (PERFIDIOUS_G(request_handle)) {
-        error_number = perfidious_request_handle_try_shutdown_reset(PERFIDIOUS_G(request_handle));
-        perfidious_request_handle_record_error("reset", error_number);
-
         error_number = perfidious_handle_try_set_enabled(PERFIDIOUS_G(request_handle), false);
         perfidious_request_handle_record_error("disable", error_number);
+
+        error_number = perfidious_request_handle_try_shutdown_reset(PERFIDIOUS_G(request_handle));
+        perfidious_request_handle_record_error("reset", error_number);
     }
 
     PERFIDIOUS_G(request_handle_ready) = false;
@@ -257,6 +257,14 @@ static zend_always_inline void minfo_handle_metrics(struct perfidious_handle *re
         php_info_print_table_colspan_header(3, "READ ERROR");
         return;
     }
+
+    if (UNEXPECTED(time_enabled < handle->time_enabled_at_reset || time_running < handle->time_running_at_reset)) {
+        zval_ptr_dtor(&z_metrics);
+        php_info_print_table_colspan_header(4, "READ ERROR");
+        return;
+    }
+    time_enabled -= handle->time_enabled_at_reset;
+    time_running -= handle->time_running_at_reset;
 
     uint64_t perc_running = 0;
     bool perc_running_valid =

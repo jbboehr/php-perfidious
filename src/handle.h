@@ -40,6 +40,8 @@ struct perfidious_handle
     size_t metrics_count;
     bool enabled;
     bool persist;
+    uint64_t time_enabled_at_reset;
+    uint64_t time_running_at_reset;
     struct perfidious_metric metrics[];
 };
 

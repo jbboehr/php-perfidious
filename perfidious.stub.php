@@ -148,7 +148,9 @@ final class SampleDelta
  */
 final class ReadResult
 {
+    /** Total nanoseconds enabled over the handle's lifetime, including before reset(). */
     public readonly int $timeEnabled;
+    /** Total nanoseconds running over the handle's lifetime, including before reset(). */
     public readonly int $timeRunning;
     /**
      * @var array<string, int>
@@ -268,6 +270,8 @@ final class Handle
     }
 
     /**
+     * Returns raw counts since opening or the latest reset, with kernel-lifetime timing totals.
+     *
      * @throws ClosedException|OverflowException|IOException
      *
      * @phpstan-return ReadResult<T>
@@ -286,6 +290,9 @@ final class Handle
     }
 
     /**
+     * Clears counts while preserving the enabled state. Lifetime timing totals are not cleared.
+     * Active counters are briefly disabled to capture the timing baseline used by phpinfo().
+     *
      * @return $this
      * @throws ClosedException|IOException
      */

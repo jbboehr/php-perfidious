@@ -152,6 +152,12 @@ array(1) {
 }
 ```
 
+`read()` and `readArray()` return raw counts since opening the handle or its latest `reset()`.
+The `ReadResult::timeEnabled` and `timeRunning` fields are kernel-lifetime totals in nanoseconds; `reset()` does not
+clear them. To scale counts yourself after a reset, disable the handle and save its timing totals immediately before
+resetting, then subtract those totals from later readings. `phpinfo()` applies this timing baseline automatically.
+Resetting an enabled handle briefly pauses counting and resumes it after the reset.
+
 Or you can configure an automatic per-request handle:
 
 ```php

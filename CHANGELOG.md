@@ -47,6 +47,8 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
 
 ### Fixed
 
+- Linux phpinfo request-counter scaling now uses enabled/running times since the latest reset, so earlier requests'
+  scheduling ratios do not affect the current estimate. Public reads retain kernel-lifetime timing totals.
 - Darwin process CPU-time readings now convert Mach clock units to nanoseconds, matching the API's declared units
   on machines with a non-unit timebase.
 - Automatic Linux request counters now open in the serving worker, including after opcache preloading, and are

@@ -86,7 +86,7 @@ $cleanupHandle->close();
 --EXPECTF--
 failed to read: Bad file descriptor
 failed to read: Bad file descriptor
-reset: ioctl failed: Bad file descriptor
+reset: reset failed: Bad file descriptor
 enable: ioctl failed: Bad file descriptor
 disable: ioctl failed: Bad file descriptor
 close failed: Bad file descriptor
