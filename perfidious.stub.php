@@ -205,10 +205,14 @@ function open(array $event_names, int $pid = 0, int $cpu = -1): Handle
 }
 
 /**
- * Returns a borrowed view of the persistent request handle.
+ * Returns a borrowed view of the request handle, initialized on the worker's first request.
  * Closing the returned object detaches only that view.
  *
- * @throws IOException if the handle could not be prepared for the current request
+ * Initialization is retried on later requests if opening fails. Pending initialization or
+ * lifecycle errors are thrown once when this function is called; subsequent calls return
+ * null if the handle is unavailable for this request.
+ * An unconsumed error remains pending even if a later request successfully opens the handle.
+ * @throws PmuEventNotFoundException|IOException if the handle could not be prepared
  * @phpstan-return ?Handle<list<string>>
  */
 function request_handle(): ?Handle

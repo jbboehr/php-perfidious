@@ -130,6 +130,11 @@ static PHP_GINIT_FUNCTION(perfidious)
     perfidious_globals->error_mode = PERFIDIOUS_ERROR_MODE_THROW;
 }
 
+static PHP_GSHUTDOWN_FUNCTION(perfidious)
+{
+    perfidious_platform_globals_shutdown(perfidious_globals);
+}
+
 static const zend_module_dep perfidious_deps[] = {
     {"spl",     NULL, NULL, MODULE_DEP_REQUIRED},
 #if defined(PERFIDIOUS_PLATFORM_LINUX)
@@ -152,7 +157,7 @@ zend_module_entry perfidious_module_entry = {
     PHP_PERFIDIOUS_VERSION,         /* Version */
     PHP_MODULE_GLOBALS(perfidious), /* Globals */
     PHP_GINIT(perfidious),          /* GINIT */
-    NULL,
+    PHP_GSHUTDOWN(perfidious),      /* GSHUTDOWN */
     NULL,
     STANDARD_MODULE_PROPERTIES_EX,
 };

@@ -45,8 +45,128 @@ the independent test review added the regression above without finding a product
 limits are the native platforms and full VM execution noted above. The final full suite and focused Valgrind run were
 repeated after those reviews.
 
-R01 remains open for the request handle, which still needs initialization in the worker. R03, R04, R06, and R11 also
-remain applicable to retained code. Their fixes will be reviewed separately.
+R01 is addressed in the next follow-up. R03, R04, R06, and R11 remain applicable to retained code.
+Their fixes will be reviewed separately.
+
+## Follow-up: R01 request-counter ownership
+
+Implementation review base: `81e73db` (after removing global counters).
+
+The request handle now stays null through GINIT and MINIT. RINIT opens it in the process and thread serving the
+request, then retains it for subsequent requests. The existing reset, enable, and disable operations still delimit
+requests. This avoids attributing worker measurements to the FPM master.
+
+Moving the open alone is insufficient when opcache preloading runs a startup request in the master.
+[PHP 8.1's preload implementation](https://github.com/php/php-src/blob/PHP-8.1/ext/opcache/ZendAccelerator.c#L4311)
+calls request startup and shutdown; non-root preloading runs in the initializing process.
+RINIT therefore records the opening process ID and replaces an inherited handle when the process changes.
+It closes the inherited descriptors without resetting or disabling the parent's event group.
+
+Cleanup now belongs to GSHUTDOWN, using the supplied module-globals pointer. This covers globals destroyed for an
+individual ZTS thread as well as ordinary module teardown. Native cleanup does not raise PHP diagnostics or depend
+on accessing another thread's globals. The low-level opening path similarly returns an error record, allowing
+RINIT to defer errors without creating a PHP exception during startup.
+
+An invalid metric now produces a catchable `PmuEventNotFoundException` from `request_handle()`, instead of a startup
+warning followed by a permanently disabled request counter. Perf access failures produce `IOException`.
+The first pending initialization or lifecycle error is consumed once; later calls return null if preparation failed.
+An absent handle is retried on the next request. The record contains a fixed-size message and native error code,
+so no request-allocated exception or string is retained between requests.
+
+```php
+// With perfidious.request.enable=1 and an invalid perfidious.request.metrics value:
+try {
+    $handle = Perfidious\request_handle();
+} catch (Perfidious\PmuEventNotFoundException | Perfidious\IOException $error) {
+    error_log($error->getMessage());
+    $handle = null;
+}
+```
+
+### R01 experimental evidence
+
+The new [FPM regression](../../tests/request-handle/fpm-worker.phpt) failed against the pre-fix module:
+both workers returned zero request-counter deltas, while fresh counters measured approximately 100 ms in each of
+four requests. The [preload regression](../../tests/request-handle/fpm-preload.phpt) failed the same way.
+The [initialization-error regression](../../tests/request-handle/initialization-error.phpt) also failed before the fix,
+because the error appeared during startup rather than at the API call.
+
+All three pass after the change. A direct two-worker run measured request/fresh deltas of
+100,005,273 / 100,007,373 ns and 100,013,353 / 100,015,003 ns on first requests. With master-process preloading,
+the first-request pairs were 100,011,753 / 100,010,123 ns and 100,003,833 / 100,002,413 ns.
+The tests also check both workers across a second request, reset values, and debug opening counts to detect
+unnecessary reopening. A fresh counter must advance; a zero request counter is never accepted as a reason to skip.
+
+To repeat the FPM tests, install the paired `php-fpm` beside the tested PHP interpreter (`PHP_BINARY`), put `python3`
+on PATH, and run
+`make test TESTS='tests/request-handle/fpm-worker.phpt tests/request-handle/fpm-preload.phpt'`.
+The harness resolves the loaded extension from `/proc/self/maps` so it tests that artifact rather than assuming
+the workspace's module is the one being tested. It skips when the paired FPM executable is unavailable.
+When opcache is outside PHP's extension directory, set `PERFIDIOUS_TEST_OPCACHE` to its shared-module path.
+The preload case requires a non-root user to exercise preloading in the master rather than PHP's privileged
+preload-child path. These tests use temporary local Unix sockets and terminate their FPM processes afterward.
+
+The existing single-worker FPM fixture also completed 13 requests: ten ordinary requests, a deliberately injected
+shutdown error, delivery of that deferred error, and recovery in the same worker.
+The final full Linux PHP 8.1.34 debug suite passed with 75 tests passing, 20 skipped, and zero failures.
+Thirteen focused CLI tests also passed under Valgrind with Zend allocation disabled, with zero reported leaks.
+These cover successful and failed opening, owned and borrowed handles, event-name lifetime, and request shutdown.
+The FPM subprocesses in the attribution tests were not run under Valgrind.
+
+The PHP 8.5 ZTS Nix check built successfully. A direct run of 42 selected tests against its PHP 8.5.8 ZTS release
+module reported 36 passed, six debug-only skips, and zero failures. These include request initialization, invalid
+configuration, phpinfo, API declarations, and the owned-handle suite. This exercises a ZTS CLI process, not concurrent
+request threads or a threaded SAPI; thread creation/destruction remains a native integration-test gap.
+
+Composer validation, generated-stub freshness, PHP syntax, PHP_CodeSniffer, PHPStan, all four declaration-analysis
+configurations, and Markdown checks passed. Native Windows/macOS and the full NixOS FPM VM were not run for R01.
+
+**R01 review verdict: PASS_WITH_RESIDUAL_RISK.** The independent correctness review found no defects in scope.
+The independent test review added a
+[multi-request initialization-error test](../../tests/request-handle/fpm-initialization-error.phpt), which verifies
+the exception class, code `-4`, message, consume-once behavior, and a new opening attempt on the second request.
+It also corrected the FPM harness's artifact selection: external-artifact runs previously could exercise the
+workspace module and PATH's FPM instead of the intended build. The corrected helper selects the loaded module
+and paired FPM, and correctly skips the supplied ZTS artifact's FPM tests because that distribution has no FPM.
+No production defect was demonstrated by the test review. The full suite and focused Valgrind run were repeated
+after both reviews; concurrent ZTS thread teardown and native platform/VM coverage remain the limits noted above.
+
+### R01 review follow-up
+
+The `tmp.md` handoff and Codex's own independent review were evaluated against the pending changes on `984beb4`.
+The separate review summary reporting no actionable regressions was also considered; all four handoff findings
+were evaluated individually.
+
+| Finding | Decision and evidence |
+| --- | --- |
+| Clear an unconsumed initialization error after successful retry | Declined the proposed semantic change. Retaining the first pending error until the API is called is the chosen diagnostic contract. A three-request FPM experiment verified that a failed open can remain unobserved, the next request can open successfully and deliver that pending error once, and subsequent calls receive the usable handle. The third request has no pending error and reuses the handle. The README and stubs now state this explicitly. |
+| Disabled pools retain inherited preload descriptors | Fixed. A real non-root FPM master opened two perf descriptors during preloading; a pool configured with request counting disabled retained both across two requests. Moving the enable check below PID-change cleanup makes both worker requests report zero perf descriptors, without opening replacement counters. The master still owns its descriptors. |
+| README's nullsafe-only example omits exception handling | Improved. The example now catches initialization and I/O exceptions. The configuration table links to that end-user example rather than to the development report. |
+| Preload SKIPIF examines real UID while the harness uses effective UID | Fixed. Both use effective UID. Controlled status-line inputs showed the old expression skipped real-root/effective-nonroot and admitted real-nonroot/effective-root; the corrected expression makes the opposite decisions. Actual mixed-UID processes were not launched. |
+
+The independent review also verified the handoff's note about Python optimization: with `PYTHONOPTIMIZE=1`, the
+new disabled-pool regression incorrectly passed against the leaking implementation because Python removed its
+assertions. The harness now uses explicit checks that raise on failure. With optimization still enabled, the same
+test correctly failed before the native fix and passed afterward. All eleven request-handle tests pass with
+optimization enabled.
+
+The pending-error experiment is retained as
+[a characterization test](../../tests/request-handle/fpm-unconsumed-error.phpt), and descriptor cleanup is protected by
+[the disabled-pool regression](../../tests/request-handle/fpm-preload-disabled.phpt). No production fault-injection
+API was needed. Nameless-UID container support and special handling for permanently invalid configuration remain
+optional and were not added; they are not required for the current supported test setup or retry policy.
+
+The full Linux suite after these changes reported 77 passed, 20 skipped, and zero failures. Composer validation,
+stub generation checks, PHP_CodeSniffer, PHPStan and all four declaration-analysis configurations passed.
+The final full-suite repetition produced the same result. Thirteen focused Valgrind tests also passed with Zend
+allocation disabled and no reported leaks. PHP syntax, Python parsing, Markdown checks, and the final diff check
+passed. The focused correctness review found no additional defects. Concurrent ZTS teardown, native Windows/macOS,
+and full VM integration remain unverified for this follow-up.
+
+The independent test pass completed six focused tests normally and five FPM lifecycle tests with Python
+optimization enabled. Its optional syscall-level tracing experiment was not completed; the absence of reset/disable
+calls on inherited-handle cleanup was checked in the source. **Follow-up verdict: PASS_WITH_RESIDUAL_RISK**, with
+the execution limits listed above. No further production changes were required by that review pass.
 
 The findings, source line numbers, and examples below describe the reviewed revision identified above. Examples using
 the removed global API require that revision; they are retained as historical experimental evidence.

@@ -47,6 +47,9 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
 
 ### Fixed
 
+- Automatic Linux request counters now open in the serving worker, including after opcache preloading, and are
+  released when their module globals are destroyed. Initialization errors are deferred to `request_handle()`;
+  failed opens are retried on later requests.
 - Linux phpinfo counter scaling now uses unsigned 128-bit intermediates when available, avoiding overflow in
   `counter * timeEnabled / timeRunning` when the final scaled value still fits in 64 bits.
 

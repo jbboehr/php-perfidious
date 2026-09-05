@@ -40,6 +40,10 @@ PERFIDIOUS_LOCAL PHP_RINIT_FUNCTION(perfidious_platform)
     return SUCCESS;
 }
 
+PERFIDIOUS_LOCAL void perfidious_platform_globals_shutdown(zend_perfidious_globals *perfidious_globals)
+{
+}
+
 PERFIDIOUS_LOCAL PHP_RSHUTDOWN_FUNCTION(perfidious_platform)
 {
     return SUCCESS;

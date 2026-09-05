@@ -165,13 +165,21 @@ PERFIDIOUS_PUBLIC
 PERFIDIOUS_ATTR_NONNULL_ALL
 zend_result perfidious_handle_close(struct perfidious_handle *restrict handle)
 {
-    zend_result rv = SUCCESS;
+    int error_number = perfidious_handle_try_close(handle);
+    if (UNEXPECTED(error_number != 0)) {
+        perfidious_error_helper(perfidious_io_exception_ce, error_number, "close failed: %s", strerror(error_number));
+        return FAILURE;
+    }
+    return SUCCESS;
+}
+
+PERFIDIOUS_LOCAL int perfidious_handle_try_close(struct perfidious_handle *restrict handle)
+{
+    int error_number = 0;
 
     for (ssize_t i = (ssize_t) handle->metrics_count - 1; i >= 0; i--) {
-        if (UNEXPECTED(-1 == close(handle->metrics[i].fd))) {
-            perfidious_error_helper(perfidious_io_exception_ce, errno, "close failed: %s", strerror(errno));
-            rv = FAILURE;
-            // continue even if it fails
+        if (UNEXPECTED(-1 == close(handle->metrics[i].fd)) && error_number == 0) {
+            error_number = errno != 0 ? errno : EIO;
         }
         if (EXPECTED(handle->metrics[i].name)) {
             zend_string_release(handle->metrics[i].name);
@@ -182,7 +190,7 @@ zend_result perfidious_handle_close(struct perfidious_handle *restrict handle)
 
     pefree(handle, handle->persist);
 
-    return rv;
+    return error_number;
 }
 
 ZEND_HOT
@@ -337,6 +345,24 @@ struct perfidious_handle *perfidious_handle_open_ex(
     zend_string **restrict event_names, size_t event_names_length, pid_t pid, int cpu, bool persist
 )
 {
+    struct perfidious_error error = {0};
+    struct perfidious_handle *handle =
+        perfidious_handle_try_open_ex(event_names, event_names_length, pid, cpu, persist, &error);
+    if (UNEXPECTED(handle == NULL)) {
+        perfidious_error_helper(error.exception_ce, error.code, "%s", error.message);
+    }
+    return handle;
+}
+
+PERFIDIOUS_LOCAL struct perfidious_handle *perfidious_handle_try_open_ex(
+    zend_string **restrict event_names,
+    size_t event_names_length,
+    pid_t pid,
+    int cpu,
+    bool persist,
+    struct perfidious_error *error
+)
+{
 #ifdef PERFIDIOUS_DEBUG
     PERFIDIOUS_G(debug_open_ex_call_count)++;
 #endif
@@ -367,7 +393,8 @@ struct perfidious_handle *perfidious_handle_open_ex(
         };
         fd = (int) perf_event_open(&attr, pid, cpu, -1, 0);
         if (UNEXPECTED(fd == -1)) {
-            perfidious_error_helper(
+            perfidious_error_set(
+                error,
                 perfidious_io_exception_ce,
                 errno,
                 "perf_event_open() failed for perf::PERF_COUNT_SW_DUMMY: %s",
@@ -378,14 +405,14 @@ struct perfidious_handle *perfidious_handle_open_ex(
         err = ioctl(fd, PERF_EVENT_IOC_ID, &id);
         if (err == -1) {
             err = errno != 0 ? errno : EIO;
-            perfidious_handle_ioctl_error(err);
+            perfidious_error_set(error, perfidious_io_exception_ce, err, "ioctl failed: %s", strerror(err));
             close(fd);
             goto cleanup;
         }
         err = ioctl(fd, PERF_EVENT_IOC_RESET, fd);
         if (err == -1) {
             err = errno != 0 ? errno : EIO;
-            perfidious_handle_ioctl_error(err);
+            perfidious_error_set(error, perfidious_io_exception_ce, err, "ioctl failed: %s", strerror(err));
             close(fd);
             goto cleanup;
         }
@@ -407,7 +434,8 @@ struct perfidious_handle *perfidious_handle_open_ex(
 
         err = pfm_get_os_event_encoding(ZSTR_VAL(event_name), PFM_PLM3, PFM_OS_PERF_EVENT, &arg);
         if (UNEXPECTED(err != PFM_SUCCESS)) {
-            perfidious_error_helper(
+            perfidious_error_set(
+                error,
                 perfidious_pmu_event_not_found_exception_ce,
                 err,
                 "failed to get libpfm event encoding for %.*s: %s",
@@ -428,7 +456,8 @@ struct perfidious_handle *perfidious_handle_open_ex(
         fd = (int) perf_event_open(&attr, pid, cpu, group_fd, 0);
 
         if (UNEXPECTED(fd == -1)) {
-            perfidious_error_helper(
+            perfidious_error_set(
+                error,
                 perfidious_io_exception_ce,
                 errno,
                 "perf_event_open() failed for %.*s: %s",
@@ -442,7 +471,7 @@ struct perfidious_handle *perfidious_handle_open_ex(
         err = ioctl(fd, PERF_EVENT_IOC_ID, &id);
         if (err == -1) {
             err = errno != 0 ? errno : EIO;
-            perfidious_handle_ioctl_error(err);
+            perfidious_error_set(error, perfidious_io_exception_ce, err, "ioctl failed: %s", strerror(err));
             close(fd);
             goto cleanup;
         }
@@ -450,7 +479,7 @@ struct perfidious_handle *perfidious_handle_open_ex(
         err = ioctl(fd, PERF_EVENT_IOC_RESET, fd);
         if (err == -1) {
             err = errno != 0 ? errno : EIO;
-            perfidious_handle_ioctl_error(err);
+            perfidious_error_set(error, perfidious_io_exception_ce, err, "ioctl failed: %s", strerror(err));
             close(fd);
             goto cleanup;
         }
@@ -467,7 +496,8 @@ struct perfidious_handle *perfidious_handle_open_ex(
     return handle;
 
 cleanup:
-    perfidious_handle_close(handle);
+    // Preserve the opening error; cleanup must not raise a second error.
+    err = perfidious_handle_try_close(handle);
     return NULL;
 }
 

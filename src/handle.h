@@ -74,6 +74,23 @@ PERFIDIOUS_ATTR_NONNULL_ALL
 PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
 int perfidious_handle_try_set_enabled(struct perfidious_handle *restrict handle, bool enabled);
 
+PERFIDIOUS_LOCAL
+PERFIDIOUS_ATTR_NONNULL_ALL
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
+int perfidious_handle_try_close(struct perfidious_handle *restrict handle);
+
+PERFIDIOUS_LOCAL
+PERFIDIOUS_ATTR_NONNULL_ALL
+PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
+struct perfidious_handle *perfidious_handle_try_open_ex(
+    zend_string **restrict event_names,
+    size_t event_names_length,
+    pid_t pid,
+    int cpu,
+    bool persist,
+    struct perfidious_error *error
+);
+
 ZEND_HOT
 PERFIDIOUS_ATTR_NONNULL_ALL
 PERFIDIOUS_ATTR_RETURNS_NONNULL

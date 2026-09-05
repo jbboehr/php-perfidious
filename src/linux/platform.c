@@ -25,6 +25,7 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #include <perfmon/pfmlib.h>
 
@@ -40,6 +41,7 @@
 #include "php_perfidious.h"
 #include "../handle.h"
 #include "../platform.h"
+#include "../private.h"
 
 #define DEFAULT_METRICS "perf::PERF_COUNT_HW_CPU_CYCLES:u,perf::PERF_COUNT_HW_INSTRUCTIONS:u"
 
@@ -49,9 +51,15 @@ PERFIDIOUS_LOCAL void perfidious_pmu_info_minit(void);
 
 static void perfidious_request_handle_record_error(const char *operation, int error_number)
 {
-    if (error_number != 0 && PERFIDIOUS_G(request_handle_error) == 0) {
-        PERFIDIOUS_G(request_handle_error) = error_number;
-        PERFIDIOUS_G(request_handle_error_operation) = operation;
+    if (error_number != 0 && PERFIDIOUS_G(request_handle_error).exception_ce == NULL) {
+        perfidious_error_set(
+            &PERFIDIOUS_G(request_handle_error),
+            perfidious_io_exception_ce,
+            error_number,
+            "request handle unavailable after %s failed: %s",
+            operation,
+            strerror(error_number)
+        );
     }
 }
 
@@ -107,7 +115,7 @@ static bool perfidious_scale_uint64(uint64_t value, uint64_t multiplier, uint64_
 #endif
 }
 
-static struct perfidious_handle *split_and_open(zend_string *restrict metrics, bool persist)
+static struct perfidious_handle *split_and_open(zend_string *restrict metrics, struct perfidious_error *error)
 {
     zval z_metrics = {0};
     struct perfidious_handle *handle = NULL;
@@ -134,12 +142,8 @@ static struct perfidious_handle *split_and_open(zend_string *restrict metrics, b
         ZEND_HASH_FOREACH_END();
 
         arr[arr_len] = NULL;
-        handle = perfidious_handle_open(arr, arr_len, persist);
+        handle = perfidious_handle_try_open_ex(arr, arr_len, 0, -1, true, error);
     } while (false);
-
-    if (EXPECTED(handle != NULL)) {
-        perfidious_handle_enable(handle);
-    }
 
     zval_dtor(&z_metrics);
     return handle;
@@ -159,30 +163,25 @@ PERFIDIOUS_LOCAL PHP_MINIT_FUNCTION(perfidious_platform)
     perfidious_pmu_event_info_minit();
     perfidious_pmu_info_minit();
 
-    if (PERFIDIOUS_G(request_enable)) {
-        struct perfidious_handle *handle = NULL;
-        if (EXPECTED(PERFIDIOUS_G(request_metrics) != NULL)) {
-            handle = split_and_open(PERFIDIOUS_G(request_metrics), true);
-        }
-        PERFIDIOUS_G(request_handle) = handle;
-        if (UNEXPECTED(handle == NULL)) {
-            PERFIDIOUS_G(request_enable) = false;
-        }
-    }
-
     return SUCCESS;
 }
 
 PERFIDIOUS_LOCAL PHP_MSHUTDOWN_FUNCTION(perfidious_platform)
 {
-    if (PERFIDIOUS_G(request_handle)) {
-        perfidious_handle_close(PERFIDIOUS_G(request_handle));
-        PERFIDIOUS_G(request_handle) = NULL;
-    }
-
     UNREGISTER_INI_ENTRIES();
 
     return SUCCESS;
+}
+
+PERFIDIOUS_LOCAL void perfidious_platform_globals_shutdown(zend_perfidious_globals *perfidious_globals)
+{
+    // TSRM can destroy this thread's globals after other engine globals are gone.
+    // Use the supplied pointer and avoid PHP diagnostics during native cleanup.
+    if (perfidious_globals->request_handle != NULL) {
+        int error_number = perfidious_handle_try_close(perfidious_globals->request_handle);
+        (void) error_number;
+        perfidious_globals->request_handle = NULL;
+    }
 }
 
 PERFIDIOUS_LOCAL PHP_RINIT_FUNCTION(perfidious_platform)
@@ -190,6 +189,30 @@ PERFIDIOUS_LOCAL PHP_RINIT_FUNCTION(perfidious_platform)
     int error_number;
 
     PERFIDIOUS_G(request_handle_ready) = false;
+
+    zend_long pid = (zend_long) getpid();
+    if (PERFIDIOUS_G(request_handle_pid) != pid) {
+        // Preloading can run RINIT in the master. Close inherited descriptors
+        // without resetting or disabling the parent's event group.
+        if (PERFIDIOUS_G(request_handle) != NULL) {
+            error_number = perfidious_handle_try_close(PERFIDIOUS_G(request_handle));
+            PERFIDIOUS_G(request_handle) = NULL;
+        }
+        PERFIDIOUS_G(request_handle_pid) = pid;
+        PERFIDIOUS_G(request_handle_error) = (struct perfidious_error){0};
+    }
+
+    if (!PERFIDIOUS_G(request_enable)) {
+        return SUCCESS;
+    }
+
+    if (PERFIDIOUS_G(request_handle) == NULL && PERFIDIOUS_G(request_metrics) != NULL) {
+        struct perfidious_error error = {0};
+        PERFIDIOUS_G(request_handle) = split_and_open(PERFIDIOUS_G(request_metrics), &error);
+        if (error.exception_ce != NULL && PERFIDIOUS_G(request_handle_error).exception_ce == NULL) {
+            PERFIDIOUS_G(request_handle_error) = error;
+        }
+    }
 
     if (PERFIDIOUS_G(request_handle)) {
         error_number = perfidious_handle_try_reset(PERFIDIOUS_G(request_handle));

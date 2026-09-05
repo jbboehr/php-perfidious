@@ -158,7 +158,11 @@ Or you can configure an automatic per-request handle:
 // with the following INI settings:
 // perfidious.request.enable=1
 // perfidious.request.metrics=perf::PERF_COUNT_SW_CPU_CLOCK:u,perf::PERF_COUNT_SW_PAGE_FAULTS:u,perf::PERF_COUNT_SW_CONTEXT_SWITCHES:u
-var_dump(Perfidious\request_handle()?->read());
+try {
+    var_dump(Perfidious\request_handle()?->read());
+} catch (Perfidious\PmuEventNotFoundException | Perfidious\IOException $error) {
+    error_log($error->getMessage());
+}
 ```
 
 ```text
@@ -251,12 +255,20 @@ Some notable generic perf events are:
 
 | Name | Default | Changeable | Description |
 | --------------------- | -------- | ----------- | ------------ |
-| `perfidious.request.enable` | `0` | `PHP_INI_SYSTEM` | Set to `1` to enable the per-request handle. This handle is kept open between requests, but reset before and after. You can read from this handle via e.g. `var_dump(Perfidious\request_handle()?->read());` |
+| `perfidious.request.enable` | `0` | `PHP_INI_SYSTEM` | Set to `1` to enable the per-request handle. This handle is kept open between requests, but reset before and after. See the [Linux example](#linux-perf_events) for reading it and handling errors. |
 | `perfidious.request.metrics` | `perf::PERF_COUNT_HW_CPU_CYCLES:u`, `perf::PERF_COUNT_HW_INSTRUCTIONS:u` | `PHP_INI_SYSTEM` | The metrics to monitor with the request handle. |
 
-The request handle is kept open between requests under a persistent-worker SAPI like php-fpm and reset at the start and
-end of each request. Under the CLI SAPI, one invocation is one PHP request; use an explicitly owned handle from
+The request handle opens in the worker on its first request, is kept open between requests under a persistent-worker
+SAPI like php-fpm, and is reset at the start and end of each request. Under the CLI SAPI, one invocation is one PHP
+request; use an explicitly owned handle from
 `Perfidious\open()` to choose measurement intervals within a long-running script.
+
+If opening fails, the next request retries. Configuration and operating-system errors are reported when
+`request_handle()` is called: invalid metric names throw `PmuEventNotFoundException`, and perf access or lifecycle
+failures throw `IOException`. Each pending error is reported once; later calls in the same request return `null` if
+the handle remains unavailable.
+An unconsumed error remains pending across requests, even if a later initialization attempt succeeds. Once it is
+reported, another call can return the recovered handle.
 
 `Perfidious\global_handle()`, `perfidious.global.enable`, and `perfidious.global.metrics` have been removed. Remove those
 settings from existing configuration. Automatic cumulative counters across requests are no longer provided;

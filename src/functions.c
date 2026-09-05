@@ -282,27 +282,16 @@ static PHP_FUNCTION(perfidious_request_handle)
 {
     ZEND_PARSE_PARAMETERS_NONE();
 
-    if (EXPECTED(PERFIDIOUS_G(request_enable) && PERFIDIOUS_G(request_handle))) {
-        if (UNEXPECTED(PERFIDIOUS_G(request_handle_error) != 0)) {
-            int error_number = PERFIDIOUS_G(request_handle_error);
-            const char *operation = PERFIDIOUS_G(request_handle_error_operation) != NULL
-                                        ? PERFIDIOUS_G(request_handle_error_operation)
-                                        : "lifecycle operation";
+    if (EXPECTED(PERFIDIOUS_G(request_enable))) {
+        if (UNEXPECTED(PERFIDIOUS_G(request_handle_error).exception_ce != NULL)) {
+            struct perfidious_error error = PERFIDIOUS_G(request_handle_error);
+            PERFIDIOUS_G(request_handle_error) = (struct perfidious_error){0};
 
-            PERFIDIOUS_G(request_handle_error) = 0;
-            PERFIDIOUS_G(request_handle_error_operation) = NULL;
-
-            perfidious_error_helper(
-                perfidious_io_exception_ce,
-                error_number,
-                "request handle unavailable after %s failed: %s",
-                operation,
-                strerror(error_number)
-            );
+            perfidious_error_helper(error.exception_ce, error.code, "%s", error.message);
             RETURN_NULL();
         }
 
-        if (UNEXPECTED(!PERFIDIOUS_G(request_handle_ready))) {
+        if (UNEXPECTED(PERFIDIOUS_G(request_handle) == NULL || !PERFIDIOUS_G(request_handle_ready))) {
             RETURN_NULL();
         }
 

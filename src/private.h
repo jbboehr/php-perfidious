@@ -93,6 +93,23 @@ static inline bool perfidious_zend_long_to_pid_t(zend_long from, pid_t *restrict
 }
 
 ZEND_ATTRIBUTE_UNUSED
+ZEND_ATTRIBUTE_FORMAT(printf, 4, 5)
+static void perfidious_error_set(
+    struct perfidious_error *error, zend_class_entry *exception_ce, zend_long code, const char *format, ...
+)
+{
+    error->exception_ce = exception_ce;
+    error->code = code;
+    va_list args;
+    va_start(args, format);
+    int bytes = vsnprintf(error->message, sizeof(error->message), format, args);
+    va_end(args);
+    if (bytes < 0) {
+        error->message[0] = '\0';
+    }
+}
+
+ZEND_ATTRIBUTE_UNUSED
 ZEND_ATTRIBUTE_FORMAT(printf, 3, 4)
 static void
 perfidious_error_helper(zend_class_entry *restrict exception_ce, zend_long code, const char *restrict format, ...)

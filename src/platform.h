@@ -42,6 +42,7 @@ PERFIDIOUS_LOCAL extern const zend_function_entry perfidious_darwin_functions[];
 
 PERFIDIOUS_LOCAL PHP_MINIT_FUNCTION(perfidious_platform);
 PERFIDIOUS_LOCAL PHP_MSHUTDOWN_FUNCTION(perfidious_platform);
+PERFIDIOUS_LOCAL void perfidious_platform_globals_shutdown(zend_perfidious_globals *perfidious_globals);
 PERFIDIOUS_LOCAL PHP_RINIT_FUNCTION(perfidious_platform);
 PERFIDIOUS_LOCAL PHP_RSHUTDOWN_FUNCTION(perfidious_platform);
 PERFIDIOUS_LOCAL PHP_MINFO_FUNCTION(perfidious_platform);

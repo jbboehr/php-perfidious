@@ -84,6 +84,13 @@ enum perfidious_error_mode
     PERFIDIOUS_ERROR_MODE_WARNING = 1,
 };
 
+struct perfidious_error
+{
+    zend_class_entry *exception_ce;
+    zend_long code;
+    char message[512];
+};
+
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_exception_interface_ce;
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_pmu_not_found_exception_ce;
 PERFIDIOUS_PUBLIC extern zend_class_entry *perfidious_pmu_event_not_found_exception_ce;
@@ -105,9 +112,9 @@ ZEND_BEGIN_MODULE_GLOBALS(perfidious)
     zend_bool request_enable;
     zend_string *request_metrics;
     struct perfidious_handle *request_handle;
+    zend_long request_handle_pid;
     zend_bool request_handle_ready;
-    int request_handle_error;
-    const char *request_handle_error_operation;
+    struct perfidious_error request_handle_error;
 
     enum perfidious_error_mode error_mode;
 #ifdef PERFIDIOUS_DEBUG
