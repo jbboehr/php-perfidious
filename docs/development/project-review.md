@@ -168,6 +168,100 @@ optimization enabled. Its optional syscall-level tracing experiment was not comp
 calls on inherited-handle cleanup was checked in the source. **Follow-up verdict: PASS_WITH_RESIDUAL_RISK**, with
 the execution limits listed above. No further production changes were required by that review pass.
 
+## Follow-up: R02 Darwin process CPU-time units
+
+Implementation review base: `debb92e` (after R01).
+
+The process resource-usage API and process sampler now use the existing checked Mach-to-nanosecond conversion.
+Each user/system field is converted before summing or checking the PHP integer range. Hardware counter values
+remain unscaled. MINIT initializes the timebase even when `thread_selfcounts` is absent. If timebase initialization
+fails, process CPU-time calls throw `IOException`; the thread fallback and unrelated sampler metrics remain usable.
+
+The upstream source trace was checked again for this slice: Apple's
+[task accounting](https://github.com/apple-oss-distributions/xnu/blob/main/osfmk/kern/task.c#L6391) supplies Mach units,
+[rusage assignment](https://github.com/apple-oss-distributions/xnu/blob/main/osfmk/kern/bsd_kern.c#L1196) copies them,
+and the [kernel return path](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_resource.c#L3271)
+and [libproc wrapper](https://github.com/apple-oss-distributions/xnu/blob/main/libsyscall/wrappers/libproc/libproc.c#L129)
+return them without conversion. This confirms the source-level basis for R02; native macOS execution remains a
+separate verification requirement.
+
+### R02 experimental evidence
+
+The new [CPU-time regression](../../tests/darwin/cpu-time-shim.phpt) builds the actual Darwin extension sources as a
+shared module on Linux, substituting only native calls. It runs the public PHP resource-usage and sampler APIs,
+including module initialization and the existing conversion helper. No production test hooks were added.
+
+Before the fix, the test failed on both process properties and the sampler: for user/system readings of
+18,000,000 / 6,000,000 ticks with a `125/3` timebase, they exposed 18,000,000 / 6,000,000 and 24,000,000 respectively.
+Afterward, they expose 750,000,000 / 250,000,000 ns and 1,000,000,000 ns, matching independent arithmetic.
+The same test covers `1/1`, `2/3`, and `3/2` ratios, per-field rounding, multiplication that would overflow before division,
+conversion overflow in either field, PHP integer overflow after scaling, and total CPU-time overflow after conversion.
+It also verifies absent/present thread SPI, invalid ratios, failed timebase initialization, unchanged hardware counts,
+and the seconds/microseconds thread fallback.
+
+Run it with `make test TESTS='tests/darwin/cpu-time-shim.phpt tests/darwin/sampler-probe-shim.phpt'`.
+The new test requires a 64-bit Linux PHP without a built-in perfidious extension, matching PHP development headers
+from `php-config`, and a C compiler. A statically linked backend cannot be replaced by the isolated test module.
+The existing sampler-only harness retains a `1/1` conversion substitute; the new shared-module test exercises the
+real conversion and both PHP APIs.
+
+A separate [native oracle test](../../tests/darwin/process-cpu-time-native-oracle.phpt) brackets both process APIs
+with PHP's `getrusage()` readings, converting their seconds/microseconds independently. It was added for native
+macOS validation and skipped on this Linux host; it has not been observed passing or failing on macOS.
+
+The final Linux PHP 8.1.34 debug run reported 78 passed, 21 skipped, and zero failures. Both compiled Darwin
+tests passed. Composer validation, generated-stub freshness, PHP_CodeSniffer, PHPStan, and all four declaration
+analysis configurations passed. PHP syntax, Markdown, and diff checks also passed.
+
+The isolated Darwin module was also exercised under Valgrind using the direct PHP executable and
+`USE_ZEND_ALLOC=0`, with `--leak-check=full --errors-for-leak-kinds=definite --error-exitcode=99`.
+The `125/3`, `1/1`, and `2/3` fixtures each reported zero errors and zero bytes in use at exit.
+These runs exercised the substitute native calls on Linux, not macOS APIs.
+
+**R02 review verdict: PASS_WITH_RESIDUAL_RISK.** The independent correctness review found no introduced defect.
+Both reviews considered changing the thread fallback for a successful but invalid timebase with SPI present;
+comparison with the base revision showed that this would change pre-existing behavior outside R02, so the proposal
+and its new fallback expectations were withdrawn.
+
+The independent test review corrected the large-value fixture to use 12,000,000,000,000,000,000 ticks at `2/3`,
+whose intermediate product exceeds `uint64_t` while its final 8,000,000,000,000,000,000 ns value fits a PHP integer.
+It also added a `3/2` fixture where the whole conversion term fits exactly but the fractional term overflows the sum.
+In temporary copies, replacing the checked conversion with direct multiplication caused both public APIs' large-value
+assertions to fail; removing the final addition check caused both APIs' expected overflow exceptions to disappear.
+The focused and full suites were repeated after this test hardening. Native macOS compilation, real Apple API calls,
+and the native `getrusage()` oracle remain unverified.
+
+### R02 review follow-up
+
+The `tmp.md` handoff and the separate review summary reporting no actionable regressions were considered alongside
+Codex's own independent review of the staged tests, unstaged production changes, and surrounding conversion,
+initialization, error, and sampler paths. No further production or test changes were warranted.
+
+- **Native oracle tolerance:** retained the 2 ms margin pending a native run. The handoff identified a possible
+  portability risk, not an observed failure. Current XNU's
+  [`calcru()`](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_resource.c#L1641) converts Mach
+  accounting to seconds/microseconds; that path does not establish the handoff's claimed fixed 10 ms resolution.
+  This source check does not validate the margin across macOS versions. On a native failure, inspect the actual
+  bounds and deltas before changing either the tolerance or the conversion.
+- **Platform timebase labels:** corrected the handoff's assumptions in this record. XNU's
+  [x86 implementation](https://github.com/apple-oss-distributions/xnu/blob/main/osfmk/i386/rtclock.c#L384) explicitly
+  supplies `1/1`, while its
+  [ARM implementation](https://github.com/apple-oss-distributions/xnu/blob/main/osfmk/arm/rtclock.c#L99) derives the
+  ratio from the platform frequency. A native conversion check must establish the actual machine's ratio;
+  do not assume Apple Silicon uses `1/1` or Intel uses `125/3` as the handoff did.
+- **PHP development headers:** confirmed the harness uses `php-config` from PATH. Matching headers remain a
+  documented prerequisite; a mismatch produces a visible build/load failure. No test-selection change was needed.
+- **Arithmetic and thread behavior:** confirmed that `remainder * numer` fits `uint64_t` because both factors are
+  bounded by the 32-bit timebase fields. The successful-but-invalid timebase with SPI present retains its
+  pre-existing thread error behavior, as already evaluated above. Neither note warrants another production change.
+
+Fresh verification rebuilt the Linux module and passed both compiled Darwin tests; the native oracle was skipped.
+The full suite reported 78 passed, 21 skipped, and zero failures with `PERFIDIOUS_TEST_OPCACHE` set to the available
+opcache module. The external summary's 76 passed / 23 skipped result is recorded as its separate run.
+Composer validation, stub freshness, PHP_CodeSniffer, PHPStan and all four declaration-analysis configurations,
+PHP syntax, Markdown, and staged/unstaged diff checks passed. Native macOS compilation and execution remain
+unverified. This follow-up changes the development report only.
+
 The findings, source line numbers, and examples below describe the reviewed revision identified above. Examples using
 the removed global API require that revision; they are retained as historical experimental evidence.
 

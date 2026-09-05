@@ -147,8 +147,15 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_read(
             return FAILURE;
         }
         if ((sampler->metrics & PERFIDIOUS_METRIC_CPU_TIME_MASK) != 0) {
+            uint64_t user_time_ns;
+            uint64_t system_time_ns;
+
+            if (!perfidious_darwin_mach_time_to_ns(usage.ri_user_time, &user_time_ns) ||
+                !perfidious_darwin_mach_time_to_ns(usage.ri_system_time, &system_time_ns)) {
+                return FAILURE;
+            }
             if (UNEXPECTED(
-                    FAILURE == perfidious_darwin_store_cpu_time(usage.ri_user_time, usage.ri_system_time, snapshot)
+                    FAILURE == perfidious_darwin_store_cpu_time(user_time_ns, system_time_ns, snapshot)
                 )) {
                 return FAILURE;
             }

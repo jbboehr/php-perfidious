@@ -18,6 +18,7 @@ struct rusage_info_v4
     uint64_t ri_user_time;
     uint64_t ri_system_time;
     uint64_t ri_cycles;
+    uint64_t ri_instructions;
 };
 
 int proc_pid_rusage(int pid, int flavor, rusage_info_t *buffer);

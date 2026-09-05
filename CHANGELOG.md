@@ -47,6 +47,8 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
 
 ### Fixed
 
+- Darwin process CPU-time readings now convert Mach clock units to nanoseconds, matching the API's declared units
+  on machines with a non-unit timebase.
 - Automatic Linux request counters now open in the serving worker, including after opcache preloading, and are
   released when their module globals are destroyed. Initialization errors are deferred to `request_handle()`;
   failed opens are retried on later requests.

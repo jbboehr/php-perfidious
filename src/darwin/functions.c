@@ -116,7 +116,7 @@ static void perfidious_darwin_throw_mach(const char *function_name, kern_return_
     );
 }
 
-static bool perfidious_darwin_mach_time_to_ns(uint64_t value, uint64_t *result)
+PERFIDIOUS_LOCAL bool perfidious_darwin_mach_time_to_ns(uint64_t value, uint64_t *result)
 {
     uint64_t quotient;
     uint64_t remainder;
@@ -132,7 +132,7 @@ static bool perfidious_darwin_mach_time_to_ns(uint64_t value, uint64_t *result)
     remainder = value % perfidious_darwin_timebase.denom;
 
     if (UNEXPECTED(quotient > UINT64_MAX / perfidious_darwin_timebase.numer)) {
-        zend_throw_exception_ex(perfidious_overflow_exception_ce, 0, "Darwin thread CPU time is too large to scale");
+        zend_throw_exception_ex(perfidious_overflow_exception_ce, 0, "Darwin CPU time is too large to scale");
         return false;
     }
 
@@ -140,7 +140,7 @@ static bool perfidious_darwin_mach_time_to_ns(uint64_t value, uint64_t *result)
     fraction = (remainder * (uint64_t) perfidious_darwin_timebase.numer) / perfidious_darwin_timebase.denom;
 
     if (UNEXPECTED(whole > UINT64_MAX - fraction)) {
-        zend_throw_exception_ex(perfidious_overflow_exception_ce, 0, "Darwin thread CPU time is too large to scale");
+        zend_throw_exception_ex(perfidious_overflow_exception_ce, 0, "Darwin CPU time is too large to scale");
         return false;
     }
 
@@ -243,6 +243,8 @@ static PHP_FUNCTION(perfidious_darwin_get_current_process_resource_usage)
 {
     struct rusage_info_v4 process_usage;
     struct rusage basic_usage;
+    uint64_t user_time_ns;
+    uint64_t system_time_ns;
     zend_long values[8];
 
     ZEND_PARSE_PARAMETERS_NONE();
@@ -261,8 +263,14 @@ static PHP_FUNCTION(perfidious_darwin_get_current_process_resource_usage)
         return;
     }
 
-    if (!perfidious_darwin_uint64_to_zend_long("user time", process_usage.ri_user_time, &values[0]) ||
-        !perfidious_darwin_uint64_to_zend_long("system time", process_usage.ri_system_time, &values[1]) ||
+    // proc_pid_rusage returns CPU time in Mach units, including on non-unit timebases.
+    if (!perfidious_darwin_mach_time_to_ns(process_usage.ri_user_time, &user_time_ns) ||
+        !perfidious_darwin_mach_time_to_ns(process_usage.ri_system_time, &system_time_ns)) {
+        return;
+    }
+
+    if (!perfidious_darwin_uint64_to_zend_long("user time", user_time_ns, &values[0]) ||
+        !perfidious_darwin_uint64_to_zend_long("system time", system_time_ns, &values[1]) ||
         !perfidious_darwin_uint64_to_zend_long(
             "minor page fault count", (uint64_t) basic_usage.ru_minflt, &values[2]
         ) ||
@@ -409,8 +417,9 @@ PERFIDIOUS_LOCAL void perfidious_darwin_minit(void)
         perfidious_darwin_thread_selfcounts = symbol.function;
     }
 
-    if (perfidious_darwin_thread_selfcounts != NULL &&
-        UNEXPECTED(mach_timebase_info(&perfidious_darwin_timebase) != KERN_SUCCESS)) {
+    // Process accounting needs this ratio even when thread_selfcounts is unavailable.
+    if (UNEXPECTED(mach_timebase_info(&perfidious_darwin_timebase) != KERN_SUCCESS)) {
+        perfidious_darwin_timebase = (mach_timebase_info_data_t){0};
         perfidious_darwin_thread_selfcounts = NULL;
     }
 }

@@ -237,6 +237,13 @@ perfidious_darwin_read_current_thread_resource_usage(struct perfidious_darwin_th
     return SUCCESS;
 }
 
+/* This sampler-only harness uses a 1:1 timebase; cpu-time-shim.phpt tests the real conversion. */
+PERFIDIOUS_LOCAL bool perfidious_darwin_mach_time_to_ns(uint64_t value, uint64_t *result)
+{
+    *result = value;
+    return true;
+}
+
 #ifndef PERFIDIOUS_DARWIN_SAMPLER_SOURCE
 #define PERFIDIOUS_DARWIN_SAMPLER_SOURCE "../../src/darwin/sampler.c"
 #endif
