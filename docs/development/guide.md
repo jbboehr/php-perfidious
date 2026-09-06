@@ -92,8 +92,9 @@ if sampler tests pass, because the common Linux sampler uses `getrusage()` inste
 [troubleshooting](../../README.md#troubleshooting) for the Linux access requirements.
 
 The [public API contract test](../../tests/public-api-contract.phpt) compares the loaded extension with its platform
-stubs. The Linux construction and Darwin shim tests compile temporary modules, so `cc`, `php-config`, and the tested
-PHP must agree. Passing a Darwin shim test on Linux does not verify native macOS behavior.
+stubs. The Linux construction, Darwin shim, and [Windows sampler shim](../../tests/windows/sampler-shim.phpt) tests
+compile temporary modules or executables, so `cc`, `php-config`, and the tested PHP must agree. Passing a platform shim
+on Linux does not verify native macOS or Windows behavior.
 
 ### FPM and preload tests
 

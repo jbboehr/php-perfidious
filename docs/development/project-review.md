@@ -1136,6 +1136,73 @@ were not exercised for this slice.
 
 Changes remain uncommitted for review.
 
+## Follow-up: deterministic Windows sampler tests
+
+Implementation review base: `c1c7eb5`.
+
+The new [Windows sampler harness](../../tests/windows/sampler-harness.c), run by
+[sampler-shim.phpt](../../tests/windows/sampler-shim.phpt), compiles the actual Windows sampler, FILETIME helper, and
+thread-profiling wrappers against controlled native-call doubles on a little-endian Unix host. This adds deterministic
+coverage for existing behavior; no production defect was reproduced and no production implementation changed.
+
+The fixture checks these cases:
+
+- Failed handle duplication and profiling acquisition preserve the caller's existing output pointer and release new
+  resources before raising an exception. A subsequent acquisition succeeds. Profiling contention reports the busy
+  exception and leaves the original owner usable; CPU-time-only thread sampling requires no profiling handle.
+- Failures from each native read operation report the expected exception class, error code, and operation, retain
+  sampler ownership, and permit a successful retry with exact values. Profiling calls return errors directly while
+  the fixture leaves a different value in `GetLastError`; cleanup also changes the last error to check preservation.
+- A foreign thread cannot read an owned sampler, but its original live owner can. Separately, a signaled original
+  thread handle rejects a reused thread ID before reading counters. That terminated-thread scenario closes the
+  duplicated handle without simulating recovery or owning an active profiling session.
+- CPU time combines both FILETIME halves and converts 100-nanosecond ticks to nanoseconds for process and thread
+  scopes. Exact large values, the last representable conversion, both addition and conversion overflow, and a later
+  valid read are checked against literal expected values.
+- Page faults and context switches cross the signed 32-bit boundary, repeat equal values, wrap through zero, and wrap
+  more than once. Concurrent samplers maintain independent widening state; thread profilers use different thread IDs.
+  Closing one sampler leaves the other usable, and reopening starts fresh state.
+- A page-fault wrap observed before a later cycle-query failure is counted once on the next successful read. The test
+  checks the recovered result without requiring a failed snapshot or the private widening state to remain unchanged.
+- Native handle doubles track kind, owner, and liveness, rejecting invalid use and repeated release. Allocation and
+  handle counts are captured when an exception is raised and checked again between cases and at final cleanup.
+
+The test headers model the required fixed-width values and API subset, not Windows SDK layouts. Microsoft documents
+page faults and context switches as `DWORD` fields in
+[PROCESS_MEMORY_COUNTERS_EX](https://learn.microsoft.com/en-us/windows/win32/api/psapi/ns-psapi-process_memory_counters_ex)
+and [PERFORMANCE_DATA](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-performance_data).
+The profiling doubles follow the direct error-return convention of
+[EnableThreadProfiling](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-enablethreadprofiling) and
+[ReadThreadProfilingData](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-readthreadprofilingdata).
+
+### Windows sampler experimental evidence
+
+Verification on Linux x86-64 with PHP 8.1.34 NTS:
+
+- `NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test TESTS='tests/windows/sampler-shim.phpt'` passed. The standalone
+  harness compiles with `-std=c11 -Wall -Wextra -Werror` and the tested PHP's headers.
+- Fourteen isolated mutations of the included sampler source all compiled and then failed behavioral assertions.
+  They removed acquisition or close cleanup, changed busy-error classification or profiling error-code selection,
+  bypassed thread identity or liveness checks, truncated FILETIME values, changed CPU-time units, or removed or added
+  counter wraps. The unchanged source passed. These experiments establish test sensitivity for existing behavior;
+  they are not a claim that the production code had those defects.
+- Standalone Valgrind execution with `--error-exitcode=97 --leak-check=full --show-leak-kinds=all` reported zero errors,
+  no remaining allocations, and no suppressions.
+- The full extension suite with the installed OpCache module passed **91 tests, with 21 skipped and zero failures**.
+  Composer validation, stub freshness, PHP_CodeSniffer, PHPStan, all four declaration-analysis configurations,
+  extracted PHPT syntax, configured pre-commit hooks, C formatting, local documentation links, and diff checks passed.
+
+An independent test-strategy review accepted the component-test approach, and a subsequent read-only test review
+recommended keeping the tests with no required changes. Its note about irreversible thread termination led to the
+separate lifecycle scenario described above. Final verification followed that refinement.
+
+These doubles do not validate Windows SDK ABI, permissions, native profiling or scheduling behavior, actual cleanup
+failure semantics, Zend exception allocation or bailout, concurrent ZTS requests, or a 32-bit runtime. Native
+Windows/macOS execution and sanitizer runtime were not exercised for this slice. Existing native Windows PHPTs remain
+the integration checks; the separate Windows close-failure question below remains unresolved.
+
+Changes remain uncommitted for review.
+
 The findings, source line numbers, and examples below describe the reviewed revision identified above. Examples using
 the removed global API require that revision; they are retained as historical experimental evidence.
 
@@ -1597,11 +1664,11 @@ slug: jbboehr/php-perfidious
 
 ### Deterministic Windows failure and counter-width tests
 
-The [Windows sampler](../../src/windows/sampler.c) has native acquisition, read, cleanup, and 32-bit widening paths.
-Existing Windows PHPTs largely exercise live successful calls and normal lifecycle behavior. Add controlled native-call
-fixtures for acquisition failures, recoverable read errors, independent counter wraps, and cleanup. The
-[Darwin shim](../../tests/darwin/sampler-probe-harness.c) provides an existing local pattern. This is a coverage
-recommendation; it does not imply every untested branch is defective.
+Addressed by the [deterministic Windows sampler follow-up](#follow-up-deterministic-windows-sampler-tests) and its
+[standalone harness](../../tests/windows/sampler-harness.c). Acquisition failures, recoverable read errors, independent
+counter wraps, and successful cleanup now have controlled coverage on a Unix host. Windows SDK ABI, real native
+failures, and cleanup-failure behavior still require native investigation; passing the shim does not establish those
+properties.
 
 ### Persistent handles under a threaded ZTS SAPI
 
