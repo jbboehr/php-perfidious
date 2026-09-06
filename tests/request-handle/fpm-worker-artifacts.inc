@@ -10,6 +10,15 @@ function perfidious_test_fpm_path(): ?string
     return realpath($candidate) ?: $candidate;
 }
 
+function perfidious_test_fpm_module_path(): ?string
+{
+    if (getenv('PERFIDIOUS_TEST_FPM_BUILTIN') === '1') {
+        return '';
+    }
+
+    return perfidious_test_module_path();
+}
+
 function perfidious_test_module_path(): ?string
 {
     $maps = @file('/proc/self/maps', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);

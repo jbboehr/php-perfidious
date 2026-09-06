@@ -59,8 +59,9 @@ testing reuse of an unrelated resource.
 The [NixOS VM follow-up](#follow-up-nixos-vm-integration) passed the three existing x86-64 VM targets. Two guest preload
 PHPTs still skip because the suite runs as root. The [ASan/UBSan follow-up](#follow-up-asanubsan-runtime-verification)
 passed on Linux with PHP 8.2.32 release NTS. The [debug sanitizer follow-up](#follow-up-debug-hooks-under-asanubsan)
-additionally exercised twelve debug-only tests. Sanitizer coverage of FPM and ZTS remains unverified, as does local
-native Windows/macOS execution. The [PIE CI follow-up](#follow-up-pie-compatibility-for-the-64-bit-policy) records
+additionally exercised twelve debug-only tests. The [FPM sanitizer follow-up](#follow-up-fpm-under-asanubsan) passed all
+six existing FPM fixtures, including preloading, in both extension build modes. Sanitizer coverage of ZTS remains
+unverified, as does local native Windows/macOS execution. The [PIE CI follow-up](#follow-up-pie-compatibility-for-the-64-bit-policy) records
 successful native-platform CI jobs separately. Evaluate these gaps against each change's recorded environment and
 limits. Passing a Unix shim does not establish native execution.
 
@@ -1467,6 +1468,55 @@ Both new targets evaluated for x86-64 and AArch64 Linux; only x86-64 was built a
 and sanitizer targets remained excluded from ordinary checks and development shells. Generated Bash syntax,
 configured lint hooks, and local documentation links passed. Ordinary host, VM, and Valgrind suites were not rerun
 for this build-configuration slice.
+
+### Follow-up: FPM under ASan/UBSan
+
+Review base: `b228376`. The sanitizer checks now run the FPM fixtures with the matching instrumented FPM executable.
+`PERFIDIOUS_TEST_FPM_BUILTIN=1` tells the fixtures to omit the shared-module argument; ordinary shared-module tests
+retain module discovery. The Nix checks supply Python 3 and the matching OpCache module. No Perfidious extension
+source changed.
+
+Loading OpCache in the previous sanitizer PHP aborted because the loader used `RTLD_DEEPBIND`. Both preload modes
+reproduced this rejection with the old FPM binary. The opt-in sanitizer PHP builds now omit that flag, matching PHP's
+sanitizer-compatible loader branch. OpCache loading then passed with both new executables; PHP core and OpCache remain
+uninstrumented.
+
+The FPM fixture now checks the master's exit status after cleanup and rejects sanitizer reports or abnormal worker
+exits in startup and FPM logs. Failure output retains both logs, and the PHP wrapper combines child stdout and stderr
+to avoid blocking on separate pipes. The new [diagnostic regression](../../tests/request-handle/fpm-diagnostics.phpt)
+runs real FPM behind a wrapper that emits synthetic ASan/UBSan messages or returns a nonzero shutdown status. It first
+failed against the old fixture because an ASan message was discarded with a successful result. It now accepts clean
+shutdown and rejects all three controlled failures while preserving their diagnostics. These are reporting checks,
+not actual memory-error injections or sanitizer findings.
+
+```sh
+nix build --no-link -L .#sanitize-static-php82-debug-check .#sanitize-static-php82-check \
+  > /tmp/perfidious-fpm-sanitizer.log 2>&1
+cat /tmp/perfidious-fpm-sanitizer.log
+```
+
+Fresh builds on Linux x86-64 with GCC 15.2.0 and PHP 8.2.32 release NTS passed:
+
+| Extension build | Passed | Skipped | Test warnings / failures |
+| --- | ---: | ---: | --- |
+| Debug | 89 | 25 | 0 / 0 |
+| Release | 79 | 35 | 0 / 0 |
+
+All six existing FPM PHPTs and the diagnostic regression passed in both builds. They cover worker attribution and
+reuse, initialization retry, deferred errors, metric-list rejection, master-process preloading, and inherited-descriptor
+cleanup in disabled pools. The previous six shared-module-related FPM skips were eliminated. Both builds instrumented
+all ten extension source files; both FPM executables link ASan/UBSan, and their platform request-initialization functions
+contain checks from both sanitizers. No sanitizer findings appeared in the real workloads.
+
+The full shared-module suite with a debug extension on PHP 8.1.34 also passed, with OpCache supplied explicitly:
+92 passed, 22 skipped, zero test warnings, and zero failures. PHP syntax, Python syntax, [PHP checks](#shared-php-checks),
+configured lint hooks, and local documentation links passed. AArch64 sanitizer targets evaluated; the CI matrix was
+unchanged. Only x86-64 was built and executed locally.
+
+ZTS sanitizer coverage, native Windows/macOS, the two replacement-extension fixtures, and the CLI request-metric
+fixture remain outside these sanitizer suite runs. LeakSanitizer and Zend allocation remain disabled, and native
+harnesses compiled by PHPTs do not inherit the extension's sanitizer flags. VM and Valgrind suites were not rerun;
+in particular, this does not change the root-user preload skips in the VM suite.
 
 ## Initial review and verification
 

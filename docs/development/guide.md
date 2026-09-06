@@ -99,12 +99,19 @@ on Linux does not verify native macOS or Windows behavior.
 ### FPM and preload tests
 
 The [request-handle tests](../../tests/request-handle) include local FPM fixtures that exercise repeated requests in
-the same worker. They need Python 3, `proc_open()`, a shared `perfidious.so`, and a matching `php-fpm` executable beside
-the tested PHP binary. The preload cases also require a non-root user and the matching OpCache shared module.
+the same worker. They need Python 3, `proc_open()`, and a matching `php-fpm` executable beside the tested PHP binary.
+By default, the fixture locates the loaded `perfidious.so` and loads it in FPM. If both PHP and FPM have Perfidious built
+in, set `PERFIDIOUS_TEST_FPM_BUILTIN=1` to omit the shared-module argument. The preload cases also require a non-root
+user and the matching OpCache shared module.
 
 Run the group with `TESTS='tests/request-handle'`. If OpCache is outside PHP's `extension_dir`, set
 `PERFIDIOUS_TEST_OPCACHE` to the absolute path of that PHP build's `opcache.so` before running the tests. Loading
 OpCache in the CLI alone does not supply its path to the FPM fixture.
+
+The fixture checks FPM's exit status and scans startup and worker logs for sanitizer reports, including during
+shutdown. Failed runs include those logs in the PHPT output. The
+[diagnostic regression](../../tests/request-handle/fpm-diagnostics.phpt) uses real FPM with synthetic shutdown messages
+to check that reports and unsuccessful shutdowns cause a test failure.
 
 ### Threaded ZTS requests
 
@@ -218,8 +225,8 @@ magnitudes and do not replace the PHPTs that check live measurements.
 
 ### Optional ASan/UBSan build
 
-The sanitizer targets rebuild PHP with Perfidious built in, avoiding the dynamic extension loader's interaction with
-ASan. Build the PHP executable or run its associated test target:
+The sanitizer targets rebuild PHP with Perfidious built into the CLI and FPM executables. Build the PHP executable or
+run its associated test target:
 
 ```sh
 nix build -L .#sanitize-static-php82
@@ -242,14 +249,19 @@ These targets are opt-in and are excluded from the normal Nix check matrix. The 
 sanitizer runtimes into PHP, but it does not instrument all PHP core code.
 
 Both check targets set `USE_ZEND_ALLOC=0`, supply the sanitizer runtime environment, and use an ordinary PHP binary
-for stub reflection through `PERFIDIOUS_STUB_PHP`. LeakSanitizer is disabled in both targets. Use the Valgrind checks
-for leak testing, and inspect sanitizer test skips rather than assuming they match a shared-module build.
+for stub reflection through `PERFIDIOUS_STUB_PHP`. They also supply Python 3, the matching OpCache module, and
+`PERFIDIOUS_TEST_FPM_BUILTIN=1` for the FPM fixtures. These opt-in PHP builds omit `RTLD_DEEPBIND` when loading shared
+modules because ASan rejects that flag; this allows OpCache to load for preloading. PHP core and OpCache are not
+instrumented. LeakSanitizer is disabled in both targets. Use the Valgrind checks for leak testing, and inspect
+sanitizer test skips rather than assuming they match a shared-module build.
 
-Both static builds skip fixtures that require a shared module or replace the built-in extension, including the FPM
-fixtures. ZTS tests skip in both NTS targets; debug-only tests skip in the release extension target. Native harnesses
-compiled by PHPTs do not inherit the extension's sanitizer flags. See the
+Both static builds still skip the CLI request-metric fixture, which requires a shared module, and fixtures that replace
+the built-in extension. ZTS tests skip in both NTS targets; debug-only tests skip in the release extension target.
+The FPM preload tests require a non-root test user. Native harnesses compiled by PHPTs do not inherit the extension's
+sanitizer flags. See the
 [release sanitizer record](project-review.md#follow-up-asanubsan-runtime-verification) and
-[debug sanitizer record](project-review.md#follow-up-debug-hooks-under-asanubsan) for measured coverage and limitations.
+[debug sanitizer record](project-review.md#follow-up-debug-hooks-under-asanubsan), followed by the
+[FPM sanitizer record](project-review.md#follow-up-fpm-under-asanubsan), for measured coverage and limitations.
 
 To rerun the suite after a cached success and save its output:
 

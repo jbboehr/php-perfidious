@@ -488,7 +488,7 @@
             default = packages.php81-gcc;
           };
 
-        # Build Perfidious into PHP to avoid the dynamic loader's RTLD_DEEPBIND/sanitizer conflict.
+        # Build Perfidious into PHP so CLI and FPM use the same instrumented extension.
         # Only Perfidious's objects are instrumented; PHP core links the sanitizer runtimes.
         # Rebuilding PHP is slow, so these targets are excluded from the normal package/check/shell
         # matrices and exposed separately as sanitize-static-php82(-debug)(-check).
@@ -515,6 +515,11 @@
                   # config.m4's m4_include(m4/...) paths resolve relative to php-src's own root
                   # (which has no m4/ dir of its own), not relative to ext/perfidious/
                   cp -r ext/perfidious/m4 m4
+                  # PHP core is not instrumented, so its loader needs the sanitizer-compatible
+                  # flags explicitly when loading the shared OpCache module for preload tests.
+                  substituteInPlace Zend/zend_portability.h \
+                    --replace-fail 'PHP_RTLD_MODE | RTLD_GLOBAL | RTLD_DEEPBIND' \
+                      'PHP_RTLD_MODE | RTLD_GLOBAL'
                 '';
               configureFlags =
                 prev.configureFlags
@@ -540,7 +545,7 @@
           debugSupport ? false,
         }:
           pkgs.runCommand "perfidious-sanitize-static${lib.optionalString debugSupport "-debug"}-check" {
-            nativeBuildInputs = [sanitizeStdenv.cc pkgs.php82 php.dev];
+            nativeBuildInputs = [sanitizeStdenv.cc pkgs.php82 php.dev pkgs.python3];
           } ''
             cp -r --no-preserve=mode,ownership ${src}/tests .
             cp -r --no-preserve=mode,ownership ${src}/stubs .
@@ -555,6 +560,8 @@
             export NO_INTERACTION=1
             export REPORT_EXIT_STATUS=1
             export PERFIDIOUS_STUB_PHP=${pkgs.php82}/bin/php
+            export PERFIDIOUS_TEST_FPM_BUILTIN=1
+            export PERFIDIOUS_TEST_OPCACHE=${pkgs.php82.extensions.opcache}/lib/php/extensions/opcache.so
 
             ${lib.optionalString debugSupport ''
               ${php}/bin/php -n -r '

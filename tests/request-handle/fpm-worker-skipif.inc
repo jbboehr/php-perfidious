@@ -7,7 +7,7 @@ if (!function_exists('proc_open')) {
 if (perfidious_test_fpm_path() === null) {
     die('skip: php-fpm paired with the tested PHP executable is unavailable');
 }
-if (perfidious_test_module_path() === null) {
+if (perfidious_test_fpm_module_path() === null) {
     die('skip: unable to locate the loaded perfidious shared module');
 }
 foreach (explode(PATH_SEPARATOR, (string) getenv('PATH')) as $directory) {

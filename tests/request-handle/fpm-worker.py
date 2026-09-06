@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import pwd
+import re
 import socket
 import struct
 import subprocess
@@ -117,13 +118,14 @@ security.limit_extensions = .php
                 stream.write("php_admin_value[perfidious.request.enable] = 0\n")
         command = [
             fpm, "-F", "-R", "-n", "-y", str(config),
-            "-d", f"extension={module}",
             "-d", "perfidious.request.enable=1",
             "-d", "perfidious.request.metrics=" + (
                 "blahblahblah" if mode == "initialization-error"
                 else "perf::PERF_COUNT_SW_TASK_CLOCK:u"
             ),
         ]
+        if module:
+            command += ["-d", f"extension={module}"]
         if opcache:
             preload = root / "preload.php"
             preload.write_text("""<?php
@@ -223,12 +225,25 @@ file_put_contents(__DIR__ . '/preload.json', json_encode(['pid' => getmypid(), '
                                 # One automatic open per worker; each prior workload opens one oracle.
                                 check(result["opens"] == 1 + bool(opcache) + number, result)
             finally:
+                exited_early = process.poll() is not None
                 process.terminate()
                 try:
                     process.wait(timeout=5)
                 except subprocess.TimeoutExpired:
                     process.kill()
                     process.wait()
+                log.seek(0)
+                diagnostics = log.read()
+                if (root / "fpm.log").exists():
+                    diagnostics += (root / "fpm.log").read_text()
+                if diagnostics:
+                    print(diagnostics, file=sys.stderr)
+                check(not exited_early and process.returncode == 0, ("FPM exit status", process.returncode))
+                check(not re.search(
+                    r"(?:ERROR|SUMMARY): (?:AddressSanitizer|LeakSanitizer|UndefinedBehaviorSanitizer)"
+                    r"|AddressSanitizer:DEADLYSIGNAL|runtime error:|exited on signal",
+                    diagnostics,
+                ), "FPM child diagnostic")
 
 
 if __name__ == "__main__":
