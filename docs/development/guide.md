@@ -226,18 +226,30 @@ nix build -L .#sanitize-static-php82
 nix build -L .#sanitize-static-php82-check
 ```
 
+To exercise Perfidious's debug hooks and their failure-path tests, use the debug variant:
+
+```sh
+nix build -L .#sanitize-static-php82-debug
+nix build -L .#sanitize-static-php82-debug-check
+```
+
+The debug variant adds `--enable-perfidious-debug`; PHP core remains a release NTS build. Its check target requires
+`Perfidious\DEBUG` to be true before running the suite, so a build without debug hooks fails instead of silently
+skipping those tests.
+
 These targets are opt-in and are excluded from the normal Nix check matrix. The configure flag
 `--enable-perfidious-sanitize` instruments the extension's objects with ASan and UBSan. The Nix target links the
 sanitizer runtimes into PHP, but it does not instrument all PHP core code.
 
-The check target sets `USE_ZEND_ALLOC=0`, supplies the sanitizer runtime environment, and uses an ordinary PHP binary
-for stub reflection through `PERFIDIOUS_STUB_PHP`. LeakSanitizer is disabled in that target. Use the Valgrind checks
+Both check targets set `USE_ZEND_ALLOC=0`, supply the sanitizer runtime environment, and use an ordinary PHP binary
+for stub reflection through `PERFIDIOUS_STUB_PHP`. LeakSanitizer is disabled in both targets. Use the Valgrind checks
 for leak testing, and inspect sanitizer test skips rather than assuming they match a shared-module build.
 
-The static build skips fixtures that require a shared module or replace the built-in extension, including the FPM
-fixtures. Debug-only and ZTS tests also skip in this release NTS target. Native harnesses compiled by PHPTs do not
-inherit the extension's sanitizer flags. See the [sanitizer verification record](project-review.md#follow-up-asanubsan-runtime-verification)
-for the measured coverage and separate instrumented harness runs.
+Both static builds skip fixtures that require a shared module or replace the built-in extension, including the FPM
+fixtures. ZTS tests skip in both NTS targets; debug-only tests skip in the release extension target. Native harnesses
+compiled by PHPTs do not inherit the extension's sanitizer flags. See the
+[release sanitizer record](project-review.md#follow-up-asanubsan-runtime-verification) and
+[debug sanitizer record](project-review.md#follow-up-debug-hooks-under-asanubsan) for measured coverage and limitations.
 
 To rerun the suite after a cached success and save its output:
 
@@ -245,3 +257,5 @@ To rerun the suite after a cached success and save its output:
 nix build --rebuild --no-link -L .#sanitize-static-php82-check > /tmp/perfidious-sanitizer-phpt.log 2>&1
 cat /tmp/perfidious-sanitizer-phpt.log
 ```
+
+Use `sanitize-static-php82-debug-check` in the same command to rerun the debug variant.

@@ -58,8 +58,9 @@ testing reuse of an unrelated resource.
 
 The [NixOS VM follow-up](#follow-up-nixos-vm-integration) passed the three existing x86-64 VM targets. Two guest preload
 PHPTs still skip because the suite runs as root. The [ASan/UBSan follow-up](#follow-up-asanubsan-runtime-verification)
-passed on Linux with PHP 8.2.32 release NTS. Sanitizer coverage of debug hooks, FPM, and ZTS remains unverified, as does
-local native Windows/macOS execution. The [PIE CI follow-up](#follow-up-pie-compatibility-for-the-64-bit-policy) records
+passed on Linux with PHP 8.2.32 release NTS. The [debug sanitizer follow-up](#follow-up-debug-hooks-under-asanubsan)
+additionally exercised twelve debug-only tests. Sanitizer coverage of FPM and ZTS remains unverified, as does local
+native Windows/macOS execution. The [PIE CI follow-up](#follow-up-pie-compatibility-for-the-64-bit-policy) records
 successful native-platform CI jobs separately. Evaluate these gaps against each change's recorded environment and
 limits. Passing a Unix shim does not establish native execution.
 
@@ -1427,6 +1428,45 @@ The real 64-bit header consumer compiled. Controlled width checks still rejected
 installation dry run, stub freshness, PHPCS, PHPStan, configured linters, and documentation links passed. Local
 verification stopped at PIE build and module loading, without system-wide installation or INI changes. The existing
 PIE installation CI job remains the integration regression test; a pushed run of this correction is still required.
+
+### Follow-up: debug hooks under ASan/UBSan
+
+Review base: `425820b`. The new opt-in `sanitize-static-php82-debug` and `sanitize-static-php82-debug-check` targets
+enable Perfidious's debug hooks under ASan/UBSan. They share the existing sanitizer build and check definitions; the
+release targets remain available. No extension source or PHPT changed.
+
+```sh
+nix build --no-link -L .#sanitize-static-php82-debug-check > /tmp/perfidious-sanitizer-debug.log 2>&1
+cat /tmp/perfidious-sanitizer-debug.log
+```
+
+On Linux x86-64 with GCC 15.2.0 and PHP 8.2.32, the fresh debug build passed 82 PHPTs with 31 skips, zero test warnings,
+and zero failures. No ASan or UBSan findings appeared. The release check passed both before and after the refactor:
+72 passed, 41 skipped, zero test warnings, and zero failures. Its PHP derivation was unchanged.
+
+Twelve previously skipped debug-only tests passed: long event-name metadata, closed descriptors, both corrupt metric-ID
+read variants, injected overflow lifecycle, rejection before opening a counter, closed request-handle phpinfo, both
+scaling phpinfo cases, value and timing overflow exceptions, and deferred request lifecycle errors. Two release-only
+tests instead skipped. The debug permission-denial test still skipped because its probe could profile PID 1; that path
+was not verified in this configuration.
+
+The generated debug-check preflight rejected the release executable with exit status 1 and the expected diagnostic,
+then accepted the debug executable with exit status 0 and no output. Runtime constants and installed headers confirmed
+`Perfidious\DEBUG = true`, `PHP_DEBUG = 0`, and `PHP_ZTS = 0`: this enables extension debug hooks while PHP core remains
+release NTS. All ten extension compilation commands included ASan/UBSan instrumentation and disabled sanitizer
+recovery. The executable links both sanitizer runtimes, and disassembly of `debugInjectOverflowRead()` contains calls
+to both sanitizers' checks.
+
+The 31 skips comprise 18 native-platform tests, six FPM fixtures requiring a shared module, one request-metric fixture
+requiring a shared module, two replacement-extension fixtures, one ZTS test, two release-only tests, and the debug
+permission-denial test. The existing sanitizer limits remain: PHP core and dependencies are not instrumented,
+LeakSanitizer and Zend allocation are disabled, and native harnesses compiled by PHPTs do not inherit sanitizer flags.
+This run does not establish FPM, ZTS, native Windows/macOS, or other PHP-version sanitizer coverage.
+
+Both new targets evaluated for x86-64 and AArch64 Linux; only x86-64 was built and executed. The CI matrix was unchanged,
+and sanitizer targets remained excluded from ordinary checks and development shells. Generated Bash syntax,
+configured lint hooks, and local documentation links passed. Ordinary host, VM, and Valgrind suites were not rerun
+for this build-configuration slice.
 
 ## Initial review and verification
 

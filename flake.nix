@@ -491,14 +491,13 @@
         # Build Perfidious into PHP to avoid the dynamic loader's RTLD_DEEPBIND/sanitizer conflict.
         # Only Perfidious's objects are instrumented; PHP core links the sanitizer runtimes.
         # Rebuilding PHP is slow, so these targets are excluded from the normal package/check/shell
-        # matrices and exposed separately via
-        # `nix build .#sanitize-static-php82` / `.#sanitize-static-php82-check`.
+        # matrices and exposed separately as sanitize-static-php82(-debug)(-check).
         sanitizeStdenv =
           if pkgs.stdenv.cc.isClang
           then pkgs.llvmPackages.stdenv
           else pkgs.stdenv;
 
-        sanitizeStaticPhp = let
+        makeSanitizeStaticPhp = {debugSupport ? false}: let
           basePhp = pkgs.php82.unwrapped;
         in
           pkgs.callPackage (nixpkgs + "/pkgs/development/interpreters/php/generic.nix") {
@@ -524,7 +523,8 @@
                   "--enable-perfidious-sanitize"
                   "--enable-compile-warnings=yes"
                   "--disable-Werror"
-                ];
+                ]
+                ++ lib.optional debugSupport "--enable-perfidious-debug";
               # only LDFLAGS (needed on the final link, to pull in the sanitizer runtime) applies
               # to the whole build - CFLAGS stays scoped to just perfidious's own object files,
               # via --enable-perfidious-sanitize above, see config.m4
@@ -532,15 +532,21 @@
             };
           };
 
-        sanitizeStaticPhpCheck =
-          pkgs.runCommand "perfidious-sanitize-static-check" {
-            nativeBuildInputs = [sanitizeStdenv.cc pkgs.php82 sanitizeStaticPhp.dev];
+        sanitizeStaticPhp = makeSanitizeStaticPhp {};
+        sanitizeStaticPhpDebug = makeSanitizeStaticPhp {debugSupport = true;};
+
+        makeSanitizeStaticPhpCheck = {
+          php,
+          debugSupport ? false,
+        }:
+          pkgs.runCommand "perfidious-sanitize-static${lib.optionalString debugSupport "-debug"}-check" {
+            nativeBuildInputs = [sanitizeStdenv.cc pkgs.php82 php.dev];
           } ''
             cp -r --no-preserve=mode,ownership ${src}/tests .
             cp -r --no-preserve=mode,ownership ${src}/stubs .
             cp -r --no-preserve=mode,ownership ${src}/src .
             cp --no-preserve=mode,ownership ${src}/php_perfidious.h .
-            cp ${sanitizeStaticPhp.dev}/lib/build/run-tests.php .
+            cp ${php.dev}/lib/build/run-tests.php .
 
             export USE_ZEND_ALLOC=0
             export LD_PRELOAD="$(cc -print-file-name=libasan.so):$(cc -print-file-name=libubsan.so)"
@@ -550,20 +556,36 @@
             export REPORT_EXIT_STATUS=1
             export PERFIDIOUS_STUB_PHP=${pkgs.php82}/bin/php
 
-            ${sanitizeStaticPhp}/bin/php -n run-tests.php \
+            ${lib.optionalString debugSupport ''
+              ${php}/bin/php -n -r '
+                if (!Perfidious\DEBUG) {
+                  fwrite(STDERR, "Perfidious debug hooks are required for this check\n");
+                  exit(1);
+                }
+              '
+            ''}
+            ${php}/bin/php -n run-tests.php \
               || (find tests -name '*.log' | xargs -r cat; exit 1)
 
             touch $out
           '';
+
+        sanitizeStaticPhpCheck = makeSanitizeStaticPhpCheck {php = sanitizeStaticPhp;};
+        sanitizeStaticPhpDebugCheck = makeSanitizeStaticPhpCheck {
+          php = sanitizeStaticPhpDebug;
+          debugSupport = true;
+        };
       in {
-        # sanitize-static-php82(-check) are intentionally added only here, to the *returned*
+        # sanitize-static-php82(-debug)(-check) are added only here, to the *returned*
         # packages set, not the `packages` variable devShells/checks below are built from - see
-        # sanitizeStaticPhp's comment above.
+        # makeSanitizeStaticPhp's comment above.
         packages =
           packages
           // {
             sanitize-static-php82 = sanitizeStaticPhp;
             sanitize-static-php82-check = sanitizeStaticPhpCheck;
+            sanitize-static-php82-debug = sanitizeStaticPhpDebug;
+            sanitize-static-php82-debug-check = sanitizeStaticPhpDebugCheck;
           };
 
         devShells = builtins.mapAttrs (name: package: makeDevShell package) packages;
