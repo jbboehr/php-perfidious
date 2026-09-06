@@ -30,6 +30,8 @@ function get_pmu_info(int $pmu): PmuInfo
 }
 
 /**
+ * The event index must belong to the requested PMU.
+ *
  * @throws PmuNotFoundException|PmuEventNotFoundException
  * @see https://perfmon2.sourceforge.net/manv4/pfm_get_event_info.html
  */

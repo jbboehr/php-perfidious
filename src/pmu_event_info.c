@@ -102,6 +102,17 @@ zend_result perfidious_get_pmu_event_info(pfm_pmu_info_t *restrict pmu_info, zen
         return FAILURE;
     }
 
+    if (UNEXPECTED(info.pmu != pmu_info->pmu)) {
+        zend_throw_exception_ex(
+            perfidious_pmu_event_not_found_exception_ce,
+            PFM_ERR_NOTFOUND,
+            "event %" ZEND_LONG_FMT_SPEC " does not belong to pmu %" ZEND_LONG_FMT_SPEC,
+            idx,
+            (zend_long) pmu_info->pmu
+        );
+        return FAILURE;
+    }
+
     return perfidious_pmu_event_info_ctor(pmu_info, &info, return_value);
 }
 

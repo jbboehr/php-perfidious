@@ -814,6 +814,58 @@ No further production changes were needed.
 Other PHP versions, release builds, 32-bit PHP, native Windows/macOS, and remote CI were not exercised for this slice.
 Changes remain uncommitted for review.
 
+## Follow-up: R09 PMU/event ownership
+
+Implementation review base: `a67269f`.
+
+`Perfidious\get_pmu_event_info()` now checks that the event's PMU matches the requested PMU before constructing the
+result. A mismatch raises `PmuEventNotFoundException` with code `PFM_ERR_NOTFOUND` (`-4`) and a message identifying
+the requested event index and PMU. An event that exists in libpfm's global database is not necessarily an event of
+the requested PMU.
+
+PMU validation still precedes event lookup. Existing bounds checks and errors for invalid identifiers retain their
+behavior. The Linux stub documents the ownership requirement, and the aggregate stub has been regenerated.
+
+### R09 experimental evidence
+
+A direct call against the unchanged implementation requested an event owned by PMU 7 (`netburst`) using PMU 8
+(`netburst_p`). It returned owner ID 7 with the incorrect name `netburst_p::TC_deliver_mode`.
+
+The new [mismatch regression](../../tests/get-pmu-event-info-mismatched-pmu.phpt) first failed against that
+implementation. It accepted an event from PMU 7 for PMU 51, and an event from PMU 51 for PMU 7. After the ownership
+check and rebuild, both calls raised the expected exception. The test chooses PMUs from the installed database and
+prefers different presence flags when available. It also checks that valid lookups and enumeration still return
+consistent metadata after each rejected call.
+
+A separate metadata-only experiment enumerated all **386 PMUs and 18,393 events** in the installed libpfm 4.13.0
+database. Every direct lookup matched its enumerated result, including the owner ID, PMU name prefix, and presence
+flag. These checks do not require opening hardware counters.
+
+Verification on Linux x86-64 with PHP 8.1.34 debug:
+
+- `make -j2` passed with fatal compiler warnings enabled.
+- `NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test TESTS='tests/get-pmu-event-info-mismatched-pmu.phpt tests/get-pmu-event-info.phpt tests/get-pmu-info.phpt tests/list-pmu-events.phpt tests/list-pmu-events-unknown-pmu.phpt tests/list-pmus.phpt tests/pmu-identifiers.phpt tests/get-pmu-event-info-long-name.phpt tests/readonly-pmu-event-info.phpt'` passed all nine tests.
+- The full suite with the installed opcache module passed **88 tests, with 21 skipped and zero failures**.
+- The same nine focused tests under `USE_ZEND_ALLOC=0 make test TEST_PHP_ARGS='-n -m'` passed with zero reported leaks.
+- Composer validation, generated-stub freshness, PHP_CodeSniffer, PHPStan, and all four declaration-analysis
+  configurations passed.
+- PHP syntax, changed C-fragment formatting, Markdown, and final diff checks passed.
+
+### R09 reliability review
+
+Verdict: **PASS_WITH_RESIDUAL_RISK**. The independent Breaker found no actionable correctness defect and checked
+mismatch rejection and recovery across all 18,393 installed events. The independent Test Attacker found no production
+failure in a separate probe of the first and last events of each nonempty PMU: **764 cross-owner rejections and 764
+valid lookups** passed. This sampled event boundaries across 385 PMUs, without testing every possible PMU/event pair.
+
+The Test Attacker strengthened the regression to check the owner, name prefix, and presence flag for every enumerated
+event in the two selected PMUs. Re-enumeration after each mismatch must preserve those results. The strengthened
+nine-test suite, full suite, Valgrind checks, and static checks were rerun successfully after review. No further
+production changes were needed.
+
+Other PHP/libpfm versions, release builds, 32-bit PHP, native Windows/macOS, and remote CI were not exercised for this
+slice. Changes remain uncommitted for review.
+
 The findings, source line numbers, and examples below describe the reviewed revision identified above. Examples using
 the removed global API require that revision; they are retained as historical experimental evidence.
 
@@ -829,7 +881,7 @@ the removed global API require that revision; they are retained as historical ex
 | R06 | Counter descriptors lack close-on-exec flags | Fixed; ten descriptor flags and three PHP child-launch paths checked, with atomic syscalls confirmed |
 | R07 | Identifier validation narrows values or rejects sparse CPU IDs | Metadata and PID/CPU bounds fixed with regressions; simulated sparse admission verified, physical sparse topology untested |
 | R08 | Referenced event strings are rejected | Fixed; reference acceptance, bindings, name lifetime, and non-string rejection verified |
-| R09 | PMU/event lookup can combine unrelated metadata | Reproduced through the public PHP API |
+| R09 | PMU/event lookup can combine unrelated metadata | Fixed; mismatches rejected in both directions and all 18,393 installed events round-tripped with consistent ownership |
 | R10 | Non-zero counter assertion compares an array with zero | Reproduced with both a zero-valued array and an empty array |
 | R11 | INI metric lists use unbounded stack allocation | Source concern; no oversized configuration executed |
 | R12 | CI log selection and Codecov metadata are incorrect | Log selection and corrected pipeline verified with fixtures; external Codecov outcome unchecked |

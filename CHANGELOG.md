@@ -47,6 +47,7 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
 
 ### Fixed
 
+- Linux `Perfidious\get_pmu_event_info()` now rejects mismatched PMU/event pairs.
 - Linux `Perfidious\open()` now accepts referenced event strings, including arrays processed by reference iteration.
 - Linux handle opening checks both PID conversion bounds and requires a CPU ID of `-1` or a nonnegative native integer.
   CPU IDs are no longer limited by the number of online CPUs, which could reject valid IDs on sparse CPU topologies.
