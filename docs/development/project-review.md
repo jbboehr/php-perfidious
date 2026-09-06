@@ -866,6 +866,67 @@ production changes were needed.
 Other PHP/libpfm versions, release builds, 32-bit PHP, native Windows/macOS, and remote CI were not exercised for this
 slice. Changes remain uncommitted for review.
 
+## Follow-up: R10 non-zero counter assertion
+
+Implementation review base: `675a486`.
+
+The [non-zero counter test](../../tests/handle/non-zero-after-enable.phpt) now selects the requested event from
+`Handle::readArray()` and requires its value to be an integer greater than zero. A missing event fails the assertion.
+The test runs a CPU hash loop with a 5 ms deadline after enabling the handle, then reads the result and closes the
+handle. This replaces the sleep loop with CPU work, following the existing reset-state test's workload pattern.
+
+The Linux-only test still requires usable native perf counters. It does not turn a zero reading or an open/read error
+into a skip. Linux CI configures perf permissions before running the suite. A failure on another host needs diagnosis
+of both the extension and the native counter environment. This slice changes the test and this report only.
+
+### R10 experimental evidence
+
+The original test passed before editing. Both `['counter' => 0] > 0` and `[] > 0` also returned `true` in a direct PHP
+probe. More significantly, a real handle left disabled returned an event value of `0` after CPU work, yet comparing
+the returned array with zero still produced `true`.
+
+To check assertion sensitivity, a temporary Python driver extracted the PHPT's actual `--FILE--` body and ran it
+through PHP with the built extension. It compared stdout with the PHPT's expected output. These were temporary
+in-memory variants of the test body, with no changes to the extension or its native reads:
+
+| Test-body variant | Original assertion | Corrected assertion |
+| --- | --- | --- |
+| Live enabled counter | `bool(true)`, passes | `bool(true)`, passes |
+| Omit `enable()`, leaving the real counter disabled | `bool(true)`, false positive | `bool(false)`, fails |
+| Substitute an event value of zero at the read-result boundary | `bool(true)`, false positive | `bool(false)`, fails |
+| Substitute an empty read result | `bool(true)`, false positive | `bool(false)`, fails |
+| Substitute a numeric string (`'1'`) as the event value | Not run | `bool(false)`, fails |
+
+All variants exited normally without stderr. The negative variants fail because of the assertion result, not an
+unrelated exception or setup failure. The unchanged live run verifies native counting separately from the result
+substitutions. This is a test correction, with before/after sensitivity checks rather than a production behavior fix.
+
+Verification on Linux x86-64 with PHP 8.1.34 debug:
+
+- `NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test TESTS='tests/handle/non-zero-after-enable.phpt tests/handle/enable.phpt tests/handle/disable.phpt tests/handle/read.phpt tests/handle/reset-enabled.phpt tests/handle/zero-after-reset.phpt tests/handle/sequential-reads.phpt'` passed all seven tests.
+- The full suite with the installed opcache module passed **88 tests, with 21 skipped and zero failures**.
+- The changed PHPT under `USE_ZEND_ALLOC=0 make test TEST_PHP_ARGS='-n -m'` passed with zero reported leaks.
+- Composer validation, generated-stub freshness, PHP_CodeSniffer, PHPStan, and all four declaration-analysis
+  configurations passed.
+- PHP syntax, Markdown, and final diff checks passed.
+
+### R10 test review
+
+Verdict: **KEEP**. The WIO strategy and test reviews found no required edits. The review used the Test Level Selection,
+Test Oracles And Assertions, and Mutation Testing references to assess the native integration boundary and assertion
+sensitivity. The corrected test detects a missing enable operation or an unusable returned counter, which the original
+assertion accepted.
+
+The independent test reviewer ran the extracted test body successfully **20 times**. Omitting `enable()` failed
+**three times**. Additional in-memory probes for a disabled/reset handle, zero, empty results, a wrong event key, and
+string, float, or boolean values each produced `bool(false)`. The final changed PHPT also passed under Valgrind.
+These repetitions provide local evidence, without establishing stability on every kernel or heavily starved host.
+
+Other PHP versions, release builds, 32-bit PHP, perf-restricted or non-counting hosts, and remote CI were not exercised
+for this slice. The workload deadline uses wall time, so heavy preemption can reduce the CPU work performed. The test
+checks positivity only, without establishing measurement accuracy or a minimum elapsed CPU interval.
+Changes remain uncommitted for review.
+
 The findings, source line numbers, and examples below describe the reviewed revision identified above. Examples using
 the removed global API require that revision; they are retained as historical experimental evidence.
 
@@ -882,7 +943,7 @@ the removed global API require that revision; they are retained as historical ex
 | R07 | Identifier validation narrows values or rejects sparse CPU IDs | Metadata and PID/CPU bounds fixed with regressions; simulated sparse admission verified, physical sparse topology untested |
 | R08 | Referenced event strings are rejected | Fixed; reference acceptance, bindings, name lifetime, and non-string rejection verified |
 | R09 | PMU/event lookup can combine unrelated metadata | Fixed; mismatches rejected in both directions and all 18,393 installed events round-tripped with consistent ownership |
-| R10 | Non-zero counter assertion compares an array with zero | Reproduced with both a zero-valued array and an empty array |
+| R10 | Non-zero counter assertion compares an array with zero | Fixed; live counting passes, while disabled, zero, empty, and wrong-typed results fail the corrected assertion |
 | R11 | INI metric lists use unbounded stack allocation | Source concern; no oversized configuration executed |
 | R12 | CI log selection and Codecov metadata are incorrect | Log selection and corrected pipeline verified with fixtures; external Codecov outcome unchecked |
 

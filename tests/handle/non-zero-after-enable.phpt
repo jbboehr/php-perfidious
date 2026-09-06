@@ -6,14 +6,16 @@ perfidious
 <?php require __DIR__ . '/../skipif-linux-only.inc'; ?>
 --FILE--
 <?php
-$rv = Perfidious\open([
-    "perf::PERF_COUNT_SW_CPU_CLOCK:u",
-]);
-$rv->enable();
-for ($i = 0; $i < 100; $i++) {
-    usleep(1);
+$event = 'perf::PERF_COUNT_SW_CPU_CLOCK:u';
+$handle = Perfidious\open([$event]);
+$handle->enable();
+$deadline = hrtime(true) + 5_000_000;
+while (hrtime(true) < $deadline) {
+    hash('sha256', 'non-zero counter');
 }
-$value = $rv->readArray();
-var_dump($value > 0);
+$values = $handle->readArray();
+$value = $values[$event] ?? null;
+var_dump(is_int($value) && $value > 0);
+$handle->close();
 --EXPECT--
 bool(true)
