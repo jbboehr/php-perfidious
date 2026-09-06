@@ -978,6 +978,52 @@ Verification on Linux x86-64 with PHP 8.1.34 debug:
 Real Docker execution, remote CI, and Codecov upload acceptance or attribution were not exercised for this slice.
 Changes remain uncommitted for review.
 
+## Follow-up: sampler API documentation
+
+Implementation review base: `554872e`.
+
+The [sampler API document](../SAMPLER_API.md) now describes the implemented API in present tense. The support matrix
+records current acceptance and rejection, with future Linux thread support and instruction counting described
+separately. In particular, Windows thread instructions are marked unsupported, and all Linux thread combinations
+are marked unavailable. The README links directly to the matrix so callers can find supported combinations.
+
+The Linux backend description now identifies `getrusage(RUSAGE_SELF)` as the implemented source for process CPU time,
+page faults, and context switches. The proposed current-thread perf-event mapping has moved to the future-work section.
+Windows and Darwin support entries were checked against their backend masks and the Darwin process-cycle probe.
+
+The error section distinguishes empty/duplicate metric sets (`ValueError`) from non-`Metric` elements (`TypeError`).
+It also clarifies that reading a closed sampler fails while `metrics()` remains available. The declaration example's
+private exception constructor now has a body, the process example contains a bounded workload, and the thread example
+requests CPU time on its supported Windows/macOS platforms and closes its sampler.
+
+### Documentation experimental evidence
+
+Before editing, direct calls confirmed that empty and duplicate sets raise `ValueError`, a `'cpu-time'` string raises
+`TypeError`, and an instruction request raises `UnsupportedMetricException`. The original declaration block failed
+`php -n -l` because its non-abstract constructor lacked a body. After correction, all three PHP blocks passed syntax
+checks. The process example ran with the extension and produced non-negative CPU-time and page-fault deltas. Running
+the thread example on Linux raised `UnsupportedMetricException`, matching the revised matrix.
+
+A separate runtime probe exercised all **62 non-empty metric/scope requests** on Linux: every subset of the five
+metrics under each of the two scopes. The seven supported process requests opened successfully, returned their
+configured metrics in order, and produced non-negative samples. After closing twice, each retained its configured
+metrics and rejected a read with `ClosedException`. The remaining 55 requests reported the expected scope and rejected
+metrics in `UnsupportedMetricException`.
+
+Verification on Linux x86-64 with PHP 8.1.34 debug:
+
+- `NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test TESTS='tests/sampler/arginfo.phpt tests/sampler/enums.phpt tests/sampler/metric-units.phpt tests/sampler/object-model.phpt tests/sampler/process-sampler.phpt tests/sampler/process-extended-metrics.phpt tests/sampler/sampler-errors.phpt tests/sampler/unsupported-metric-exception.phpt tests/sampler/sampler-lifetime.phpt tests/sampler/sampler-since-order.phpt tests/sampler/sampler-delta-properties.phpt tests/darwin/sampler-probe-shim.phpt'` passed all twelve tests.
+- The full suite with the installed opcache module passed **88 tests, with 21 skipped and zero failures**.
+- Composer validation, generated-stub freshness, PHP_CodeSniffer, PHPStan, and all four declaration-analysis
+  configurations passed.
+- Markdown lint, 77 local link targets and Markdown heading fragments, and final diff checks passed.
+
+Native Windows/macOS execution, other PHP versions, 32-bit PHP, and remote CI were not exercised for this documentation
+slice. The Darwin probe test uses native-call substitutes on Linux. Source inspection of another platform's support
+mask establishes intended support, without establishing availability on a particular host.
+
+The development guide remains a separate planned slice. Changes remain uncommitted for review.
+
 The findings, source line numbers, and examples below describe the reviewed revision identified above. Examples using
 the removed global API require that revision; they are retained as historical experimental evidence.
 

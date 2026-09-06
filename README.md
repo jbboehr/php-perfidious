@@ -82,6 +82,7 @@ See also the [`examples`](./examples) directory and the [`stub`](./perfidious.st
 
 `Sampler` is the starting point when the metrics you need are available through the common API. The current process is
 the default scope, and CPU time plus page faults are supported for that scope on Linux, Windows, and macOS.
+See the [support matrix](docs/SAMPLER_API.md#support-matrix) for all implemented platform and scope combinations.
 
 ```php
 use Perfidious\Metric;
