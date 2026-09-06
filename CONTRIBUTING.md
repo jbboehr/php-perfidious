@@ -5,6 +5,8 @@ Thank you for considering a contribution to this project.
 Bug reports, feature suggestions, documentation improvements, tests, and code changes are welcome. For substantial
 changes, consider opening an issue first so that the proposed design can be discussed.
 
+See the [development guide](docs/development/guide.md) for local builds, checks, debugging, and Nix test workflows.
+
 ## Pull requests
 
 A pull request should:

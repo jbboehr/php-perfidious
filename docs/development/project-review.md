@@ -1024,6 +1024,52 @@ mask establishes intended support, without establishing availability on a partic
 
 The development guide remains a separate planned slice. Changes remain uncommitted for review.
 
+## Follow-up: development guide
+
+Implementation review base: `6213405`.
+
+The new [development guide](guide.md), linked from `CONTRIBUTING.md`, brings together the local Linux build,
+Composer and declaration checks, PHPT selection, FPM prerequisites, debug hooks, Valgrind, configure regression tests,
+and named Nix build/check targets. It also explains the optional static ASan/UBSan build and its verification limits.
+The root README remains unchanged.
+
+The commands and explanations were checked against the CI workflow, Nix flake and derivation, configure options,
+stub generator, and test fixtures. Package builds are distinguished from check outputs, the ZTS CLI target from
+concurrent threaded execution, and sanitizer instrumentation from leak checking.
+
+### Development guide experimental evidence
+
+Verification on Linux x86-64 with PHP 8.1.34 NTS and extension debug support enabled:
+
+- Entered `nix develop .#php81-gcc-debug` and confirmed that PHP and `php-config` both report 8.1.34 and that
+  `phpize`, Composer, and pre-commit are available.
+- Ran the documented `phpize`, configure, and build sequence in a fresh temporary export of the reviewed source.
+  The module loaded successfully, `Perfidious\DEBUG` was true, and its public API contract test passed.
+- Composer installation found the locked dependencies already installed. Strict validation, stub freshness,
+  PHP_CodeSniffer, PHPStan, all four declaration-analysis configurations, and declaration syntax/load checks passed.
+- The single-test PHPT example passed. The sampler directory passed 13 tests with three platform skips. The
+  request-handle directory passed all 11 tests, including both preload cases with `PERFIDIOUS_TEST_OPCACHE` set.
+- The documented Valgrind cleanup test passed with zero reported test leaks. The full Linux suite passed
+  **88 tests, with 21 skipped and zero failures**.
+- All twelve configure cases passed after adding the installed Dash executable's directory to `PATH`.
+- The named Nix check outputs evaluated successfully. `nix build --offline --dry-run -L` accepted the guide's debug,
+  capability leak, ZTS, debug VM, and two sanitizer targets without building or running them.
+- All configured pre-commit hooks passed. The new guide also passed Markdown lint explicitly because it was still
+  untracked. Its 14 shell blocks passed syntax checks with both Bash and Dash. Local links, heading fragments, and
+  final diff checks passed.
+
+The first configure-test attempt reported that Dash was absent from `PATH`. The guide identifies that prerequisite
+and the script's explicit shell-path options. Re-running `phpize` in the existing workspace also reported permission
+errors when copying over pre-existing read-only generated PHP files. The fresh source export verified the bootstrap
+recipe without those stale files. Configure still emitted the existing `AX_IS_RELEASE` ordering warning, and Nix
+reported existing overrides for absent upstream inputs. Neither prevented the successful checks described above.
+
+The full Nix build/check matrix, NixOS VM, sanitizer runtime, native Windows/macOS, other PHP versions, and 32-bit
+execution were not run for this documentation slice. Nix evaluation and dry runs establish target resolution, not
+successful builds or runtime behavior. The focused Valgrind run does not constitute a full leak audit.
+
+Changes remain uncommitted for review.
+
 The findings, source line numbers, and examples below describe the reviewed revision identified above. Examples using
 the removed global API require that revision; they are retained as historical experimental evidence.
 
