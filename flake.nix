@@ -277,9 +277,13 @@
                 virtualisation.qemu.options = ["-cpu host"];
                 boot.kernel.sysctl."kernel.perf_event_paranoid" = -1;
                 boot.kernel.sysctl."kernel.kptr_restrict" = lib.mkForce 0;
-                environment.systemPackages = [
-                  php
-                ];
+                environment.systemPackages =
+                  [php]
+                  ++ lib.optionals runPhpt [
+                    pkgs.stdenv.cc
+                    php.unwrapped.dev
+                    pkgs.python3
+                  ];
 
                 services.nginx = {
                   enable = true;
@@ -334,7 +338,8 @@
               ${lib.optionalString runPhpt ''
                 machine1.succeed("cp -r --no-preserve=mode,ownership ${src}/* .")
                 machine1.succeed("cp --no-preserve=mode,ownership ${php.unwrapped.dev}/lib/build/run-tests.php .")
-                machine1.succeed("TEST_PHP_DETAILED=1 NO_INTERACTION=1 REPORT_EXIT_STATUS=1 php run-tests.php || (find tests -name '*.log' | xargs -n1 cat ; exit 1)")
+                phpt_output = machine1.succeed("TEST_PHP_DETAILED=1 NO_INTERACTION=1 REPORT_EXIT_STATUS=1 php run-tests.php || (find tests -name '*.log' | xargs -n1 cat ; exit 1)")
+                (driver.out_dir / "phpt.log").write_text(phpt_output, encoding="utf-8")
               ''}
 
               machine1.wait_for_unit("nginx.service")

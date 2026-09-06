@@ -203,8 +203,18 @@ nix build -L .#checks.x86_64-linux.php81-gcc-debug-vmtest
 
 This target starts Nginx and a single FPM worker, then checks repeated requests and injected lifecycle failures using
 [nix/vm-test/index.php](../../nix/vm-test/index.php). It does not rerun the full PHPT suite. The `php81-gcc-vmtest` and
-`php85-gcc-vmtest` checks also run PHPTs inside the VM. The guest configures its own perf permissions. Host or nested
-virtualization restrictions can still affect counter availability.
+`php85-gcc-vmtest` checks also run PHPTs inside the VM, with Python, a C compiler, and matching PHP headers available for
+the native and FPM fixtures. Successful release checks retain the suite output, including skip reasons, as `phpt.log`:
+
+```sh
+nix build -L --out-link /tmp/perfidious-vm-result .#checks.x86_64-linux.php81-gcc-vmtest
+cat /tmp/perfidious-vm-result/phpt.log
+```
+
+Use `php85-gcc-vmtest` for the PHP 8.5 release check. The guest suite runs as root, so the two PHPTs requiring non-root
+master-process preloading skip. The guest configures its own perf permissions; host or nested virtualization
+restrictions can still affect counter availability. The Nginx/FPM lifecycle assertions deliberately avoid counter
+magnitudes and do not replace the PHPTs that check live measurements.
 
 ### Optional ASan/UBSan build
 

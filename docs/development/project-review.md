@@ -56,9 +56,10 @@ testing reuse of an unrelated resource.
 
 ### Other platform and instrumentation coverage
 
-The local records below leave native Windows/macOS execution, the full NixOS VM, and sanitizer runtime unverified for
-several slices. Evaluate those gaps against each change's recorded environment and limits. Passing a Unix shim or a Nix
-dry run does not establish native execution.
+The [NixOS VM follow-up](#follow-up-nixos-vm-integration) passed the three existing x86-64 VM targets. Two guest preload
+PHPTs still skip because the suite runs as root. Native Windows/macOS and sanitizer runtime remain unverified for
+several slices; evaluate those gaps against each change's recorded environment and limits. Passing a Unix shim does
+not establish native execution.
 
 ### Optional shutdown recovery and declaration generation
 
@@ -1315,6 +1316,43 @@ versions changed when updating the Composer lockfile.
 
 This was a compile-time rejection check, not a 32-bit extension runtime qualification or a new 32-bit CI commitment.
 Native Windows/macOS, sanitizer runtime, and the full NixOS VM were not exercised for this slice.
+
+### Follow-up: NixOS VM integration
+
+Implementation review base: `311916f`. All three existing x86-64 NixOS VM targets passed under QEMU/KVM, using Linux
+6.18.40 guests. The extension source is unchanged in this slice.
+
+The first run passed its assertions but discarded successful PHPT output. Retaining that output exposed ten skips in
+each release guest caused by missing Python or compiler tools. The release VMs now include Python, a C compiler, and
+matching PHP development headers, and save successful suite output as `phpt.log` in the Nix result. The existing failure
+command and exit-status checks are preserved. Reproduction commands are in the [development guide](guide.md#nixos-vm-integration).
+
+#### VM integration experimental evidence
+
+| Target | Guest checks | Result |
+| --- | --- | --- |
+| `php81-gcc-debug-vmtest` | PHP 8.1.34; Nginx/FPM request lifecycle and injected failures | Passed |
+| `php81-gcc-vmtest` | PHP 8.1.34; PHPT suite and Nginx/FPM request lifecycle | 78 passed, 35 skipped, zero failures |
+| `php85-gcc-vmtest` | PHP 8.5.8; PHPT suite and Nginx/FPM request lifecycle | 78 passed, 35 skipped, zero failures |
+
+Each target served ten successful requests through one static FPM worker and checked readable, nonnegative integer
+counters. The debug target additionally checked deferred delivery of an injected shutdown error, recovery on the next
+request, and deferred delivery after explicit descriptor invalidation. For each injected failure, the follow-up
+requests retained the triggering worker PID. The lifecycle endpoint deliberately makes no counter-magnitude assertion.
+
+Before adding guest tools, each release suite reported 70 passed and 43 skipped. The final runs exercised four more FPM
+tests and four native fixtures: Darwin CPU-time conversion, Darwin capability probing, sampler construction, and the
+Windows sampler shim. Both saved transcripts contain the final pass/skip breakdown, with no missing-tool skips. The
+debug target's derivation remained unchanged, so its initial successful execution also covers the final configuration.
+
+The 35 skips in each release guest comprise 18 native-platform tests, 13 debug-only tests, two non-root preload tests,
+one ZTS test, and one missing-capability test excluded because the root guest has effective `CAP_PERFMON`. The dedicated
+Nginx/FPM checks do not exercise preloading. These results cover the selected VM configurations; they do not establish
+native Windows/macOS behavior, all virtualized PMU configurations, or the unexecuted preload, ZTS, debug, and capability
+paths in the release guest suites. Earlier local experiments retain their own scope and results.
+
+Configured lint hooks and documentation links passed. Host PHPT, Valgrind, and sanitizer suites were not rerun because
+the changes affect VM test dependencies and retained evidence.
 
 ## Initial review and verification
 
