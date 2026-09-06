@@ -4,9 +4,58 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "73595950a63a61c9ed0809c706750b7e",
+    "content-hash": "e9999a7baf7e1e3999d9f8757f42994a",
     "packages": [],
     "packages-dev": [
+        {
+            "name": "jbboehr/doctrine-of-the-second-sun",
+            "version": "dev-master",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/jbboehr/doctrine-of-the-second-sun.git",
+                "reference": "987702c25d9915d950857aef712d73880bdc0194"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/jbboehr/doctrine-of-the-second-sun/zipball/987702c25d9915d950857aef712d73880bdc0194",
+                "reference": "987702c25d9915d950857aef712d73880bdc0194",
+                "shasum": ""
+            },
+            "require-dev": {
+                "php-cs-fixer/shim": "^3.95",
+                "phpstan/phpstan": "^2.1",
+                "phpunit/phpunit": "^10.5 || ^11.5"
+            },
+            "default-branch": true,
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "DoctrineOfTheSecondSun\\PHPStan\\": "integrations/phpstan/src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "(CC-BY-SA-4.0 AND AGPL-3.0-only WITH romic-exception)"
+            ],
+            "authors": [
+                {
+                    "name": "John Boehr",
+                    "email": "jbboehr@mailbox.org"
+                }
+            ],
+            "description": "Portable literary, visual, coding, technical-writing, and software-stewardship guidance",
+            "keywords": [
+                "doctrine",
+                "documentation",
+                "software-maintenance",
+                "writing"
+            ],
+            "support": {
+                "issues": "https://github.com/jbboehr/doctrine-of-the-second-sun/issues",
+                "source": "https://github.com/jbboehr/doctrine-of-the-second-sun"
+            },
+            "time": "2026-09-06T02:45:11+00:00"
+        },
         {
             "name": "phpstan/phpstan",
             "version": "1.12.5",
@@ -147,7 +196,9 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": {
+        "jbboehr/doctrine-of-the-second-sun": 20
+    },
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
