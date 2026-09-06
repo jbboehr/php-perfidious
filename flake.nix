@@ -491,13 +491,16 @@
         # Build Perfidious into PHP so CLI and FPM use the same instrumented extension.
         # Only Perfidious's objects are instrumented; PHP core links the sanitizer runtimes.
         # Rebuilding PHP is slow, so these targets are excluded from the normal package/check/shell
-        # matrices and exposed separately as sanitize-static-php82(-debug)(-check).
+        # matrices and exposed separately below.
         sanitizeStdenv =
           if pkgs.stdenv.cc.isClang
           then pkgs.llvmPackages.stdenv
           else pkgs.stdenv;
 
-        makeSanitizeStaticPhp = {debugSupport ? false}: let
+        makeSanitizeStaticPhp = {
+          debugSupport ? false,
+          ztsSupport ? false,
+        }: let
           basePhp = pkgs.php82.unwrapped;
         in
           pkgs.callPackage (nixpkgs + "/pkgs/development/interpreters/php/generic.nix") {
@@ -505,6 +508,11 @@
             pcre2 = pkgs.pcre2.override {withJitSealloc = false;};
             version = basePhp.version;
             phpSrc = basePhp.src;
+            inherit ztsSupport;
+            # The threaded fixture uses CLI SAPI callbacks.
+            cgiSupport = !ztsSupport;
+            fpmSupport = !ztsSupport;
+            phpdbgSupport = !ztsSupport;
             phpAttrsOverrides = final: prev: {
               buildInputs = prev.buildInputs ++ [pkgs.libcap pkgs.libpfm];
               postPatch =
@@ -516,7 +524,7 @@
                   # (which has no m4/ dir of its own), not relative to ext/perfidious/
                   cp -r ext/perfidious/m4 m4
                   # PHP core is not instrumented, so its loader needs the sanitizer-compatible
-                  # flags explicitly when loading the shared OpCache module for preload tests.
+                  # flags explicitly when loading OpCache or a shared test helper.
                   substituteInPlace Zend/zend_portability.h \
                     --replace-fail 'PHP_RTLD_MODE | RTLD_GLOBAL | RTLD_DEEPBIND' \
                       'PHP_RTLD_MODE | RTLD_GLOBAL'
@@ -539,12 +547,16 @@
 
         sanitizeStaticPhp = makeSanitizeStaticPhp {};
         sanitizeStaticPhpDebug = makeSanitizeStaticPhp {debugSupport = true;};
+        sanitizeStaticPhpZtsDebug = makeSanitizeStaticPhp {
+          debugSupport = true;
+          ztsSupport = true;
+        };
 
         makeSanitizeStaticPhpCheck = {
           php,
           debugSupport ? false,
         }:
-          pkgs.runCommand "perfidious-sanitize-static${lib.optionalString debugSupport "-debug"}-check" {
+          pkgs.runCommand "perfidious-sanitize-static${lib.optionalString php.ztsSupport "-zts"}${lib.optionalString debugSupport "-debug"}-check" {
             nativeBuildInputs = [sanitizeStdenv.cc pkgs.php82 php.dev pkgs.python3];
           } ''
             cp -r --no-preserve=mode,ownership ${src}/tests .
@@ -559,9 +571,25 @@
             export UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1"
             export NO_INTERACTION=1
             export REPORT_EXIT_STATUS=1
+            export PATH=${php.dev}/bin:$PATH
             export PERFIDIOUS_STUB_PHP=${pkgs.php82}/bin/php
-            export PERFIDIOUS_TEST_FPM_BUILTIN=1
-            export PERFIDIOUS_TEST_OPCACHE=${pkgs.php82.extensions.opcache}/lib/php/extensions/opcache.so
+            ${
+              if php.ztsSupport
+              then ''
+                export PERFIDIOUS_TEST_ZTS_BUILTIN=1
+                export PERFIDIOUS_TEST_ZTS_SANITIZE=1
+                ${php}/bin/php -n -r '
+                  if (!PHP_ZTS) {
+                    fwrite(STDERR, "ZTS PHP is required for this check\n");
+                    exit(1);
+                  }
+                '
+              ''
+              else ''
+                export PERFIDIOUS_TEST_FPM_BUILTIN=1
+                export PERFIDIOUS_TEST_OPCACHE=${pkgs.php82.extensions.opcache}/lib/php/extensions/opcache.so
+              ''
+            }
 
             ${lib.optionalString debugSupport ''
               ${php}/bin/php -n -r '
@@ -582,8 +610,12 @@
           php = sanitizeStaticPhpDebug;
           debugSupport = true;
         };
+        sanitizeStaticPhpZtsDebugCheck = makeSanitizeStaticPhpCheck {
+          php = sanitizeStaticPhpZtsDebug;
+          debugSupport = true;
+        };
       in {
-        # sanitize-static-php82(-debug)(-check) are added only here, to the *returned*
+        # Sanitizer targets are added only here, to the *returned*
         # packages set, not the `packages` variable devShells/checks below are built from - see
         # makeSanitizeStaticPhp's comment above.
         packages =
@@ -593,6 +625,8 @@
             sanitize-static-php82-check = sanitizeStaticPhpCheck;
             sanitize-static-php82-debug = sanitizeStaticPhpDebug;
             sanitize-static-php82-debug-check = sanitizeStaticPhpDebugCheck;
+            sanitize-static-php82-zts-debug = sanitizeStaticPhpZtsDebug;
+            sanitize-static-php82-zts-debug-check = sanitizeStaticPhpZtsDebugCheck;
           };
 
         devShells = builtins.mapAttrs (name: package: makeDevShell package) packages;

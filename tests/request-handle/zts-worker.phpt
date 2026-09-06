@@ -21,7 +21,7 @@ foreach (['cc', 'php-config', 'timeout'] as $tool) {
     }
 }
 require __DIR__ . '/fpm-worker-artifacts.inc';
-if (perfidious_test_module_path() === null) {
+if (getenv('PERFIDIOUS_TEST_ZTS_BUILTIN') !== '1' && perfidious_test_module_path() === null) {
     die('skip: requires a shared perfidious module');
 }
 ?>
@@ -52,13 +52,19 @@ register_shutdown_function(static function () use ($fixture): void {
     @unlink($fixture);
 });
 $includes = preg_split('/\s+/', trim(ztsCommand(['php-config', '--includes'])));
+$sanitizers = getenv('PERFIDIOUS_TEST_ZTS_SANITIZE') === '1' ? [
+    '-fsanitize=address,undefined', '-fno-sanitize-recover=all', '-fno-omit-frame-pointer', '-g', '-O1',
+] : [];
 ztsCommand([
     'cc', '-D_GNU_SOURCE', '-DZEND_ENABLE_STATIC_TSRMLS_CACHE=1', '-std=c11',
     '-Wall', '-Wextra', '-Werror', '-Wno-unused-parameter', '-shared', '-fPIC', '-pthread',
-    ...$includes, __DIR__ . '/zts-worker.c', '-o', $fixture,
+    ...$sanitizers, ...$includes, __DIR__ . '/zts-worker.c', '-o', $fixture,
 ]);
+$module = getenv('PERFIDIOUS_TEST_ZTS_BUILTIN') === '1' ? [] : [
+    '-d', 'extension=' . perfidious_test_module_path(),
+];
 echo ztsCommand([
-    'timeout', '--kill-after=5', '30', PHP_BINARY, '-n', '-d', 'extension=' . perfidious_test_module_path(),
+    'timeout', '--kill-after=5', '30', PHP_BINARY, '-n', ...$module,
     '-d', 'extension=' . $fixture, '-d', 'max_execution_time=0', '-d', 'perfidious.request.enable=1',
     '-d', 'perfidious.request.metrics=perf::PERF_COUNT_SW_TASK_CLOCK:u', '-r', <<<'PHP'
 $main = Perfidious\request_handle();

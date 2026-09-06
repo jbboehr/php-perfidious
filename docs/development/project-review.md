@@ -35,10 +35,11 @@ additions are recorded in the follow-ups.
 
 ### Persistent handles under a threaded ZTS SAPI
 
-The [threaded ZTS follow-up](#follow-up-threaded-zts-request-lifecycle) now exercises real concurrent worker requests
-and thread destruction on Linux with PHP 8.5.8. It uses a test-only request runner with CLI SAPI callbacks. Other PHP
-ZTS versions and production threaded SAPIs remain unverified; the local fixture does not establish their integration
-behavior or rule out every schedule-dependent failure.
+The [threaded ZTS follow-up](#follow-up-threaded-zts-request-lifecycle) exercises real concurrent worker requests and
+thread destruction on Linux with PHP 8.5.8. The [PHP 8.2 ZTS follow-up](#follow-up-php-82-zts-under-asanubsan) adds
+ASan/UBSan coverage on PHP 8.2.32, including a run restricted to one CPU. Both use a test-only request runner with CLI
+SAPI callbacks. Other ZTS versions and production threaded SAPIs remain unverified; these runs do not establish their
+integration behavior or rule out every schedule-dependent failure.
 
 ### Windows sampler close failures
 
@@ -60,8 +61,9 @@ The [NixOS VM follow-up](#follow-up-nixos-vm-integration) passed the three exist
 PHPTs still skip because the suite runs as root. The [ASan/UBSan follow-up](#follow-up-asanubsan-runtime-verification)
 passed on Linux with PHP 8.2.32 release NTS. The [debug sanitizer follow-up](#follow-up-debug-hooks-under-asanubsan)
 additionally exercised twelve debug-only tests. The [FPM sanitizer follow-up](#follow-up-fpm-under-asanubsan) passed all
-six existing FPM fixtures, including preloading, in both extension build modes. Sanitizer coverage of ZTS remains
-unverified, as does local native Windows/macOS execution. The [PIE CI follow-up](#follow-up-pie-compatibility-for-the-64-bit-policy) records
+six existing FPM fixtures, including preloading, in both extension build modes. The
+[ZTS sanitizer follow-up](#follow-up-php-82-zts-under-asanubsan) adds concurrent CLI request coverage. Local native
+Windows/macOS sanitizer execution remains unverified. The [PIE CI follow-up](#follow-up-pie-compatibility-for-the-64-bit-policy) records
 successful native-platform CI jobs separately. Evaluate these gaps against each change's recorded environment and
 limits. Passing a Unix shim does not establish native execution.
 
@@ -1517,6 +1519,59 @@ ZTS sanitizer coverage, native Windows/macOS, the two replacement-extension fixt
 fixture remain outside these sanitizer suite runs. LeakSanitizer and Zend allocation remain disabled, and native
 harnesses compiled by PHPTs do not inherit the extension's sanitizer flags. VM and Valgrind suites were not rerun;
 in particular, this does not change the root-user preload skips in the VM suite.
+
+### Follow-up: PHP 8.2 ZTS under ASan/UBSan
+
+Review base: `570543a`. The new opt-in `sanitize-static-php82-zts-debug` and
+`sanitize-static-php82-zts-debug-check` targets build a PHP 8.2 ZTS CLI with Perfidious's debug hooks and ASan/UBSan.
+They reuse the existing sanitizer definitions and remain outside the ordinary CI matrix. FPM, CGI, and phpdbg are
+omitted from this variant; the NTS targets retain their FPM coverage. No extension source or native worker assertions
+changed.
+
+The [threaded PHPT](../../tests/request-handle/zts-worker.phpt) now accepts a built-in extension when
+`PERFIDIOUS_TEST_ZTS_BUILTIN=1`. With `PERFIDIOUS_TEST_ZTS_SANITIZE=1`, it also compiles its native helper with both
+sanitizers, recovery disabled, frame pointers, and debug information. The new check supplies those settings and puts
+the paired `php-config` first on PATH. The child retains the sanitizer options and uses the same sanitizer-linked PHP
+executable; removing loader-preload variables in the existing launcher does not remove its linked runtimes.
+
+Before changing the launcher, a coverage assertion failed because the threaded test skipped the new PHP 8.2.32 ZTS
+binary with the shared-module requirement. Afterward, the focused test passed normally and restricted to CPU 0.
+The generated check preflights accepted ZTS with extension debug hooks and rejected NTS PHP with the expected diagnostic.
+Runtime constants confirmed `PHP_ZTS = 1`, `PHP_DEBUG = 0`, and `Perfidious\DEBUG = true`.
+
+```sh
+nix build --no-link -L .#sanitize-static-php82-zts-debug-check > /tmp/perfidious-zts-sanitizer.log 2>&1
+cat /tmp/perfidious-zts-sanitizer.log
+```
+
+Fresh Linux x86-64 builds with GCC 15.2.0 produced these full-suite results, all with zero test warnings or failures:
+
+| PHP | Thread mode | Extension / instrumentation | Passed | Skipped |
+| --- | --- | --- | ---: | ---: |
+| 8.2.32 | ZTS | Debug, ASan/UBSan | 83 | 31 |
+| 8.2.32 | NTS | Debug, ASan/UBSan | 89 | 25 |
+| 8.2.32 | NTS | Release, ASan/UBSan | 79 | 35 |
+| 8.5.8 | ZTS | Shared release module | 76 | 38 |
+
+The threaded test passed in both ZTS suites, preserving event identity, CPU attribution, request reset, survivor
+behavior, and descriptor cleanup across two waves. The PHP 8.5 Nix check passed both before and after the launcher
+change, including its PHPT Valgrind pass with zero reported test leaks. That Valgrind pass covers the launcher;
+it does not add a new direct worker-process Valgrind run to the [earlier evidence](#threaded-zts-experimental-evidence).
+
+All ten Perfidious source files were instrumented in each PHP 8.2 build. The ZTS executable links both runtimes, and
+its request-initialization and thread-global cleanup functions contain checks from both sanitizers. A retained copy
+of the helper compiled by the actual single-CPU PHPT run imports ASan/UBSan symbols; its `run_worker()` also contains
+both sanitizers' checks. No sanitizer findings appeared.
+
+The ZTS target's 31 skips comprise 18 native-platform tests, seven FPM tests, two replacement-extension fixtures, the
+shared-module CLI metric-list fixture, two release-only tests, and the debug permission-denial test. AArch64 targets
+evaluated but were not built. [PHP checks](#shared-php-checks), PHP and generated Bash syntax, configured lint hooks,
+and documentation links passed; the ordinary CI matrix was unchanged.
+
+PHP core and dependencies remain uninstrumented, LeakSanitizer and Zend allocation remain disabled, and other native
+harnesses do not inherit sanitizer flags. These runs cover the selected Linux CLI configurations. They do not establish
+production threaded-SAPI integration, other PHP versions, native Windows/macOS sanitizer behavior, or exhaustive race
+detection. VM tests and a direct threaded Valgrind run were not repeated for this slice.
 
 ## Initial review and verification
 

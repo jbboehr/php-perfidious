@@ -115,8 +115,9 @@ to check that reports and unsuccessful shutdowns cause a test failure.
 
 ### Threaded ZTS requests
 
-The [ZTS worker test](../../tests/request-handle/zts-worker.phpt) requires 64-bit Linux, a ZTS PHP CLI binary, a shared
-Perfidious module, matching `php-config` headers, `cc`, and GNU `timeout` on PATH. After building with that PHP toolchain,
+The [ZTS worker test](../../tests/request-handle/zts-worker.phpt) requires 64-bit Linux, a ZTS PHP CLI binary, Perfidious,
+matching `php-config` headers, `cc`, and GNU `timeout` on PATH. By default it locates and loads the shared Perfidious
+module. Set `PERFIDIOUS_TEST_ZTS_BUILTIN=1` when Perfidious is built into PHP. After building with that PHP toolchain,
 run it with:
 
 ```sh
@@ -129,7 +130,10 @@ checks attribution. One thread exits before the other performs another request. 
 the process must return to its original perf-descriptor count after each wave. The child has a 30-second timeout with
 a five-second kill grace period.
 
-The existing `php85-zts` Nix check includes this test. NTS runs skip it. When invoking a different PHP version's test
+The existing `php85-zts` Nix check includes this test. The optional
+[PHP 8.2 ZTS sanitizer target](#optional-asanubsan-build) also sets `PERFIDIOUS_TEST_ZTS_SANITIZE=1` to instrument the
+native helper with ASan/UBSan. It supplies matching headers and a PHP executable linked to both sanitizer runtimes.
+NTS runs skip the threaded test. When invoking a different PHP version's test
 runner directly, use its paired `run-tests.php` and clear inherited `TEST_PHP_ARGS` that load another version's INI file
 or extensions. The fixture uses CLI SAPI callbacks as a small threaded request runner; it does not exercise Apache,
 FrankenPHP, or every production threaded SAPI. A PHPT Valgrind run covers its launcher, so checking the worker process
@@ -244,24 +248,37 @@ The debug variant adds `--enable-perfidious-debug`; PHP core remains a release N
 `Perfidious\DEBUG` to be true before running the suite, so a build without debug hooks fails instead of silently
 skipping those tests.
 
+For concurrent request startup, reuse, and thread teardown, use the ZTS debug variant:
+
+```sh
+nix build -L .#sanitize-static-php82-zts-debug
+nix build -L .#sanitize-static-php82-zts-debug-check
+```
+
+This variant builds a ZTS CLI executable with extension debug hooks. It requires both `PHP_ZTS` and `Perfidious\DEBUG`
+before running the suite. PHP core remains a release build. It omits FPM, CGI, and phpdbg; the NTS targets provide the
+FPM coverage described above.
+
 These targets are opt-in and are excluded from the normal Nix check matrix. The configure flag
 `--enable-perfidious-sanitize` instruments the extension's objects with ASan and UBSan. The Nix target links the
 sanitizer runtimes into PHP, but it does not instrument all PHP core code.
 
-Both check targets set `USE_ZEND_ALLOC=0`, supply the sanitizer runtime environment, and use an ordinary PHP binary
-for stub reflection through `PERFIDIOUS_STUB_PHP`. They also supply Python 3, the matching OpCache module, and
-`PERFIDIOUS_TEST_FPM_BUILTIN=1` for the FPM fixtures. These opt-in PHP builds omit `RTLD_DEEPBIND` when loading shared
-modules because ASan rejects that flag; this allows OpCache to load for preloading. PHP core and OpCache are not
-instrumented. LeakSanitizer is disabled in both targets. Use the Valgrind checks for leak testing, and inspect
+All sanitizer checks set `USE_ZEND_ALLOC=0`, supply the sanitizer runtime environment and matching `php-config`, and use
+an ordinary PHP binary for stub reflection through `PERFIDIOUS_STUB_PHP`. The NTS targets also supply Python 3, the
+matching OpCache module, and `PERFIDIOUS_TEST_FPM_BUILTIN=1` for the FPM fixtures. The ZTS target sets
+`PERFIDIOUS_TEST_ZTS_BUILTIN=1` and `PERFIDIOUS_TEST_ZTS_SANITIZE=1` for the threaded fixture. These opt-in PHP builds
+omit `RTLD_DEEPBIND` when loading shared modules because ASan rejects that flag; this allows OpCache and the threaded
+test helper to load. PHP core and OpCache are not instrumented. LeakSanitizer is disabled. Use the Valgrind checks for leak testing, and inspect
 sanitizer test skips rather than assuming they match a shared-module build.
 
-Both static builds still skip the CLI request-metric fixture, which requires a shared module, and fixtures that replace
-the built-in extension. ZTS tests skip in both NTS targets; debug-only tests skip in the release extension target.
-The FPM preload tests require a non-root test user. Native harnesses compiled by PHPTs do not inherit the extension's
-sanitizer flags. See the
+All static builds still skip the CLI request-metric fixture, which requires a shared module, and fixtures that replace
+the built-in extension. ZTS tests skip in NTS targets; debug-only tests skip in the release extension target. FPM tests
+skip in the ZTS CLI target, and the NTS preload tests require a non-root test user. Apart from the explicitly instrumented
+ZTS helper, native harnesses compiled by PHPTs do not inherit the extension's sanitizer flags. See the
 [release sanitizer record](project-review.md#follow-up-asanubsan-runtime-verification) and
 [debug sanitizer record](project-review.md#follow-up-debug-hooks-under-asanubsan), followed by the
-[FPM sanitizer record](project-review.md#follow-up-fpm-under-asanubsan), for measured coverage and limitations.
+[FPM sanitizer record](project-review.md#follow-up-fpm-under-asanubsan) and
+[ZTS sanitizer record](project-review.md#follow-up-php-82-zts-under-asanubsan), for measured coverage and limitations.
 
 To rerun the suite after a cached success and save its output:
 
@@ -270,4 +287,4 @@ nix build --rebuild --no-link -L .#sanitize-static-php82-check > /tmp/perfidious
 cat /tmp/perfidious-sanitizer-phpt.log
 ```
 
-Use `sanitize-static-php82-debug-check` in the same command to rerun the debug variant.
+Use `sanitize-static-php82-debug-check` or `sanitize-static-php82-zts-debug-check` in the same command to rerun those variants.
