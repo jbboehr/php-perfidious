@@ -23,6 +23,7 @@
 #endif
 
 #include <errno.h>
+#include <limits.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/capability.h>
@@ -220,16 +221,16 @@ static PHP_FUNCTION(perfidious_open)
     }
 #endif
 
-    // Check cpu for overflow when selecting a particular CPU.
-    if (cpu != -1) {
-        long int n_proc_onln = sysconf(_SC_NPROCESSORS_ONLN);
-
-        if (cpu > n_proc_onln) {
-            zend_throw_exception_ex(
-                perfidious_overflow_exception_ce, 0, "cpu too large: %ld > %ld", cpu, n_proc_onln
-            );
-            return;
-        }
+    if (UNEXPECTED(cpu < -1)) {
+        zend_argument_value_error(3, "must be -1 or a nonnegative CPU identifier");
+        return;
+    }
+    // CPU IDs may be sparse. Check the native width and let the kernel validate availability.
+    if (UNEXPECTED(cpu > INT_MAX)) {
+        zend_throw_exception_ex(
+            perfidious_overflow_exception_ce, 0, "cpu too large: %" ZEND_LONG_FMT_SPEC " > %d", cpu, INT_MAX
+        );
+        return;
     }
 
     size_t event_names_count = zend_array_count(event_names_ht);

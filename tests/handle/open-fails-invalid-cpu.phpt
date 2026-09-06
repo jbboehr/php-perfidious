@@ -4,6 +4,7 @@ Perfidious\Handle (open fails with invalid cpu)
 perfidious
 --SKIPIF--
 <?php require __DIR__ . '/../skipif-linux-only.inc'; ?>
+<?php if (PHP_INT_SIZE < 8) die('skip: requires PHP integers wider than native CPU IDs'); ?>
 --FILE--
 <?php
 $rv = Perfidious\open([

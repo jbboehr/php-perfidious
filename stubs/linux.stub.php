@@ -56,7 +56,9 @@ function list_pmu_events(int $pmu): array
 
 /**
  * @param list<string> $event_names a list of libpfm event names, see list_pmu_events
- * @throws PmuEventNotFoundException|IOException|OverflowException
+ * @param int $pid process/thread selector, which must fit the native PID type
+ * @param int $cpu -1 or a nonnegative CPU ID that fits a native int, with availability checked by the kernel
+ * @throws PmuEventNotFoundException|IOException|OverflowException|\ValueError
  *
  * @phpstan-template T of string
  * @phpstan-param list<T> $event_names

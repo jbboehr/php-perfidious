@@ -702,6 +702,67 @@ remain unverified. The earlier Valgrind run was not repeated because this follow
 
 The handoff file was removed after evaluation and checks. Nothing was committed.
 
+## Follow-up: R07 PID and CPU validation
+
+Implementation review base: `81540cd`.
+
+This slice completes the remaining R07 validation changes. PID conversion now checks both bounds of the configured
+native `pid_t` before casting a wider PHP integer. Values outside that range raise `OverflowException`, with the
+original signed value in the diagnostic. Representable negative PIDs retain their existing native validation path.
+
+CPU arguments below `-1` now raise an argument-specific `ValueError`. Values above `INT_MAX` retain
+`OverflowException`, and the diagnostic reports the actual native integer limit. The online CPU-count check was
+removed. [`sysconf(_SC_NPROCESSORS_ONLN)`](https://man7.org/linux/man-pages/man3/sysconf.3.html) reports a count, so it
+cannot establish whether a particular CPU ID exists when numbering has gaps. Representable CPU IDs now reach
+[`perf_event_open()`](https://man7.org/linux/man-pages/man2/perf_event_open.2.html), which validates availability and
+permissions. The `-1` CPU sentinel and PID capability checks retain their existing behavior.
+
+The Linux declaration documents the PID/CPU constraints and `ValueError`, and the aggregate stub was regenerated.
+The two existing positive-overflow PHPTs now skip when PHP integers are only 32 bits, because their `PHP_INT_MAX`
+inputs cannot exceed the native Linux PID or CPU integer width in that configuration.
+
+### R07 PID and CPU experimental evidence
+
+The new [argument regression](../../tests/handle/open-identifier-bounds.phpt) first failed against the unchanged
+implementation. `PHP_INT_MIN` and a value just below the native PID minimum reached event validation instead of
+raising `OverflowException`. CPU `-2` and `PHP_INT_MIN` also reached event validation, while CPU `INT_MAX` was
+rejected using the online count despite fitting the native type.
+
+The same test passed after the fix. It covers both PID bounds, CPU values below `-1` and above `INT_MAX`, preservation
+of original values in overflow diagnostics, and accepted integer boundaries. Every call supplies a non-string event
+element so any argument that passes integer validation stops before native acquisition. In a debug build, the test
+also confirms the native-open call count is unchanged. No alternate process or CPU counter was opened by these cases.
+
+A separate bounded experiment replaced only the child process's `sysconf()` online-count result with two. The
+corrected extension let CPU ID seven reach event validation, with zero native-open calls. This models the admission
+check for a sparse numbering case without changing host CPU topology. The PHPT protects the same
+distinction by requiring CPU `INT_MAX` to reach event validation. Neither check establishes successful kernel counter
+acquisition on a physically sparse or offline CPU topology.
+
+Verification on Linux x86-64 with PHP 8.1.34 debug:
+
+- `make -j2` passed with fatal compiler warnings enabled.
+- `NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test TESTS='tests/handle/open-identifier-bounds.phpt tests/handle/open-fails-invalid-pid.phpt tests/handle/open-fails-invalid-cpu.phpt tests/handle/open-fails-non-string-event-no-open.phpt tests/handle/open-failure-cleanup.phpt tests/pmu-identifiers.phpt'` passed all six tests.
+- The full suite with the installed opcache module passed **85 tests, with 21 skipped and zero failures**.
+- The same six focused tests under `USE_ZEND_ALLOC=0 make test TEST_PHP_ARGS='-n -m'` passed with zero reported leaks.
+- Composer validation, generated-stub freshness, PHP_CodeSniffer, PHPStan, and all four declaration-analysis
+  configurations passed.
+- PHP syntax, changed C-fragment formatting, Markdown, and final diff checks passed.
+
+### R07 PID and CPU reliability review
+
+Verdict: **PASS_WITH_RESIDUAL_RISK**. The independent Breaker found no actionable correctness defect. The independent
+Test Attacker found no production failure and strengthened the regression to protect the exact positive PID boundary,
+rejection before narrowing, and the expected event-validation error after representable arguments. The positive PID
+boundary case runs in debug builds, which bypass the capability check. All added cases stop before native acquisition.
+
+The strengthened six-test suite, full suite, Valgrind checks, and static checks were rerun successfully after review.
+No further production changes were needed.
+
+A 32-bit PHP runtime, other PHP versions, native Windows/macOS, physical CPU-topology changes, and remote CI remain
+unverified. Non-debug capability behavior was not executed, including error precedence for a positive PID paired with
+an invalid CPU. That check retains its existing position before CPU validation. Changes remain uncommitted for review.
+
 The findings, source line numbers, and examples below describe the reviewed revision identified above. Examples using
 the removed global API require that revision; they are retained as historical experimental evidence.
 
@@ -715,7 +776,7 @@ the removed global API require that revision; they are retained as historical ex
 | R04 | Allocation bailout can strand native resources before ownership transfer | Factories reordered; controlled ownership/error-path fixture passed; no allocation-failure experiment |
 | R05 | Dash silently disables requested instrumentation | Fixed; twelve Dash/Bash configure cases and a Dash-configured Linux debug build passed |
 | R06 | Counter descriptors lack close-on-exec flags | Fixed; ten descriptor flags and three PHP child-launch paths checked, with atomic syscalls confirmed |
-| R07 | Identifier validation narrows values or rejects sparse CPU IDs | Metadata narrowing fixed with regression coverage; PID/CPU bounds and sparse topology remain pending |
+| R07 | Identifier validation narrows values or rejects sparse CPU IDs | Metadata and PID/CPU bounds fixed with regressions; simulated sparse admission verified, physical sparse topology untested |
 | R08 | Referenced event strings are rejected | Reproduced through the public PHP API |
 | R09 | PMU/event lookup can combine unrelated metadata | Reproduced through the public PHP API |
 | R10 | Non-zero counter assertion compares an array with zero | Reproduced with both a zero-valued array and an empty array |

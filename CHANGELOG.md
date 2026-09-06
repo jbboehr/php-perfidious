@@ -47,6 +47,8 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
 
 ### Fixed
 
+- Linux handle opening checks both PID conversion bounds and requires a CPU ID of `-1` or a nonnegative native integer.
+  CPU IDs are no longer limited by the number of online CPUs, which could reject valid IDs on sparse CPU topologies.
 - Linux PMU metadata lookups reject out-of-range PMU and event identifiers before native integer conversion,
   and error messages preserve the original PHP integer.
 - Linux counter descriptors and raw streams now close automatically when a child executes another program.

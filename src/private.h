@@ -23,6 +23,7 @@
 
 #include <stdbool.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <Zend/zend_API.h>
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_long.h>
@@ -79,10 +80,25 @@ static inline bool perfidious_uint64_t_to_zend_long(uint64_t from, zend_long *re
 static inline bool perfidious_zend_long_to_pid_t(zend_long from, pid_t *restrict to)
 {
 #if SIZEOF_ZEND_LONG > SIZEOF_PID_T
-    const zend_long PID_MAX = (((zend_long) 1) << ((SIZEOF_PID_T * 8) - 1)) - 1;
+    const zend_long PID_MAX = (((zend_long) 1) << ((SIZEOF_PID_T * CHAR_BIT) - 1)) - 1;
+    const zend_long PID_MIN = -PID_MAX - 1;
     if (UNEXPECTED(from > PID_MAX)) {
         zend_throw_exception_ex(
-            perfidious_overflow_exception_ce, 0, "pid too large: %" ZEND_LONG_FMT_SPEC " > %ld", from, PID_MAX
+            perfidious_overflow_exception_ce,
+            0,
+            "pid too large: %" ZEND_LONG_FMT_SPEC " > %" ZEND_LONG_FMT_SPEC,
+            from,
+            PID_MAX
+        );
+        return false;
+    }
+    if (UNEXPECTED(from < PID_MIN)) {
+        zend_throw_exception_ex(
+            perfidious_overflow_exception_ce,
+            0,
+            "pid too small: %" ZEND_LONG_FMT_SPEC " < %" ZEND_LONG_FMT_SPEC,
+            from,
+            PID_MIN
         );
         return false;
     }
