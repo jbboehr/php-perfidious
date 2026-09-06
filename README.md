@@ -3,11 +3,10 @@
 
 [![ci](https://github.com/jbboehr/php-perfidious/actions/workflows/ci.yml/badge.svg)](https://github.com/jbboehr/php-perfidious/actions/workflows/ci.yml)
 [![Codecov](https://codecov.io/gh/jbboehr/php-perfidious/graph/badge.svg?token=DSLDXIWHC5)](https://codecov.io/gh/jbboehr/php-perfidious)
-[![Coveralls](https://coveralls.io/repos/github/jbboehr/php-perfidious/badge.svg?branch=master)](https://coveralls.io/github/jbboehr/php-perfidious?branch=master)
-[![License: AGPL v3+](https://img.shields.io/badge/License-AGPL_v3%2b-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
-![Language](https://img.shields.io/github/languages/top/jbboehr/php-perfidious)
-![Tag](https://img.shields.io/github/v/tag/jbboehr/php-perfidious)
+[![License: AGPL-3.0-only WITH romic-exception](https://img.shields.io/badge/license-AGPL--3.0--only%20WITH%20romic--exception-blue.svg)](LICENSE.md)
+[![Tag](https://img.shields.io/github/v/tag/jbboehr/php-perfidious)](https://github.com/jbboehr/php-perfidious/releases)
 ![stability-experimental](https://img.shields.io/badge/stability-experimental-orange.svg)
+[![AI burn](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2Fjbboehr%2F553936a99fb41cf6dc90a5fee06a2516%2Fraw%2Fagent-badge.json&cacheSeconds=300)](https://github.com/arlegotin/agent-badge)
 
 This extension provides a common sampler for a small set of process and thread metrics, plus low-level access to Linux
 `perf_events` and experimental Windows and macOS performance APIs.

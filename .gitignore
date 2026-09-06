@@ -65,3 +65,9 @@ vgcore.*
 /tmp/
 
 /vendor/
+
+# agent-badge:gitignore:start
+.github/agent-badge/state.json
+.github/agent-badge/cache/
+.github/agent-badge/logs/
+# agent-badge:gitignore:end

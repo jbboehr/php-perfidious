@@ -21,6 +21,10 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
+    agent-badge = {
+      url = "github:jbboehr/agent-badge.ts/master";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     systems.url = "github:nix-systems/default-linux";
     flake-utils = {
       url = "github:numtide/flake-utils";
@@ -49,6 +53,7 @@
     self,
     nixpkgs,
     nixpkgs-unstable,
+    agent-badge,
     systems,
     flake-utils,
     gitignore,
@@ -212,6 +217,7 @@
             inputsFrom = [package];
             buildInputs = with pkgs; [
               actionlint
+              agent-badge.packages.${system}.default
               autoconf-archive
               clang-tools
               iwyu
