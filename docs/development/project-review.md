@@ -5,6 +5,8 @@ updated, and controlled Windows sampler and threaded ZTS tests were added. Remai
 gaps and optional improvements below. A correction does not imply that every original failure path or platform has been
 exercised.
 
+The [64-bit support decision](#follow-up-64-bit-php-requirement) resolves the Linux counter-width question.
+
 ## Current disposition
 
 Links lead to implementation and evidence records; commit IDs identify the delivered fixes. Later verification
@@ -37,13 +39,6 @@ The [threaded ZTS follow-up](#follow-up-threaded-zts-request-lifecycle) now exer
 and thread destruction on Linux with PHP 8.5.8. It uses a test-only request runner with CLI SAPI callbacks. Other PHP
 ZTS versions and production threaded SAPIs remain unverified; the local fixture does not establish their integration
 behavior or rule out every schedule-dependent failure.
-
-### 32-bit Linux support and page-fault width
-
-[Context-switch handling](../../src/linux/sampler.c#L162) explicitly widens 32-bit counters, while
-[page-fault handling](../../src/linux/sampler.c#L148) rejects negative signed values. Clarify the intended 32-bit support
-contract and test native-width boundaries accordingly. This was not exercised on 32-bit Linux and is not counted as a
-separately reproduced defect.
 
 ### Windows sampler close failures
 
@@ -1278,6 +1273,48 @@ also ran the complete worker process restricted to one CPU; it passed.
 
 This establishes the exercised Linux/PHP 8.5.8 thread lifecycle. Native Windows/macOS, other ZTS PHP versions, production
 threaded SAPIs, allocation bailout, and exhaustive concurrent schedules remain unverified.
+
+### Follow-up: 64-bit PHP requirement
+
+Implementation review base: `7387345`. Perfidious now requires 64-bit PHP on every platform. The public header rejects
+builds unless PHP's `SIZEOF_SIZE_T` and `SIZEOF_ZEND_LONG` are both eight, and Composer declares `php-64bit` as a
+requirement. Windows retains its existing x64-only configure rule.
+
+Counters and nanosecond durations are returned as PHP integers. Supporting 32-bit PHP would require a narrower value
+contract and additional counter-width testing. The former Linux context-switch widening path covered only part of that
+work; page-fault handling still rejected negative signed native values. The support decision removes that Linux-only
+path. Windows keeps its widening logic because some native Windows counters remain 32-bit on x64 PHP.
+
+#### Width requirement experimental evidence
+
+The one-off compilation used GCC 15.2.0 targeting `i686-unknown-linux-gnu` with matching PHP 8.5.8 headers. The PHP
+binary reported `PHP_INT_SIZE=4`. The existing [header consumer](../../tests/header-linux-consumer.c) compiled against
+the previous public header and produced an ELF 32-bit i386 object. The same command against the changed header failed
+at the new guard with `Perfidious requires a 64-bit PHP build`.
+
+With the selected compiler and matching `php-config` on PATH, the compile-only check is:
+
+```sh
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Werror -c \
+  $(php-config --includes) -I. tests/header-linux-consumer.c -o /tmp/perfidious-header-consumer.o
+```
+
+The 64-bit header consumer passed with PHP 8.1.34 NTS and PHP 8.5.8 ZTS headers. Additional controlled macro checks
+accepted eight-byte `size_t` and `zend_long`, and rejected either or both set to four. Before the guard was added, the
+narrow configuration compiled. After removing the Linux branch, the complete 64-bit sampler translation unit
+preprocessed identically to the original.
+
+Composer 2.10.2 running on the i686 PHP binary accepted the previous lockfile's platform requirements. With the changed
+manifest and lockfile, `check-platform-reqs --lock --no-dev` exited with status two and reported `php-64bit` missing;
+an installation dry run also rejected that requirement. The platform check passed on 64-bit PHP 8.1.34.
+
+The Linux x86-64 debug extension rebuilt with warnings treated as errors. The focused sampler suite passed **13 tests,
+with three platform skips**; the full PHP 8.1.34 suite passed **91 tests, with 22 skipped and zero failures**. The
+[PHP checks](#shared-php-checks), configured linters, C formatting, and local documentation links passed. No dependency
+versions changed when updating the Composer lockfile.
+
+This was a compile-time rejection check, not a 32-bit extension runtime qualification or a new 32-bit CI commitment.
+Native Windows/macOS, sanitizer runtime, and the full NixOS VM were not exercised for this slice.
 
 ## Initial review and verification
 

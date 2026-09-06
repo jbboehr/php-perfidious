@@ -13,7 +13,7 @@ This extension provides a common sampler for a small set of process and thread m
 
 ## Requirements
 
-* PHP 8.1 - 8.5
+* 64-bit PHP 8.1 - 8.5; 32-bit builds are unsupported
 * Linux: libcap and libpfm4
 * Windows: 64-bit x64 PHP on a Windows version supported by that PHP release
 * macOS: process and current-thread resource snapshots are available; hardware cycle and instruction counts may be

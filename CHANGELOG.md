@@ -25,6 +25,7 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
 
 ### Changed
 
+- All platforms now require 64-bit PHP. Composer installation and native compilation reject 32-bit builds.
 - The Composer package type is now `php-ext`, allowing PIE to recognize this package as `ext-perfidious`.
 - `Handle::rawStream()` now accepts an optional descriptor index (`0` is the event-group leader) and throws
   `ValueError` for an invalid index instead of returning `null`. Its `resource` return is documented in PHPDoc rather

@@ -24,6 +24,10 @@
 #include <sys/types.h>
 #include "main/php.h"
 
+#if SIZEOF_SIZE_T != 8 || SIZEOF_ZEND_LONG != 8
+#error "Perfidious requires a 64-bit PHP build"
+#endif
+
 #define PHP_PERFIDIOUS_NAME "perfidious"
 #define PHP_PERFIDIOUS_VERSION "0.2.0"
 #define PHP_PERFIDIOUS_RELEASE "2026-08-01"

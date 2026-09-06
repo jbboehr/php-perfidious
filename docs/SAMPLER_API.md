@@ -243,10 +243,9 @@ another sampler or a later sample throws `ValueError`; subtracting a sample from
 resulting values are unsigned counter differences, and `elapsedTimeNs` uses a monotonic clock measured at the completion
 of each native read.
 
-Backends must account for the width of each native counter. In particular, Windows process page faults and thread
-context switches, and Linux process context switches on 32-bit targets, are 32-bit counters. The sampler widens each
-counter independently across successive reads. More than one wrap between reads is not observable and remains a native
-limitation.
+Perfidious requires 64-bit PHP on every platform. Native counters can still be narrower: Windows process page faults
+and thread context switches are 32-bit counters. The sampler widens each counter independently across successive reads.
+More than one wrap between reads is not observable and remains a native limitation.
 
 Native sources are not guaranteed to produce one atomic cross-metric snapshot. A backend may call several operating
 system interfaces sequentially, so a sample is a closely grouped observation rather than a single instant. Samples do

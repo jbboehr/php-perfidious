@@ -13,7 +13,7 @@ nix develop .#php81-gcc-debug
 ```
 
 The shell provides PHP, its development headers, the compiler, libcap, libpfm, Composer, and Valgrind. It also installs
-the repository's Git hooks. Without Nix, install PHP 8.1 or newer with matching `phpize` and `php-config`, a C compiler,
+the repository's Git hooks. Without Nix, install 64-bit PHP 8.1 or newer with matching `phpize` and `php-config`, a C compiler,
 Make, Autoconf, and the Linux library development packages listed in the [source installation instructions](../../README.md#source).
 Python 3 and Dash are needed for some checks below.
 
