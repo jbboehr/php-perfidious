@@ -1070,6 +1070,72 @@ successful builds or runtime behavior. The focused Valgrind run does not constit
 
 Changes remain uncommitted for review.
 
+## Follow-up: R11 bounded INI metric lists
+
+Implementation review base: `424c5a1`.
+
+When opening an enabled Linux request handle, `perfidious.request.metrics` now shares the PHP `open()` entry point's
+maximum of 1000 event names. The constant lives in the internal handle header. INI splitting produces at most 1001
+fields, using the extra field to detect an oversized list before allocating the temporary pointer array or opening
+native descriptors.
+Rejected lists release the temporary PHP array and record `Perfidious\OverflowException` for the existing deferred
+`request_handle()` error path. The message states the maximum without presenting the capped split count as the full
+number of supplied names.
+
+Empty and trailing fields retain their existing splitting semantics. Disabled request counters do not parse or reject
+their configured metric list. The bound applies to the PHP and INI entry points, without changing the separate native
+C API. String storage still depends on the configuration value's length. This change bounds the number of split
+fields and the temporary pointer array, not the total size of administrator-provided configuration.
+Existing persistent handles retain their configuration and do not parse later per-request metric overrides.
+
+The changelog records the configuration limit and deferred exception.
+
+### R11 experimental evidence
+
+Before changing production code, the new `tests/request-handle/metric-limit.phpt` failed at 1001 names: the original
+implementation attempted native opening and reported `PmuEventNotFoundException` for the first invalid name instead
+of the requested overflow rejection. The test uses a deliberately invalid first event to avoid opening a large group
+when testing an accepted count. It does not attempt stack exhaustion or rely on a process crash.
+
+After the fix and test review, the regression passed nine cases: an empty value, 1000 names, 1001 names, 1002 names,
+trailing and all-empty fields at the 1000/1001 boundary, and a disabled oversized list. Child request bodies ran normally, pending
+errors were consumed once, and debug instrumentation confirmed that rejected and disabled lists never reached native
+opening. A PHP `explode()` probe independently confirmed the extra-field boundary used for truncation detection.
+
+Verification on Linux x86-64 with PHP 8.1.34 NTS:
+
+- The extension debug build and all 14 focused PHPTs passed with
+  `NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test TESTS='tests/request-handle tests/handle/open-fails-too-many-events.phpt'`.
+  The installed OpCache module was supplied through `PERFIDIOUS_TEST_OPCACHE`, enabling both preload cases.
+- A separate source export built with `--disable-perfidious-debug --enable-compile-warnings=error` passed five tests:
+  both new metric-limit regressions, deferred initialization errors, disabled request counters, and the PHP API limit.
+- Direct Valgrind execution of the unwrapped PHP executable with `USE_ZEND_ALLOC=0` exercised a 1001-name INI list.
+  The overflow error was delivered once, the native open count stayed zero, and Valgrind reported zero errors and
+  zero definitely, indirectly, or possibly lost bytes. The existing libpfm initialization suppression covered one
+  448-byte allocation.
+- The full debug-extension suite with the installed OpCache module passed **90 tests, with 21 skipped and zero
+  failures**. Composer validation, stub freshness, PHP_CodeSniffer, PHPStan, all four declaration-analysis
+  configurations, new-test syntax, configured pre-commit hooks, and diff checks passed.
+
+### R11 reliability review
+
+Reliability verdict: **PASS_WITH_RESIDUAL_RISK**. Independent correctness and test reviews found no production defect
+in the slice. The test review added the all-empty-field boundaries and `fpm-metric-limit.phpt`, which reuses the local
+FPM fixture to check an unconsumed oversized-list error, recovery with valid metrics, and subsequent handle reuse in
+the same worker. The pending exception is delivered once after recovery, the recovered handle remains usable, and
+debug open counts are `0`, `1`, and `1` across the three requests.
+
+Both final metric-limit tests were also run against a separately built copy of base `424c5a1`. Both failed for the
+expected reason: oversized lists reached native opening and produced `PmuEventNotFoundException` instead of overflow.
+The FPM case retained that wrong error through recovery. The same tests passed with the fix in debug and release
+builds. The final focused suite, full suite, and static checks were run after the independent test changes.
+
+No stack-exhaustion, allocation-bailout, or oversized-configuration crash experiment was performed. Native
+Windows/macOS, other PHP versions, 32-bit builds, concurrent ZTS requests, the full NixOS VM, and sanitizer runtime
+were not exercised for this slice.
+
+Changes remain uncommitted for review.
+
 The findings, source line numbers, and examples below describe the reviewed revision identified above. Examples using
 the removed global API require that revision; they are retained as historical experimental evidence.
 

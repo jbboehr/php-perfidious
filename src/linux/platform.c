@@ -123,11 +123,24 @@ static struct perfidious_handle *split_and_open(zend_string *restrict metrics, s
     do {
         zend_string *delim = zend_string_init_fast(ZEND_STRL(","));
         array_init(&z_metrics);
-        php_explode(delim, metrics, &z_metrics, ZEND_LONG_MAX);
+        // One extra field detects oversized lists without splitting every remaining name.
+        php_explode(delim, metrics, &z_metrics, PERFIDIOUS_MAX_EVENT_NAMES + 1);
         zend_string_release(delim);
     } while (false);
 
     ZEND_ASSERT(Z_TYPE(z_metrics) == IS_ARRAY);
+
+    if (UNEXPECTED(zend_array_count(Z_ARRVAL(z_metrics)) > PERFIDIOUS_MAX_EVENT_NAMES)) {
+        perfidious_error_set(
+            error,
+            perfidious_overflow_exception_ce,
+            0,
+            "too many request metric names: maximum is %d",
+            PERFIDIOUS_MAX_EVENT_NAMES
+        );
+        zval_dtor(&z_metrics);
+        return NULL;
+    }
 
     do {
         zend_string **arr = alloca(sizeof(zend_string *) * (zend_array_count(Z_ARRVAL(z_metrics)) + 1));

@@ -80,7 +80,9 @@ def request(socket_path, script, metrics=None, query=""):
 
 def main():
     fpm, module, opcache, mode = sys.argv[1:]
-    if mode not in {"worker", "initialization-error", "unconsumed-error", "preload-disabled"}:
+    if mode not in {
+        "worker", "initialization-error", "metric-limit", "unconsumed-error", "preload-disabled"
+    }:
         raise RuntimeError(f"Unknown FPM test mode: {mode}")
     # Non-root preloading runs in the master itself, which exercises inherited handles.
     if opcache and os.geteuid() == 0:
@@ -88,9 +90,13 @@ def main():
     with tempfile.TemporaryDirectory(prefix="perfidious-fpm-") as directory:
         root = Path(directory)
         script = root / "worker.php"
-        fixture = Path(__file__).with_name(
-            "fpm-worker.inc" if mode == "worker" else f"fpm-{mode}.inc"
-        )
+        if mode == "worker":
+            fixture_name = "fpm-worker.inc"
+        elif mode == "metric-limit":
+            fixture_name = "fpm-unconsumed-error.inc"
+        else:
+            fixture_name = f"fpm-{mode}.inc"
+        fixture = Path(__file__).with_name(fixture_name)
         script.write_bytes(fixture.read_bytes())
         config = root / "fpm.conf"
         config.write_text(f"""[global]
@@ -152,23 +158,30 @@ file_put_contents(__DIR__ . '/preload.json', json_encode(['pid' => getmypid(), '
                         check(result["perfFds"] == 0, result)
                         if result["opens"] is not None:
                             check(result["opens"] == 1, result)
-                elif mode == "unconsumed-error":
-                    ignored = request(root / "fpm.sock", script, "blahblahblah", "ignore=1")
+                elif mode in {"metric-limit", "unconsumed-error"}:
+                    initial_metrics = "," * 1000 if mode == "metric-limit" else "blahblahblah"
+                    ignored = request(root / "fpm.sock", script, initial_metrics, "ignore=1")
                     recovered = request(root / "fpm.sock", script, "perf::PERF_COUNT_SW_TASK_CLOCK:u")
                     following = request(root / "fpm.sock", script)
                     print(json.dumps([ignored, recovered, following]))
                     check(ignored["pid"] == recovered["pid"] == following["pid"], (ignored, recovered, following))
-                    check(ignored["metrics"] == "blahblahblah", ignored)
+                    check(ignored["metrics"] == initial_metrics, ignored)
                     check(
                         recovered["metrics"] == following["metrics"] == "perf::PERF_COUNT_SW_TASK_CLOCK:u",
                         (recovered, following),
                     )
-                    check(recovered["error"] == ["Perfidious\\PmuEventNotFoundException", -4], recovered)
+                    expected_error = (
+                        ["Perfidious\\OverflowException", 0]
+                        if mode == "metric-limit"
+                        else ["Perfidious\\PmuEventNotFoundException", -4]
+                    )
+                    check(recovered["error"] == expected_error, recovered)
                     check(following["error"] is None, following)
                     check(recovered["usable"] and following["usable"], (recovered, following))
                     if ignored["opens"] is not None:
                         check(
-                            [ignored["opens"], recovered["opens"], following["opens"]] == [1, 2, 2],
+                            [ignored["opens"], recovered["opens"], following["opens"]]
+                            == ([0, 1, 1] if mode == "metric-limit" else [1, 2, 2]),
                             (ignored, recovered, following),
                         )
                 elif mode == "initialization-error":

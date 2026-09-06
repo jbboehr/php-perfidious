@@ -47,6 +47,8 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
 
 ### Fixed
 
+- Linux request metric lists now share the 1000-name limit of `Perfidious\open()`, bounding the temporary pointer array.
+  Oversized lists report `OverflowException` when `request_handle()` is called.
 - Linux `Perfidious\get_pmu_event_info()` now rejects mismatched PMU/event pairs.
 - Linux `Perfidious\open()` now accepts referenced event strings, including arrays processed by reference iteration.
 - Linux handle opening checks both PID conversion bounds and requires a CPU ID of `-1` or a nonnegative native integer.

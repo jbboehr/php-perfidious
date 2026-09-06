@@ -28,6 +28,9 @@
 #include <Zend/zend_portability.h>
 #include "php_perfidious.h"
 
+// Bound temporary event-name arrays and descriptor groups in the PHP and INI entry points.
+#define PERFIDIOUS_MAX_EVENT_NAMES 1000
+
 struct perfidious_metric
 {
     int fd;

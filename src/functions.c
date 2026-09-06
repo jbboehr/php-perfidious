@@ -154,10 +154,6 @@ static PHP_FUNCTION(perfidious_list_pmu_events)
     }
 }
 
-// arbitrary but reasonable cap: event names are meant to be a short, hand-written list, not
-// user-controlled data, and each one opens a real fd, so this also keeps the open-time alloca() bounded
-#define PERFIDIOUS_MAX_EVENT_NAMES 1000
-
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_open_arginfo, false, 1, Perfidious\\Handle, false)
     ZEND_ARG_TYPE_INFO(false, event_names, IS_ARRAY, false)
     ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(false, pid, IS_LONG, false, "0")

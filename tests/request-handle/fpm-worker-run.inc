@@ -19,6 +19,8 @@ fclose($pipes[2]);
 if (proc_close($process) !== 0) {
     throw new RuntimeException($output . $errors);
 }
-echo $mode === 'initialization-error'
-    ? "initialization error retry passed\n"
-    : "worker attribution and reuse passed\n";
+echo match ($mode) {
+    'initialization-error' => "initialization error retry passed\n",
+    'metric-limit' => "metric limit retry and reuse passed\n",
+    default => "worker attribution and reuse passed\n",
+};
