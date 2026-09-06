@@ -137,6 +137,15 @@ perfidious_error_helper(zend_class_entry *restrict exception_ce, zend_long code,
     }
 }
 
+static inline pfm_err_t perfidious_pfm_get_pmu_info(zend_long pmu, pfm_pmu_info_t *info)
+{
+    // Check the PHP integer before narrowing it to libpfm's PMU enum.
+    if (UNEXPECTED(pmu < PFM_PMU_NONE || pmu >= PFM_PMU_MAX)) {
+        return PFM_ERR_INVAL;
+    }
+    return pfm_get_pmu_info((pfm_pmu_t) pmu, info);
+}
+
 ZEND_COLD
 PERFIDIOUS_LOCAL
 PERFIDIOUS_ATTR_NONNULL_ALL
@@ -147,7 +156,7 @@ ZEND_COLD
 PERFIDIOUS_LOCAL
 PERFIDIOUS_ATTR_NONNULL_ALL
 PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
-zend_result perfidious_get_pmu_event_info(pfm_pmu_info_t *restrict pmu_info, int idx, zval *restrict return_value);
+zend_result perfidious_get_pmu_event_info(pfm_pmu_info_t *restrict pmu_info, zend_long idx, zval *restrict return_value);
 
 #ifdef PERFIDIOUS_DEBUG
 // exercises perfidious_pmu_event_info_ctor()'s name truncation with caller-controlled strings,

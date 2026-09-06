@@ -72,19 +72,19 @@ static PHP_FUNCTION(perfidious_get_pmu_event_info)
         Z_PARAM_LONG(idx)
     ZEND_PARSE_PARAMETERS_END();
 
-    pfm_err_t pfm_err = pfm_get_pmu_info(pmu, &pmu_info);
+    pfm_err_t pfm_err = perfidious_pfm_get_pmu_info(pmu, &pmu_info);
     if (PFM_SUCCESS != pfm_err) {
         zend_throw_exception_ex(
             perfidious_pmu_not_found_exception_ce,
             pfm_err,
-            "cannot get pmu info for %lu: %s",
+            "cannot get pmu info for %" ZEND_LONG_FMT_SPEC ": %s",
             pmu,
             pfm_strerror(pfm_err)
         );
         return;
     }
 
-    if (UNEXPECTED(SUCCESS != perfidious_get_pmu_event_info(&pmu_info, (int) idx, return_value))) {
+    if (UNEXPECTED(SUCCESS != perfidious_get_pmu_event_info(&pmu_info, idx, return_value))) {
         RETURN_NULL();
     }
 }
@@ -123,20 +123,19 @@ static PHP_FUNCTION(perfidious_list_pmu_events)
         Z_PARAM_LONG(pmu_id)
     ZEND_PARSE_PARAMETERS_END();
 
-    pfm_pmu_t pmu = pmu_id;
     pfm_pmu_info_t pmu_info = {0};
     pfm_err_t pfm_err;
     zval tmp = {0};
 
     pmu_info.size = sizeof(pmu_info);
 
-    pfm_err = pfm_get_pmu_info(pmu, &pmu_info);
+    pfm_err = perfidious_pfm_get_pmu_info(pmu_id, &pmu_info);
     if (pfm_err != PFM_SUCCESS) {
         zend_throw_exception_ex(
             perfidious_pmu_not_found_exception_ce,
             pfm_err,
-            "libpfm: cannot get pmu info for %lu: %s",
-            (zend_long) pmu,
+            "libpfm: cannot get pmu info for %" ZEND_LONG_FMT_SPEC ": %s",
+            pmu_id,
             pfm_strerror(pfm_err)
         );
         RETURN_NULL();

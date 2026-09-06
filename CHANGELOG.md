@@ -47,6 +47,8 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
 
 ### Fixed
 
+- Linux PMU metadata lookups reject out-of-range PMU and event identifiers before native integer conversion,
+  and error messages preserve the original PHP integer.
 - Linux counter descriptors and raw streams now close automatically when a child executes another program.
   This requires kernel support for `PERF_FLAG_FD_CLOEXEC`, introduced in Linux 3.14.
 - Unix configure now honors debug, coverage, and sanitizer options when run by Dash or another POSIX shell.

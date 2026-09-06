@@ -22,6 +22,7 @@
 #include "config.h"
 #endif
 
+#include <limits.h>
 #include <perfmon/pfmlib.h>
 #include <Zend/zend_API.h>
 
@@ -83,17 +84,18 @@ ZEND_COLD
 PERFIDIOUS_LOCAL
 PERFIDIOUS_ATTR_NONNULL_ALL
 PERFIDIOUS_ATTR_WARN_UNUSED_RESULT
-zend_result perfidious_get_pmu_event_info(pfm_pmu_info_t *restrict pmu_info, int idx, zval *restrict return_value)
+zend_result perfidious_get_pmu_event_info(pfm_pmu_info_t *restrict pmu_info, zend_long idx, zval *restrict return_value)
 {
     pfm_event_info_t info = {0};
     info.size = sizeof(info);
 
-    pfm_err_t pfm_err = pfm_get_event_info(idx, PFM_OS_PERF_EVENT, &info);
+    pfm_err_t pfm_err =
+        idx < 0 || idx > INT_MAX ? PFM_ERR_INVAL : pfm_get_event_info((int) idx, PFM_OS_PERF_EVENT, &info);
     if (pfm_err != PFM_SUCCESS) {
         zend_throw_exception_ex(
             perfidious_pmu_event_not_found_exception_ce,
             pfm_err,
-            "libpfm: cannot get event info for %d: %s",
+            "libpfm: cannot get event info for %" ZEND_LONG_FMT_SPEC ": %s",
             idx,
             pfm_strerror(pfm_err)
         );

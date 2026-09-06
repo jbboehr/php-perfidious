@@ -79,14 +79,14 @@ zend_result perfidious_get_pmu_info(zend_long pmu, zval *restrict return_value, 
     pfm_pmu_info_t pmu_info = {0};
     pmu_info.size = sizeof(pmu_info);
 
-    int pfm_err = pfm_get_pmu_info(pmu, &pmu_info);
+    int pfm_err = perfidious_pfm_get_pmu_info(pmu, &pmu_info);
 
     if (UNEXPECTED(pfm_err != PFM_SUCCESS)) {
         if (!silent) {
             zend_throw_exception_ex(
                 perfidious_pmu_not_found_exception_ce,
                 pfm_err,
-                "cannot get pmu info for %lu: %s",
+                "cannot get pmu info for %" ZEND_LONG_FMT_SPEC ": %s",
                 pmu,
                 pfm_strerror(pfm_err)
             );

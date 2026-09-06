@@ -625,6 +625,83 @@ also passed. Other platform/version combinations and the earlier runtime verific
 
 The handoff file was removed after evaluation and checks. Nothing was committed.
 
+## Follow-up: R07 metadata identifier validation
+
+Implementation review base: `82bdc34`.
+
+This slice addresses the PMU/event-identifier part of R07. `get_pmu_info()`, `get_pmu_event_info()`, and
+`list_pmu_events()` now validate the original PHP integer before converting it to libpfm's native identifier type.
+PID bounds and CPU-ID validation remain pending for a separate slice.
+
+The three PMU lookup paths share a checked wrapper around `pfm_get_pmu_info()`. Values below `PFM_PMU_NONE` or at or
+above `PFM_PMU_MAX` return `PFM_ERR_INVAL` before any cast to `pfm_pmu_t`. Values within that range still go through
+libpfm's normal support checks, including the existing unsupported-PMU result for `PFM_PMU_NONE` (zero). This follows
+the [libpfm lookup contract](https://perfmon2.sourceforge.net/manv4/pfm_get_pmu_info.html) while preventing information
+loss before libpfm sees the value.
+
+Event indices remain `zend_long` until the internal event lookup checks `0 <= idx <= INT_MAX`. Only then does it cast
+to the `int` accepted by `pfm_get_event_info()`. Enumeration already supplies native integer indices and uses the same
+helper. Invalid values keep the existing `PmuNotFoundException` or `PmuEventNotFoundException` class, with libpfm's
+`PFM_ERR_INVAL` code. Diagnostics now use PHP's signed-integer format and display the full original identifier.
+
+### R07 metadata experimental evidence
+
+The new [metadata regression](../../tests/pmu-identifiers.phpt) failed before implementation. Adding or subtracting
+one 32-bit modulus from a valid identifier caused all three PMU lookup paths and the event-index lookup to accept the
+altered value. Some rejected values also produced a different error code after narrowing or displayed a truncated or
+unsigned value in the diagnostic. The test checks these cases through metadata APIs without opening counter handles.
+
+After rebuilding with the fix, the same test passed. It covers negative identifiers, `PHP_INT_MIN`, `PHP_INT_MAX`,
+representable nonexistent events, and, on 64-bit PHP, both signs of wraparound and the values just outside the signed
+32-bit range. It also verifies the existing error for PMU zero, full values in diagnostics, and valid lookup and
+enumeration results after rejected calls. When both IDs are invalid, the PMU lookup's error retains precedence over
+event validation. The existing metadata tests pass without changed expectations.
+
+Verification on Linux x86-64 with PHP 8.1.34 debug and libpfm 4.13.0:
+
+- `make -j2` passed with fatal compiler warnings enabled.
+- `NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test TESTS='tests/pmu-identifiers.phpt tests/get-pmu-info.phpt tests/get-pmu-event-info.phpt tests/list-pmus.phpt tests/list-pmu-events.phpt tests/list-pmu-events-unknown-pmu.phpt'` passed all six tests.
+- The full suite with `PERFIDIOUS_TEST_OPCACHE` pointing to the installed opcache module passed **84 tests, with
+  21 skipped and zero failures**.
+- The same six focused tests under `USE_ZEND_ALLOC=0 make test TEST_PHP_ARGS='-n -m'` passed with zero reported leaks.
+- Composer validation, generated-stub freshness, PHP_CodeSniffer, PHPStan, and all four declaration-analysis
+  configurations passed.
+
+### R07 metadata reliability review
+
+Verdict: **PASS_WITH_RESIDUAL_RISK**. The independent Breaker found no actionable correctness defect. The independent
+Test Attacker found no production failure and strengthened the regression with two cases where both identifiers are
+invalid. These protect the existing PMU-before-event error precedence, including PMU zero's unsupported result.
+The strengthened six-test suite passed. No further production changes were needed.
+
+A 32-bit PHP runtime, other PHP/libpfm versions, native Windows/macOS, and remote CI were not exercised for this slice.
+The PMU/event association issue in R09 is separate and remains pending. Changes remain uncommitted for review.
+
+### R07 metadata review follow-up
+
+Review base: `82bdc34`.
+
+The external review message and `tmp.md` were read and considered alongside a separate Codex review of the current
+diff, metadata callers, native conversions, error paths, and regression assertions. Both reviews found no actionable
+defect. No production or test changes were needed in this follow-up.
+
+The handoff's include-order suggestion was left unchanged. `src/private.h` already depended on libpfm types before
+this patch, and every current Linux caller includes `pfmlib.h` first. No affected caller was found. The regression's
+fixed PMU identifier and error codes match the existing metadata tests and installed libpfm definitions. PID/CPU
+validation remains a separate R07 slice, and checking whether an event belongs to the requested PMU remains R09.
+
+A fresh metadata experiment enumerated all available PMUs and events, then compared each object with a direct lookup
+using its identifiers. All **386 PMUs and 18,393 events** round-tripped without a mismatch. This checks that the new
+bounds preserve valid metadata beyond the software PMU used in the regression.
+
+Fresh verification on Linux x86-64 with PHP 8.1.34 debug and libpfm 4.13.0 passed the build, all six focused PHPTs,
+and the full suite with the installed opcache module: **84 passed, 21 skipped, zero failures**. Composer validation,
+generated-stub freshness, PHP syntax, PHP_CodeSniffer, PHPStan and all four declaration-analysis configurations passed.
+Markdown and final diff checks also passed. Other platforms, 32-bit PHP, other PHP/libpfm versions, and remote CI
+remain unverified. The earlier Valgrind run was not repeated because this follow-up made no production or test edits.
+
+The handoff file was removed after evaluation and checks. Nothing was committed.
+
 The findings, source line numbers, and examples below describe the reviewed revision identified above. Examples using
 the removed global API require that revision; they are retained as historical experimental evidence.
 
@@ -638,7 +715,7 @@ the removed global API require that revision; they are retained as historical ex
 | R04 | Allocation bailout can strand native resources before ownership transfer | Factories reordered; controlled ownership/error-path fixture passed; no allocation-failure experiment |
 | R05 | Dash silently disables requested instrumentation | Fixed; twelve Dash/Bash configure cases and a Dash-configured Linux debug build passed |
 | R06 | Counter descriptors lack close-on-exec flags | Fixed; ten descriptor flags and three PHP child-launch paths checked, with atomic syscalls confirmed |
-| R07 | Identifier validation narrows values or rejects sparse CPU IDs | PMU/event aliasing reproduced; PID/CPU bounds and sparse topology remain source findings |
+| R07 | Identifier validation narrows values or rejects sparse CPU IDs | Metadata narrowing fixed with regression coverage; PID/CPU bounds and sparse topology remain pending |
 | R08 | Referenced event strings are rejected | Reproduced through the public PHP API |
 | R09 | PMU/event lookup can combine unrelated metadata | Reproduced through the public PHP API |
 | R10 | Non-zero counter assertion compares an array with zero | Reproduced with both a zero-valued array and an empty array |
