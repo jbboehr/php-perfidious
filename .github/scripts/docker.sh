@@ -11,7 +11,7 @@ export IMAGE_TAG="${IMAGE_TAG:-"php-perfidious-${DOCKER_NAME}"}"
 trap 'catch' ERR
 
 catch() {
-  find tests -print0 -name '*.log'  | xargs -0 -n1 cat
+  find tests -type f -name '*.log' -exec cat -- {} +
 }
 
 docker run \

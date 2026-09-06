@@ -349,7 +349,7 @@ jobs:
                 with:
                     files: coverage.info
                     token: ${{ secrets.CODECOV_TOKEN }}
-                    slug: jbboehr/php-perfifidous
+                    slug: jbboehr/php-perfidious
 
             -   name: Coveralls
                 uses: coverallsapp/github-action@v2
@@ -462,7 +462,7 @@ jobs:
                 with:
                     files: coverage.info
                     token: ${{ secrets.CODECOV_TOKEN }}
-                    slug: jbboehr/php-perfifidous
+                    slug: jbboehr/php-perfidious
 
             -   name: Coveralls
                 if: ${{ hashFiles('coverage.info') != '' }}

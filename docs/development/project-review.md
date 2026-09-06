@@ -927,6 +927,57 @@ for this slice. The workload deadline uses wall time, so heavy preemption can re
 checks positivity only, without establishing measurement accuracy or a minimum elapsed CPU interval.
 Changes remain uncommitted for review.
 
+## Follow-up: R12 CI diagnostics and coverage metadata
+
+Implementation review base: `93ed18b`.
+
+The [Docker failure handler](../../.github/scripts/docker.sh) now selects regular log files before printing them:
+
+```sh
+find tests -type f -name '*.log' -exec cat -- {} +
+```
+
+`find` passes matching paths directly to `cat`, including filenames containing spaces or newlines. It does not invoke
+`cat` when no files match. Directories, symlinks, and files without the `.log` suffix are excluded.
+
+Both Codecov upload steps in the [CI workflow](../../.github/workflows/ci.yml) now specify
+`slug: jbboehr/php-perfidious`, matching the repository named in Composer's source metadata. The upload action, token
+reference, coverage file, and execution conditions retain their existing configuration.
+
+### R12 experimental evidence
+
+A temporary Python driver ran the actual Docker script from isolated fixture directories. A substitute `docker`
+executable recorded its arguments and returned a controlled status. The script's Bash error trap, `find`, and `cat`
+all ran normally. No container was launched.
+
+The fixtures included three regular log files, nested paths, a space and a newline in filenames, unrelated PHP/text
+files, a directory ending in `.log`, and a `.log` symlink pointing to a non-log file. The driver supplied a stdin
+sentinel to detect accidental input consumption in the no-log case. It checked stdout without assuming file order
+and checked stderr after excluding the script's normal Bash tracing.
+
+| Case | Before the fix | After the fix |
+| --- | --- | --- |
+| Docker returns `42`, logs present | Unrelated and symlink content printed, directory errors, exit `123` | Exactly three log contents, no diagnostic errors, exit `42` |
+| Docker returns `42`, no regular logs | Unrelated and symlink content printed, directory errors, exit `123` | No output or diagnostic errors, exit `42` |
+| Docker returns `0`, logs present | No output or diagnostic errors, exit `0` | No output or diagnostic errors, exit `0` |
+
+Both failure cases failed the fixture checks before editing and passed afterward. The corrected no-log case did not
+print the supplied stdin sentinel. Preserving Docker's status was verified when log collection succeeds, including an empty selection.
+Read errors during log collection were not injected.
+
+Verification on Linux x86-64 with PHP 8.1.34 debug:
+
+- All three Docker-script fixture cases passed.
+- `bash -n .github/scripts/docker.sh`, ShellCheck on that script, and `actionlint` passed.
+- Both Codecov slug values were checked against the declared repository. This checks configuration only.
+- The full PHP suite with the installed opcache module passed **88 tests, with 21 skipped and zero failures**.
+- Composer validation, generated-stub freshness, PHP_CodeSniffer, PHPStan, and all four declaration-analysis
+  configurations passed.
+- Markdown lint and final diff checks passed.
+
+Real Docker execution, remote CI, and Codecov upload acceptance or attribution were not exercised for this slice.
+Changes remain uncommitted for review.
+
 The findings, source line numbers, and examples below describe the reviewed revision identified above. Examples using
 the removed global API require that revision; they are retained as historical experimental evidence.
 
@@ -945,7 +996,7 @@ the removed global API require that revision; they are retained as historical ex
 | R09 | PMU/event lookup can combine unrelated metadata | Fixed; mismatches rejected in both directions and all 18,393 installed events round-tripped with consistent ownership |
 | R10 | Non-zero counter assertion compares an array with zero | Fixed; live counting passes, while disabled, zero, empty, and wrong-typed results fail the corrected assertion |
 | R11 | INI metric lists use unbounded stack allocation | Source concern; no oversized configuration executed |
-| R12 | CI log selection and Codecov metadata are incorrect | Log selection and corrected pipeline verified with fixtures; external Codecov outcome unchecked |
+| R12 | CI log selection and Codecov metadata are incorrect | Fixed; actual failure handler passed isolated log/empty/success fixtures, workflow lint passed, external Codecov outcome unchecked |
 
 R01–R05 deserve attention first because they affect measurement correctness or the reliability of runtime and build
 behavior. The remaining findings are smaller correctness, hardening, test, and maintenance issues. These priorities are
