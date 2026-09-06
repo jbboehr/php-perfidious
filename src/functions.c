@@ -251,6 +251,7 @@ static PHP_FUNCTION(perfidious_open)
 
     ZEND_HASH_FOREACH_VAL(event_names_ht, z)
     {
+        ZVAL_DEREF(z);
         if (EXPECTED(Z_TYPE_P(z) == IS_STRING)) {
             arr[arr_count++] = Z_STR_P(z);
         } else {

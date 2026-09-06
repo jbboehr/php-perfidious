@@ -763,6 +763,57 @@ A 32-bit PHP runtime, other PHP versions, native Windows/macOS, physical CPU-top
 unverified. Non-debug capability behavior was not executed, including error precedence for a positive PID paired with
 an invalid CPU. That check retains its existing position before CPU validation. Changes remain uncommitted for review.
 
+## Follow-up: R08 referenced event strings
+
+Implementation review base: `322f7e2`.
+
+`Perfidious\open()` now dereferences each local event-value pointer before checking its type and extracting the string.
+This uses the same `ZVAL_DEREF()` pattern as the shared sampler. It accepts references whose current value is a string,
+including references left by a `foreach` loop. The caller's array and reference bindings are preserved.
+
+The existing handle factory retains its own string reference for each accepted event. Reassigning or unsetting the
+caller's referenced variable after opening therefore leaves the handle's original event names intact. Non-string
+values still raise `TypeError` before native acquisition, and objects with `__toString()` are not coerced.
+
+### R08 experimental evidence
+
+The new [reference regression](../../tests/handle/event-name-references.phpt) first failed against the unchanged
+implementation: a reference to a dynamically constructed valid event name raised `TypeError: All event names must
+be strings`. After the fix and rebuild, it passed for both an explicit reference and an array processed by reference
+iteration. The test reassigns the caller's variables, verifies that their reference bindings still work, unsets them,
+and checks that the handle still returns the original event names.
+
+The initial [invalid-value test](../../tests/handle/event-name-references-invalid.phpt) passed before and after the
+fix. Its final version protects rejection of referenced nulls, booleans, integers, floats, arrays, resources, and
+stringable objects, and verifies that rejected references keep their identity and bindings.
+Each invalid value follows a valid event name in the list. The debug native-open counter confirms that validation
+rejects the entire list before acquisition. The stringable object's conversion method throws if called, so the test
+also detects unwanted coercion.
+
+Verification on Linux x86-64 with PHP 8.1.34 debug:
+
+- `make -j2` passed with fatal compiler warnings enabled.
+- `NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test TESTS='tests/handle/event-name-references.phpt tests/handle/event-name-references-invalid.phpt tests/handle/event-name-lifetime.phpt tests/handle/open-fails-non-string-event.phpt tests/handle/open-fails-non-string-event-no-open.phpt tests/handle/open-failure-cleanup.phpt tests/sampler/sampler-reference-metrics.phpt'` passed all seven tests.
+- The full suite with the installed opcache module passed **87 tests, with 21 skipped and zero failures**.
+- The same seven focused tests under `USE_ZEND_ALLOC=0 make test TEST_PHP_ARGS='-n -m'` passed with zero reported leaks.
+- Composer validation, generated-stub freshness, PHP_CodeSniffer, PHPStan, and all four declaration-analysis
+  configurations passed.
+- PHP syntax, Markdown, and final diff checks passed.
+
+### R08 reliability review
+
+Verdict: **PASS_WITH_RESIDUAL_RISK**. The independent Breaker found no actionable correctness defect and confirmed the
+reference, lifetime, and rejection behavior with direct probes. The independent Test Attacker found no production
+failure and strengthened both PHPTs with reference-identity and binding checks, resource rejection, and bounded
+allocation churn after caller values are unset. These checks protect against replacing caller references, accepting
+non-string values through coercion, or retaining event names without ownership.
+
+The strengthened seven-test suite, full suite, Valgrind checks, and static checks were rerun successfully after review.
+No further production changes were needed.
+
+Other PHP versions, release builds, 32-bit PHP, native Windows/macOS, and remote CI were not exercised for this slice.
+Changes remain uncommitted for review.
+
 The findings, source line numbers, and examples below describe the reviewed revision identified above. Examples using
 the removed global API require that revision; they are retained as historical experimental evidence.
 
@@ -777,7 +828,7 @@ the removed global API require that revision; they are retained as historical ex
 | R05 | Dash silently disables requested instrumentation | Fixed; twelve Dash/Bash configure cases and a Dash-configured Linux debug build passed |
 | R06 | Counter descriptors lack close-on-exec flags | Fixed; ten descriptor flags and three PHP child-launch paths checked, with atomic syscalls confirmed |
 | R07 | Identifier validation narrows values or rejects sparse CPU IDs | Metadata and PID/CPU bounds fixed with regressions; simulated sparse admission verified, physical sparse topology untested |
-| R08 | Referenced event strings are rejected | Reproduced through the public PHP API |
+| R08 | Referenced event strings are rejected | Fixed; reference acceptance, bindings, name lifetime, and non-string rejection verified |
 | R09 | PMU/event lookup can combine unrelated metadata | Reproduced through the public PHP API |
 | R10 | Non-zero counter assertion compares an array with zero | Reproduced with both a zero-valued array and an empty array |
 | R11 | INI metric lists use unbounded stack allocation | Source concern; no oversized configuration executed |
