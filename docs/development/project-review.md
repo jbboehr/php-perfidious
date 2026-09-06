@@ -1,12 +1,14 @@
 # Project review and experimental verification
 
 R01–R12 have code or test corrections. The global counters were removed, the sampler and development documentation were
-updated, and controlled Windows sampler tests were added. Remaining work concerns the verification gaps and optional
-improvements below. A correction does not imply that every original failure path or platform has been exercised.
+updated, and controlled Windows sampler and threaded ZTS tests were added. Remaining work concerns the verification
+gaps and optional improvements below. A correction does not imply that every original failure path or platform has been
+exercised.
 
 ## Current disposition
 
-Status at `e954804`. Links lead to the implementation and evidence records; commit IDs identify the delivered changes.
+Links lead to implementation and evidence records; commit IDs identify the delivered fixes. Later verification
+additions are recorded in the follow-ups.
 
 | Item | Change and evidence | Commit |
 | --- | --- | --- |
@@ -31,9 +33,10 @@ Status at `e954804`. Links lead to the implementation and evidence records; comm
 
 ### Persistent handles under a threaded ZTS SAPI
 
-Inspect initialization of module-global handles in actual worker threads. A CLI binary compiled with ZTS exercises
-thread-aware compilation but does not establish multi-threaded request behavior. This remains a coverage question
-related to R01. No threaded embedding/SAPI experiment was performed.
+The [threaded ZTS follow-up](#follow-up-threaded-zts-request-lifecycle) now exercises real concurrent worker requests
+and thread destruction on Linux with PHP 8.5.8. It uses a test-only request runner with CLI SAPI callbacks. Other PHP
+ZTS versions and production threaded SAPIs remain unverified; the local fixture does not establish their integration
+behavior or rule out every schedule-dependent failure.
 
 ### 32-bit Linux support and page-fault width
 
@@ -1218,6 +1221,63 @@ These doubles do not validate Windows SDK ABI, permissions, native profiling or 
 failure semantics, Zend exception allocation or bailout, concurrent ZTS requests, or a 32-bit runtime. Native
 Windows/macOS execution and sanitizer runtime were not exercised for this slice. Existing native Windows PHPTs remain
 the integration checks; the [Windows close-failure question](#windows-sampler-close-failures) remains unresolved.
+
+### Follow-up: threaded ZTS request lifecycle
+
+Implementation review base: `8dd3745`. This slice adds characterization coverage; no production change was needed.
+
+The [worker PHPT](../../tests/request-handle/zts-worker.phpt) compiles a temporary helper extension for the loaded ZTS
+runtime. Its two POSIX threads call real `ts_resource(0)`, `php_request_startup()`, `php_request_shutdown()`, and
+`ts_free_thread()`. PHP scripts use the public request-handle API and raw streams. No TSRM, request hook, perf-event
+call, or counter reading is replaced. The worker threads share only native records and immutable script-path bytes;
+PHP objects and streams remain in their originating request.
+
+Each wave makes two requests in each worker, destroys the first worker, then makes a third request in the survivor.
+Two waves exercise worker replacement while the main request remains active. The checks establish:
+
+- Distinct kernel event IDs across workers and stable IDs across each worker's requests. Every raw-stream duplicate
+  is closed before ownership cleanup is inspected.
+- Task-clock attribution during alternating work and wait phases, compared with `CLOCK_THREAD_CPUTIME_ID`. Equal work
+  in both threads cannot hide swapped counter ownership. The 40 ms CPU workload avoids requiring a wall-time deadline
+  to receive a minimum share of CPU scheduling.
+- Zero native event counts after each request shutdown, with the persistent group still open.
+- Removal of the first worker's group at thread destruction, followed by a usable survivor with its original event IDs.
+- Restoration of the process's perf-descriptor baseline after each wave, with the main request still counting.
+
+Worker failures terminate the isolated child with a worker/request diagnostic, avoiding a peer left at a barrier. The
+launcher uses a 30-second timeout followed by a five-second kill grace period. Compilation, startup, assertion, and
+timeout errors fail the test once its Linux/ZTS/tool prerequisites are satisfied. The existing ZTS Nix check discovers
+the new PHPT; NTS runs skip it. Commands and scope are in the [development guide](guide.md#threaded-zts-requests).
+
+#### Threaded ZTS experimental evidence
+
+Verification used Linux x86-64, PHP 8.5.8 ZTS, and an unchanged debug extension built separately from the PHP 8.1
+workspace module. A minimal two-thread probe first confirmed repeated request startup/shutdown through the CLI
+callbacks. PHP 8.5.8's local source confirmed TSRM's thread-end initialization of INI caches, stack limits, and timers.
+
+The focused PHPT passed against the existing implementation. Two controlled changes in the isolated build established
+test sensitivity: targeting the process's main thread failed the CPU-attribution assertion, and closing/reopening the
+request group on every request failed stable event identity. The restored implementation passed again. These were
+measurement and reuse checks, not memory-corruption or allocation-failure experiments.
+
+A direct run of the complete worker process under Valgrind used `USE_ZEND_ALLOC=0`, `--keep-debuginfo=yes`, and the
+existing `tests/valgrind/libpfm-initialize.supp`. It reported zero memory errors and zero unsuppressed definitely,
+indirectly, or possibly lost bytes. The suppression covered the known 448-byte libpfm startup allocation; Valgrind's
+default suppressions covered another eight bytes. An empty PHP process loading Perfidious showed the same 448-byte
+allocation without creating worker threads. No suppression was added or broadened for this slice.
+
+The `php85-zts` Nix check passed with the new PHPT included in its source. A direct full-suite run against its PHP 8.5.8
+ZTS release artifact passed **76 tests, with 37 skipped and zero failures**, including a pass for the new threaded test.
+Those skips covered native-platform tests, debug-only hooks, and unavailable paired FPM. The Nix check also runs PHPTs
+under Valgrind; the separate worker-process run above supplies the threaded memory-checking evidence.
+
+The full Linux PHP 8.1.34 NTS suite passed **91 tests, with 22 skipped and zero failures**, including the expected ZTS
+skip. [PHP checks](#shared-php-checks), configured linters, C formatting, PHP syntax, and local documentation links
+passed. The independent WIO strategy and test reviews accepted the integration level and returned **KEEP**. The reviewer
+also ran the complete worker process restricted to one CPU; it passed.
+
+This establishes the exercised Linux/PHP 8.5.8 thread lifecycle. Native Windows/macOS, other ZTS PHP versions, production
+threaded SAPIs, allocation bailout, and exhaustive concurrent schedules remain unverified.
 
 ## Initial review and verification
 

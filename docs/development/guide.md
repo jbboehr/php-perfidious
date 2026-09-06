@@ -106,6 +106,28 @@ Run the group with `TESTS='tests/request-handle'`. If OpCache is outside PHP's `
 `PERFIDIOUS_TEST_OPCACHE` to the absolute path of that PHP build's `opcache.so` before running the tests. Loading
 OpCache in the CLI alone does not supply its path to the FPM fixture.
 
+### Threaded ZTS requests
+
+The [ZTS worker test](../../tests/request-handle/zts-worker.phpt) requires 64-bit Linux, a ZTS PHP CLI binary, a shared
+Perfidious module, matching `php-config` headers, `cc`, and GNU `timeout` on PATH. After building with that PHP toolchain,
+run it with:
+
+```sh
+NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test TESTS='tests/request-handle/zts-worker.phpt'
+```
+
+The test compiles a temporary helper extension and starts an isolated PHP process. Two native threads run real PHP
+request startup/shutdown and TSRM cleanup; kernel event IDs establish ownership and reuse, while staggered CPU work
+checks attribution. One thread exits before the other performs another request. A second wave checks new workers, and
+the process must return to its original perf-descriptor count after each wave. The child has a 30-second timeout with
+a five-second kill grace period.
+
+The existing `php85-zts` Nix check includes this test. NTS runs skip it. When invoking a different PHP version's test
+runner directly, use its paired `run-tests.php` and clear inherited `TEST_PHP_ARGS` that load another version's INI file
+or extensions. The fixture uses CLI SAPI callbacks as a small threaded request runner; it does not exercise Apache,
+FrankenPHP, or every production threaded SAPI. A PHPT Valgrind run covers its launcher, so checking the worker process
+itself requires a separate Valgrind invocation.
+
 ### Valgrind and debug hooks
 
 Run a focused cleanup test under Valgrind with Zend's allocator disabled:
@@ -169,7 +191,7 @@ nix build -L .#checks.x86_64-linux.php85-zts
 ```
 
 The capability check verifies that the libpfm suppression still exposes an unrelated allocation leak. The ZTS check
-runs CLI tests using a ZTS PHP binary. It does not exercise concurrent requests in a threaded SAPI.
+runs the CLI suite and the [threaded request fixture](#threaded-zts-requests) using a ZTS PHP binary.
 
 ### NixOS VM integration
 
