@@ -522,7 +522,7 @@ jobs:
                     cache-to: type=gha,mode=max,scope=${{ matrix.DOCKER_NAME }}-${{ matrix.PHP_VERSION }}
                     build-args: PHP_VERSION=${{ matrix.PHP_VERSION }}
                     tags: php-perfidious-${{ matrix.DOCKER_NAME }}
-            -   name: I am tired of writing this shit in YAML and learning a new DSL for every CI service so I am putting everything in a FSCKING BASH SCRIPT
+            -   name: Run Debian container tests
                 env:
                     PHP_VERSION: ${{ matrix.PHP_VERSION }}
                     DOCKER_NAME: ${{ matrix.DOCKER_NAME }}
@@ -557,7 +557,7 @@ jobs:
                     cache-from: type=gha,scope=${{ matrix.DOCKER_NAME }}
                     cache-to: type=gha,mode=max,scope=${{ matrix.DOCKER_NAME }}
                     tags: php-perfidious-${{ matrix.DOCKER_NAME }}
-            -   name: I am tired of writing this shit in YAML and learning a new DSL for every CI service so I am putting everything in a FSCKING BASH SCRIPT
+            -   name: Run Fedora container tests
                 env:
                     DOCKER_NAME: ${{ matrix.DOCKER_NAME }}
                     TEST_PHP_EXECUTABLE: /usr/bin/php

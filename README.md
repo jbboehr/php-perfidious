@@ -68,7 +68,7 @@ sudo make install
 Add the extension to your *php.ini*:
 
 ```ini
-echo extension=perfidious.so | tee -a /path/to/your/php.ini
+extension=perfidious.so
 ```
 
 Finally, *restart the web server*.
@@ -325,31 +325,19 @@ perf events may not be supported. For GitHub Actions, see
 
 **Q:** I'm able to read data, but the counters are all zero.
 
-**A:** This may happen for a few reasons:
+**A:** Reduce the events in the group or try separate handles. The kernel may be unable to schedule the entire group
+when hardware-counter capacity is insufficient. Rare events can also produce zero readings.
 
-1. If you are monitoring several hardware events (e.g.
-`perf::PERF_COUNT_HW_INSTRUCTIONS`), the PMU may not have enough capacity to
-handle all of them. The limit appears to be per physical CPU core. In testing
-on my Zen4 CPU, it appeared that the maximum hardware counters was around 4-6.
-If you have any more information on how to tell how many "slots" are available,
-please let me know.
-
-2. If, for some reason, the kernel is unable to schedule all events in the
-group, it will not schedule any of them. Try removing events until you get
-some non-zero data, or opening separate handles. Note also that some events
-may be low-frequency.
+Capacity varies by processor. An informal Zen4 check observed a limit of roughly four to six hardware counters;
+this is not a portable limit.
 
 **Q:** Building from a git checkout fails with a compiler warning treated as an
 error (`-Werror`).
 
-**A:** Building inside the project's own `nix develop` shell always treats
-warnings as errors by design, so we catch them during development. A plain
-`git clone` + `phpize && ./configure` builds and source-archive installs default
-to non-fatal warnings instead - if you hit this outside the nix
-devShell, please [file an issue](https://github.com/jbboehr/php-perfidious/issues),
-since it likely means a warning that's fine on our compilers isn't on yours.
-You can also pass `--enable-compile-warnings=yes` explicitly to `./configure`
-to disable it yourself.
+**A:** Add `--enable-compile-warnings=yes` to your existing `./configure` options to keep warnings non-fatal.
+Nix-shell builds default to fatal warnings; plain Git checkouts and source-archive builds do not.
+[Report unexpected fatal warnings outside Nix](https://github.com/jbboehr/php-perfidious/issues), including the compiler
+diagnostic and configure options.
 
 ## References
 

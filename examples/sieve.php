@@ -17,9 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-// ok, these aren't all examples per se
-// this one runs the sieve of eratosthenes and outputs the cycles/instructions
-// array edition
+// Measure cycles and instructions for an array-based Sieve of Eratosthenes.
 
 use function Perfidious\open;
 

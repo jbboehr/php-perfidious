@@ -171,23 +171,21 @@ final class Handle
 final class PmuInfo
 {
     /**
-     * This is the symbolic name of the PMU. This name can be used as a prefix in an event string.
+     * Symbolic PMU name, usable as an event-string prefix.
      */
     public readonly string $name;
     public readonly string $desc;
     /**
-     * This is the unique PMU identification code. It is identical to the value passed in pmu and it provided only for
-     * completeness.
+     * Unique PMU identifier, matching the requested $pmu in get_pmu_info().
      */
     public readonly int $pmu;
     public readonly int $type;
     /**
-     * This is the number of available events for this PMU model based on the host processor. It is only valid is the
-     * is_present field is set to true.
+     * Number of available events for this PMU model on the host; valid only when $is_present is true.
      */
     public readonly int $nevents;
     /**
-     * This field is set to true if the PMU model has been detected on the host system.
+     * Whether this PMU model was detected on the host.
      */
     public readonly bool $is_present;
 }
@@ -200,21 +198,19 @@ final class PmuEventInfo
     public readonly string $name;
     public readonly string $desc;
     /**
-     * Certain events may be just variations of actual events. They may be provided as handy shortcuts to avoid
-     * supplying a long list of attributes. For those events, this field is not NULL and contains the complete
-     * equivalent event string.
+     * Complete equivalent event string for shortcut events, when provided; otherwise null.
      */
     public readonly ?string $equiv;
     /**
-     * This is the ID of the PMU model this event belongs to.
+     * Identifier of the PMU model that owns this event.
      */
     public readonly int $pmu;
     /**
-     * This is libpfm's event index and can be passed to get_pmu_event_info().
+     * Libpfm event index for get_pmu_event_info().
      */
     public readonly int $idx;
     /**
-     * This field is set to true if the PMU model has been detected on the host system.
+     * Whether this PMU model was detected on the host.
      */
     public readonly bool $is_present;
 }

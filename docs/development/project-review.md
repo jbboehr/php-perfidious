@@ -1,19 +1,90 @@
 # Project review and experimental verification
 
-Reviewed revision: `4ec048b2cbb38ff1b7af49642fdaf1732a9d6706`.
-Follow-up experiments: 2026-09-05 UTC, Linux x86-64, PHP 8.1.34, debug extension build.
+R01–R12 have code or test corrections. The global counters were removed, the sampler and development documentation were
+updated, and controlled Windows sampler tests were added. Remaining work concerns the verification gaps and optional
+improvements below. A correction does not imply that every original failure path or platform has been exercised.
 
-The initial review did **not** experimentally verify every finding. It combined source inspection, native API
-documentation, ordinary tests, and three focused experiments. Follow-up checks covered FPM attribution, counter reset,
-descriptor flags, referenced strings, PMU metadata, and exception behavior. A further verification pass exercised the
-Darwin sampler through its Linux shim, the actual counter-scaling output with controlled readings, the proposed portable
-configure correction, and CI log selection with a populated fixture.
+## Current disposition
 
-This report records what was observed, what follows from source or API contracts, and what remains uncertain. A passing
-test suite does not establish that an individual finding is absent. The initial review did not change production code;
-subsequent implementation decisions are recorded below.
+Status at `e954804`. Links lead to the implementation and evidence records; commit IDs identify the delivered changes.
 
-## Follow-up: remove cumulative global counters
+| Item | Change and evidence | Commit |
+| --- | --- | --- |
+| Global counters | [Removed](#follow-up-remove-cumulative-global-counters); request and owned handles remain | `984beb4` |
+| R01 | [Worker/thread ownership corrected](#follow-up-r01-request-counter-ownership); FPM and preload regressions passed | `debb92e` |
+| R02 | [Darwin CPU time converted to nanoseconds](#follow-up-r02-darwin-process-cpu-time-units); Linux shims passed, native macOS unverified | `345c84b` |
+| R03 | [Reset timing baselines corrected](#follow-up-r03-reset-timing-and-request-scaling); live resets and controlled scaling checked | `6224216` |
+| R04 | [PHP owners precede native acquisition](#follow-up-r04-factory-resource-ownership); ownership fixtures passed, allocation bailout untested | `7db50dc` |
+| R05 | [POSIX configure comparisons](#follow-up-r05-portable-configure-comparisons); twelve Dash/Bash cases passed | `0efc1c7` |
+| R06 | [Atomic close-on-exec descriptors](#follow-up-r06-close-on-exec-counter-descriptors); flags, syscalls, and three launch paths checked | `82bdc34` |
+| R07 | [Metadata](#follow-up-r07-metadata-identifier-validation) and [PID/CPU](#follow-up-r07-pid-and-cpu-validation) bounds checked before conversion; physical sparse topology unverified | `81540cd`, `def6255` |
+| R08 | [Referenced event strings accepted](#follow-up-r08-referenced-event-strings); bindings, lifetime, and invalid-value rejection checked | `a67269f` |
+| R09 | [PMU/event association enforced](#follow-up-r09-pmuevent-ownership); 18,393 valid events round-tripped | `675a486` |
+| R10 | [Numeric counter assertion corrected](#follow-up-r10-non-zero-counter-assertion); disabled and malformed results now fail | `93ed18b` |
+| R11 | [INI metric lists bounded](#follow-up-r11-bounded-ini-metric-lists); debug/release regressions passed, allocation bailout untested | `3cd6387` |
+| R12 | [CI log selection and Codecov slug corrected](#follow-up-r12-ci-diagnostics-and-coverage-metadata); script fixtures passed, remote upload outcome unverified | `554872e` |
+| Sampler documentation | [Current API, support, and exceptions documented](#follow-up-sampler-api-documentation) | `6213405` |
+| Development guide | [Local build and verification workflows documented](#follow-up-development-guide) | `424c5a1` |
+| Windows sampler tests | [Native-call doubles cover failures, widths, and cleanup](#follow-up-deterministic-windows-sampler-tests); native Windows remains unverified | `880c150` |
+
+## Remaining work
+
+### Persistent handles under a threaded ZTS SAPI
+
+Inspect initialization of module-global handles in actual worker threads. A CLI binary compiled with ZTS exercises
+thread-aware compilation but does not establish multi-threaded request behavior. This remains a coverage question
+related to R01. No threaded embedding/SAPI experiment was performed.
+
+### 32-bit Linux support and page-fault width
+
+[Context-switch handling](../../src/linux/sampler.c#L162) explicitly widens 32-bit counters, while
+[page-fault handling](../../src/linux/sampler.c#L148) rejects negative signed values. Clarify the intended 32-bit support
+contract and test native-width boundaries accordingly. This was not exercised on 32-bit Linux and is not counted as a
+separately reproduced defect.
+
+### Windows sampler close failures
+
+[Sampler cleanup](../../src/windows/sampler.c#L255) discards the profiling-disable result, whereas the low-level
+`ThreadProfile::close()` retains ownership when disable fails. However, the design already requires thread-scoped
+samplers to be closed on the same thread, and no supported normal-use failure was established. Keep this as a lifecycle
+question; do not claim an additional normal-use leak without that evidence. Native Windows execution was unavailable.
+
+### Debug descriptor invalidation
+
+`Handle::debugCloseFd()` deliberately invalidates native state for failure-path tests. Its behavior can complicate a
+test if another descriptor is opened and reuses the number before cleanup. This is intentional debug-only mutation,
+not a confirmed production finding. When extending such tests, make descriptor lifetime explicit and avoid accidentally
+testing reuse of an unrelated resource.
+
+### Other platform and instrumentation coverage
+
+The local records below leave native Windows/macOS execution, the full NixOS VM, and sanitizer runtime unverified for
+several slices. Evaluate those gaps against each change's recorded environment and limits. Passing a Unix shim or a Nix
+dry run does not establish native execution.
+
+### Optional shutdown recovery and declaration generation
+
+The transient shutdown-disable retry concern remains deferred with injected CLI evidence; see the
+[R03 decision](#r03-review-follow-up). No naturally occurring failure or incorrect next-request measurement was found.
+Generated native arginfo remains an optional way to reduce declaration duplication. Retain the public-contract tests
+if adopting it; the existing sampler/backend separation and explicit ownership are useful boundaries.
+
+## Implementation and verification records
+
+These records describe separate historical runs, grouped by change. An implementation review base identifies the
+pre-change source used for comparison; the disposition table identifies the committed result. Keep test counts and
+limits attached to their recorded revision, runtime, and environment. Independent-review results are identified
+separately from local execution.
+
+### Shared PHP checks
+
+The **PHP checks** referenced below are Composer validation, aggregate-stub freshness, PHP_CodeSniffer, PHPStan, and the
+four declaration-analysis configurations (aggregate, Linux, Darwin, Windows). Current commands are in the
+[development guide](guide.md#composer-declarations-and-formatting). PHP syntax, stub loading, Markdown/Nix formatting,
+and runtime checks are listed separately where they ran. A shared name abbreviates the command set, not the number or
+scope of runs.
+
+### Follow-up: remove cumulative global counters
 
 The global-counter API and its configuration have been removed following review.
 The feature accumulated totals for an individual worker and offered limited value without a worker telemetry consumer.
@@ -31,8 +102,8 @@ The updated FPM fixture also handled 13 requests in one local worker, including 
 
 All ten focused tests, including the new regression, passed under Valgrind with Zend allocation disabled, with zero
 reported test leaks.
-Composer validation, generated-stub freshness, PHP syntax, PHP_CodeSniffer, PHPStan and all four declaration-analysis
-configurations passed. Markdown and Nix formatting passed, and the debug FPM VM derivation evaluated successfully.
+[PHP checks](#shared-php-checks) and PHP syntax passed. Markdown and Nix formatting passed, and the debug FPM VM
+derivation evaluated successfully.
 A runtime check with legacy global settings confirmed that only the request settings remain registered, the global
 function and phpinfo table are absent, and the request counter remains readable.
 
@@ -45,10 +116,9 @@ the independent test review added the regression above without finding a product
 limits are the native platforms and full VM execution noted above. The final full suite and focused Valgrind run were
 repeated after those reviews.
 
-R01 is addressed in the next follow-up. R03, R04, R06, and R11 remain applicable to retained code.
-Their fixes will be reviewed separately.
+The request-handle fixes are recorded in R01, R03, R04, R06, and R11 below.
 
-## Follow-up: R01 request-counter ownership
+### Follow-up: R01 request-counter ownership
 
 Implementation review base: `81e73db` (after removing global counters).
 
@@ -83,7 +153,7 @@ try {
 }
 ```
 
-### R01 experimental evidence
+#### R01 experimental evidence
 
 The new [FPM regression](../../tests/request-handle/fpm-worker.phpt) failed against the pre-fix module:
 both workers returned zero request-counter deltas, while fresh counters measured approximately 100 ms in each of
@@ -118,8 +188,8 @@ module reported 36 passed, six debug-only skips, and zero failures. These includ
 configuration, phpinfo, API declarations, and the owned-handle suite. This exercises a ZTS CLI process, not concurrent
 request threads or a threaded SAPI; thread creation/destruction remains a native integration-test gap.
 
-Composer validation, generated-stub freshness, PHP syntax, PHP_CodeSniffer, PHPStan, all four declaration-analysis
-configurations, and Markdown checks passed. Native Windows/macOS and the full NixOS FPM VM were not run for R01.
+[PHP checks](#shared-php-checks), PHP syntax, and Markdown checks passed. Native Windows/macOS and the full NixOS FPM VM
+were not run for R01.
 
 **R01 review verdict: PASS_WITH_RESIDUAL_RISK.** The independent correctness review found no defects in scope.
 The independent test review added a
@@ -131,11 +201,9 @@ and paired FPM, and correctly skips the supplied ZTS artifact's FPM tests becaus
 No production defect was demonstrated by the test review. The full suite and focused Valgrind run were repeated
 after both reviews; concurrent ZTS thread teardown and native platform/VM coverage remain the limits noted above.
 
-### R01 review follow-up
+#### R01 review follow-up
 
-The `tmp.md` handoff and Codex's own independent review were evaluated against the pending changes on `984beb4`.
-The separate review summary reporting no actionable regressions was also considered; all four handoff findings
-were evaluated individually.
+Review base: `984beb4`. Four review decisions:
 
 | Finding | Decision and evidence |
 | --- | --- |
@@ -144,7 +212,7 @@ were evaluated individually.
 | README's nullsafe-only example omits exception handling | Improved. The example now catches initialization and I/O exceptions. The configuration table links to that end-user example rather than to the development report. |
 | Preload SKIPIF examines real UID while the harness uses effective UID | Fixed. Both use effective UID. Controlled status-line inputs showed the old expression skipped real-root/effective-nonroot and admitted real-nonroot/effective-root; the corrected expression makes the opposite decisions. Actual mixed-UID processes were not launched. |
 
-The independent review also verified the handoff's note about Python optimization: with `PYTHONOPTIMIZE=1`, the
+The independent review confirmed the Python optimization concern: with `PYTHONOPTIMIZE=1`, the
 new disabled-pool regression incorrectly passed against the leaking implementation because Python removed its
 assertions. The harness now uses explicit checks that raise on failure. With optimization still enabled, the same
 test correctly failed before the native fix and passed afterward. All eleven request-handle tests pass with
@@ -156,8 +224,8 @@ The pending-error experiment is retained as
 API was needed. Nameless-UID container support and special handling for permanently invalid configuration remain
 optional and were not added; they are not required for the current supported test setup or retry policy.
 
-The full Linux suite after these changes reported 77 passed, 20 skipped, and zero failures. Composer validation,
-stub generation checks, PHP_CodeSniffer, PHPStan and all four declaration-analysis configurations passed.
+The full Linux suite after these changes reported 77 passed, 20 skipped, and zero failures.
+[PHP checks](#shared-php-checks) passed.
 The final full-suite repetition produced the same result. Thirteen focused Valgrind tests also passed with Zend
 allocation disabled and no reported leaks. PHP syntax, Python parsing, Markdown checks, and the final diff check
 passed. The focused correctness review found no additional defects. Concurrent ZTS teardown, native Windows/macOS,
@@ -168,7 +236,7 @@ optimization enabled. Its optional syscall-level tracing experiment was not comp
 calls on inherited-handle cleanup was checked in the source. **Follow-up verdict: PASS_WITH_RESIDUAL_RISK**, with
 the execution limits listed above. No further production changes were required by that review pass.
 
-## Follow-up: R02 Darwin process CPU-time units
+### Follow-up: R02 Darwin process CPU-time units
 
 Implementation review base: `debb92e` (after R01).
 
@@ -185,7 +253,7 @@ and [libproc wrapper](https://github.com/apple-oss-distributions/xnu/blob/main/l
 return them without conversion. This confirms the source-level basis for R02; native macOS execution remains a
 separate verification requirement.
 
-### R02 experimental evidence
+#### R02 experimental evidence
 
 The new [CPU-time regression](../../tests/darwin/cpu-time-shim.phpt) builds the actual Darwin extension sources as a
 shared module on Linux, substituting only native calls. It runs the public PHP resource-usage and sampler APIs,
@@ -210,8 +278,7 @@ with PHP's `getrusage()` readings, converting their seconds/microseconds indepen
 macOS validation and skipped on this Linux host; it has not been observed passing or failing on macOS.
 
 The final Linux PHP 8.1.34 debug run reported 78 passed, 21 skipped, and zero failures. Both compiled Darwin
-tests passed. Composer validation, generated-stub freshness, PHP_CodeSniffer, PHPStan, and all four declaration
-analysis configurations passed. PHP syntax, Markdown, and diff checks also passed.
+tests passed. [PHP checks](#shared-php-checks) passed. PHP syntax, Markdown, and diff checks also passed.
 
 The isolated Darwin module was also exercised under Valgrind using the direct PHP executable and
 `USE_ZEND_ALLOC=0`, with `--leak-check=full --errors-for-leak-kinds=definite --error-exitcode=99`.
@@ -231,24 +298,20 @@ assertions to fail; removing the final addition check caused both APIs' expected
 The focused and full suites were repeated after this test hardening. Native macOS compilation, real Apple API calls,
 and the native `getrusage()` oracle remain unverified.
 
-### R02 review follow-up
+#### R02 review follow-up
 
-The `tmp.md` handoff and the separate review summary reporting no actionable regressions were considered alongside
-Codex's own independent review of the staged tests, unstaged production changes, and surrounding conversion,
-initialization, error, and sampler paths. No further production or test changes were warranted.
-
-- **Native oracle tolerance:** retained the 2 ms margin pending a native run. The handoff identified a possible
+- **Native oracle tolerance:** retained the 2 ms margin pending a native run. The review identified a possible
   portability risk, not an observed failure. Current XNU's
   [`calcru()`](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_resource.c#L1641) converts Mach
-  accounting to seconds/microseconds; that path does not establish the handoff's claimed fixed 10 ms resolution.
+  accounting to seconds/microseconds; that path does not establish the review's claimed fixed 10 ms resolution.
   This source check does not validate the margin across macOS versions. On a native failure, inspect the actual
   bounds and deltas before changing either the tolerance or the conversion.
-- **Platform timebase labels:** corrected the handoff's assumptions in this record. XNU's
+- **Platform timebase labels:** corrected the review's assumptions in this record. XNU's
   [x86 implementation](https://github.com/apple-oss-distributions/xnu/blob/main/osfmk/i386/rtclock.c#L384) explicitly
   supplies `1/1`, while its
   [ARM implementation](https://github.com/apple-oss-distributions/xnu/blob/main/osfmk/arm/rtclock.c#L99) derives the
   ratio from the platform frequency. A native conversion check must establish the actual machine's ratio;
-  do not assume Apple Silicon uses `1/1` or Intel uses `125/3` as the handoff did.
+  do not assume Apple Silicon uses `1/1` or Intel uses `125/3` as the review did.
 - **PHP development headers:** confirmed the harness uses `php-config` from PATH. Matching headers remain a
   documented prerequisite; a mismatch produces a visible build/load failure. No test-selection change was needed.
 - **Arithmetic and thread behavior:** confirmed that `remainder * numer` fits `uint64_t` because both factors are
@@ -258,11 +321,11 @@ initialization, error, and sampler paths. No further production or test changes 
 Fresh verification rebuilt the Linux module and passed both compiled Darwin tests; the native oracle was skipped.
 The full suite reported 78 passed, 21 skipped, and zero failures with `PERFIDIOUS_TEST_OPCACHE` set to the available
 opcache module. The external summary's 76 passed / 23 skipped result is recorded as its separate run.
-Composer validation, stub freshness, PHP_CodeSniffer, PHPStan and all four declaration-analysis configurations,
+[PHP checks](#shared-php-checks),
 PHP syntax, Markdown, and staged/unstaged diff checks passed. Native macOS compilation and execution remain
 unverified. This follow-up changes the development report only.
 
-## Follow-up: R03 reset timing and request scaling
+### Follow-up: R03 reset timing and request scaling
 
 Implementation review base: `345c84b`.
 
@@ -286,7 +349,7 @@ the documented [group-leader control semantics](https://man7.org/linux/man-pages
 The helper now controls the group's enabled state through its leader, keeping siblings eligible to run together.
 The reset ioctl still uses the group flag because it must clear every member's count.
 
-### R03 experimental evidence
+#### R03 experimental evidence
 
 Before implementation, a real software task-clock reading was 49,995,196 ns for the count and both timing fields.
 After reset, the count was zero and both public timing fields remained 49,995,196 ns.
@@ -318,7 +381,7 @@ injected disable/read/reset/resume errors and checked recovery with two members,
 A direct `rawStream()` experiment decoded the group record after reset: its count was zero, and both timing totals
 equaled the public pre-reset reading.
 
-### R03 review and final verification
+#### R03 review and final verification
 
 **Verdict: PASS_WITH_RESIDUAL_RISK.** The independent correctness review found no actionable defects. The independent
 test review added the multi-member state checks above without finding a production defect. Final verification after
@@ -329,20 +392,15 @@ that test change passed:
   80 passed, 21 skipped, zero failures, including the local FPM preload tests.
 - Seven focused tests under `USE_ZEND_ALLOC=0 make test TEST_PHP_ARGS='-n -m'`: seven passed, zero reported leaks.
   These covered reset, enabled/disabled state, scaling, broken descriptors, and deferred lifecycle errors.
-- Composer validation, generated-stub freshness, PHP_CodeSniffer, PHPStan and all four declaration-analysis
-  configurations, changed PHP syntax, Markdown, and final diff checks.
+- [PHP checks](#shared-php-checks), changed PHP syntax, Markdown, and final diff checks.
 
 Native allocation failure and persistent FPM startup/shutdown syscall-fault sequences were not injected. Changing
 hardware multiplex ratios were not induced; the exact scaling oracle uses synthetic timing increments after a real
 reset. Native Windows/macOS, concurrent ZTS request execution, and the full NixOS VM were not run for this slice.
 
-### R03 review follow-up
+#### R03 review follow-up
 
-The `tmp.md` handoff and the separate review summary were read and considered alongside Codex's own independent
-review of the complete uncommitted diff, reset/error transitions, request lifecycle, raw reads, group opening and
-control, scaling, and tests. No further production or test change was warranted.
-
-The handoff's optional shutdown-retry observation is accurate under a transient injected failure. A local CLI
+The review's optional shutdown-retry observation is accurate under a transient injected failure. A local CLI
 experiment marked the end of user code, located the first shutdown-disable syscall, and injected one EIO with
 `strace`. The resulting native sequence was:
 
@@ -361,19 +419,19 @@ measurement was established. The upstream
 and event revocation, then applies the disable operation; that source check does not establish a transient failure.
 This remains a possible error-recovery improvement, with injected CLI evidence rather than an observed FPM incident.
 
-The other handoff notes do not require fixes: the three-column read-error header predates R03; the overflow fixture's
+The other review notes do not require fixes: the three-column read-error header predates R03; the overflow fixture's
 zero baseline matches its first CLI request on a never-enabled group; allocation-failure and kernel-portability
 limits remain documented. Leader-only enable/disable is retained.
 
 Fresh verification rebuilt the module, passed five focused tests, and reported 80 passed / 21 skipped in the full
 suite with the opcache module configured, including both FPM preload cases. A separate real mixed
 hardware-instruction/software-task-clock group resumed both members after active reset, cleared both counts on
-disabled reset, and kept public timing totals frozen during subsequent work. Composer validation, stub freshness,
-PHP_CodeSniffer, PHPStan and all four declaration-analysis configurations, PHP syntax, Markdown, and final diff
-checks passed. The external review's 78 suite tests plus two separately rerun preload tests are its own verification
-record. Concurrent ZTS execution, the skipped platform tests, and full VM execution remain unverified.
+disabled reset, and kept public timing totals frozen during subsequent work. [PHP checks](#shared-php-checks), PHP
+syntax, Markdown, and final diff checks passed. The external review's 78 suite tests plus two separately rerun preload
+tests are its own verification record. Concurrent ZTS execution, the skipped platform tests, and full VM execution
+remain unverified.
 
-## Follow-up: R04 factory resource ownership
+### Follow-up: R04 factory resource ownership
 
 Implementation review base: `6224216`.
 
@@ -383,8 +441,8 @@ The sampler also allocates its identity first and attaches backend state before 
 failures destroy the partial PHP object immediately; successful construction keeps the existing public behavior.
 The backend ownership contract is documented in `src/sampler.h`.
 
-The earlier question about whether a bailout exits PHP needs a distinction: a request bailout can unwind to the
-request runner while an FPM worker continues serving requests. PHP 8.1 wraps script execution in a bailout boundary in
+A request bailout can unwind to the request runner while an FPM worker continues serving requests. PHP 8.1 wraps script
+execution in a bailout boundary in
 [php_execute_script()](https://github.com/php/php-src/blob/PHP-8.1/main/main.c), and the
 [FPM request loop](https://github.com/php/php-src/blob/PHP-8.1/sapi/fpm/fpm/fpm_main.c) runs request shutdown afterward.
 Request-heap reclamation alone cannot release an unregistered native resource.
@@ -398,7 +456,7 @@ its request allocations precede descriptor acquisition, and its native failure p
 raising PHP diagnostics. The sampler backends likewise publish successful acquisition without another PHP allocation;
 their ordinary acquisition failures release native resources before allocating diagnostic objects.
 
-### R04 experimental evidence
+#### R04 experimental evidence
 
 The new [construction fixture](../../tests/sampler/construction.phpt) compiles the actual common sampler factory and
 object destructor against a small substitute backend. It checks for a registered empty owner before acquisition and
@@ -413,7 +471,7 @@ three invalid-event failures following valid events, a subsequent successful ope
 It characterizes existing cleanup behavior while exercising the new empty-owner failure path. It is not a regression
 reproduction of the original allocation-order concern.
 
-### R04 review and final verification
+#### R04 review and final verification
 
 **Verdict: PASS_WITH_RESIDUAL_RISK.** Independent correctness and test reviews found no production defect in this slice.
 The test review added the surviving-sampler assertion and confirmed that the Linux cleanup test also passes against
@@ -433,19 +491,15 @@ Final verification after both reviews:
   with `USE_ZEND_ALLOC=0` and `--leak-check=full --errors-for-leak-kinds=definite --error-exitcode=99`:
   zero errors and zero bytes in use at exit. The compiler and child PHP process are not covered merely by running the
   enclosing PHPT under Valgrind, so this was a separate run.
-- Composer validation, generated-stub freshness and loading, PHP_CodeSniffer, PHPStan, all four declaration-analysis
-  configurations, PHP syntax, Markdown, and final diff checks: passed.
+- [PHP checks](#shared-php-checks), aggregate-stub loading, PHP syntax, Markdown, and final diff checks: passed.
 
 Native Windows/macOS compilation and execution, actual allocation-bailout cleanup, concurrent ZTS behavior, and full
 NixOS VM integration remain unverified. The Windows factory change follows the same ownership order, but Linux tests
 do not establish its native runtime behavior.
 
-### R04 review follow-up
+#### R04 review follow-up
 
-The external review message and `tmp.md` were both read and considered alongside a separate Codex review of the
-uncommitted diff, native acquisition helpers, and object cleanup paths. No production change was needed.
-
-The handoff identified a minor fixture limitation: `has_owner(NULL)` also matches a closed sampler retained in the
+The review identified a minor fixture limitation: `has_owner(NULL)` also matches a closed sampler retained in the
 object store. The first construction and failure-isolation cases already detect the original ordering error, but the
 closed `$survivor` could weaken the empty-owner check in later construction cases. The test now unsets that closed
 object before opening the next samplers. This removes the ambiguous owner without adding internal state to the fixture
@@ -454,17 +508,17 @@ leaves the object alive and `unset()` destroys it, with zero native resources at
 remain verification limits, not additional fixes.
 
 After this test change, the build, five focused PHPTs, and the full Linux PHP 8.1.34 suite passed: **82 passed,
-21 skipped, zero failures**. Composer validation, generated-stub freshness, PHP_CodeSniffer, PHPStan and all four
-declaration-analysis configurations passed. Changed PHP syntax, Markdown, and final diff checks also passed.
+21 skipped, zero failures**. [PHP checks](#shared-php-checks) passed. Changed PHP syntax, Markdown, and final diff checks
+also passed.
 The updated construction fixture ran directly under Valgrind with Zend allocation disabled: zero errors and no
 allocations left at exit.
 
 The external review also reported a passing construction fixture on PHP 8.5 NTS and ZTS debug builds. This follow-up
 independently rebuilt and ran the updated fixture on the available PHP 8.5.9 ZTS debug runtime; it passed. The NTS
 debug result remains the external review's evidence. Neither run establishes concurrent ZTS behavior or a full
-extension suite on PHP 8.5. The handoff file was removed after evaluation and checks; nothing was committed.
+extension suite on PHP 8.5.
 
-## Follow-up: R05 portable configure comparisons
+### Follow-up: R05 portable configure comparisons
 
 Implementation review base: `4873177`.
 
@@ -488,7 +542,7 @@ python3 tests/configure-options.py
 The `--dash` and `--bash` arguments accept executable paths when either shell is outside `PATH`. The check leaves the
 working checkout's generated configuration and built extension untouched.
 
-### R05 experimental evidence
+#### R05 experimental evidence
 
 Before changing `config.m4`, the new check failed in the Dash all-enabled case. Configure itself returned zero but
 emitted three `unexpected operator` diagnostics; the debug definition was absent, `NDEBUG` was enabled, and the
@@ -501,34 +555,27 @@ including fatal compiler warnings. `make -j2` passed, the generated Makefile sel
 module confirmed `Perfidious\DEBUG` was true. Three focused debug/error-path PHPTs passed, followed by the full
 PHP 8.1.34 suite: **82 passed, 21 skipped, zero failures**.
 
-Composer validation, generated-stub freshness, PHP_CodeSniffer, PHPStan and all four declaration-analysis
-configurations passed. Python syntax, Actionlint, Markdown, and final diff checks also passed.
+[PHP checks](#shared-php-checks) passed. Python syntax, Actionlint, Markdown, and final diff checks also passed.
 
 The configure matrix verifies definitions and generated build commands; it does not run coverage collection or an
 ASan/UBSan-instrumented PHP process. Native Darwin configuration/builds and the remote CI run remain unverified.
 
-### R05 review follow-up
+#### R05 review follow-up
 
 Review base: `7db50dc`.
 
-The external review message and `tmp.md` were read and considered alongside a separate Codex review of the
-uncommitted comparisons, surrounding option handling, test harness, and CI selection. No actionable defect was found,
-so no production or test changes were needed. The handoff's sanitizer-linker note concerns pre-existing settings;
-no regression from this predicate change was demonstrated. Native instrumentation execution and remote CI remain
-verification limits rather than additional changes in this slice.
+The sanitizer-linker concern involves pre-existing settings; no regression from the predicate change was demonstrated.
+Native instrumentation execution and remote CI remain verification limits.
 
-Fresh verification passed all twelve Dash/Bash configure cases, the Linux build, Composer validation, generated-stub
-freshness, PHP_CodeSniffer, PHPStan and all four declaration-analysis configurations. Python syntax, Actionlint,
-Markdown, and final diff checks also passed.
+Fresh verification passed all twelve Dash/Bash configure cases, the Linux build, and [PHP checks](#shared-php-checks).
+Python syntax, Actionlint, Markdown, and final diff checks also passed.
 
 Both suite counts were reproduced locally. Without `PERFIDIOUS_TEST_OPCACHE`, the suite reported **80 passed,
 23 skipped, zero failures**: the two FPM preload tests skipped because the opcache shared module was not found.
 Providing the installed module path through that variable made both tests pass, producing **82 passed, 21 skipped,
 zero failures**. This accounts for the difference between the external review's count and the earlier verification.
 
-The handoff file was removed after evaluation and checks. Nothing was committed.
-
-## Follow-up: R06 close-on-exec counter descriptors
+### Follow-up: R06 close-on-exec counter descriptors
 
 Implementation review base: `0efc1c7`.
 
@@ -549,7 +596,7 @@ with Linux 2.6.24. Setting the flag later would leave a window for another threa
 operations directly without a fallback that reintroduces that window. Native errors retain the existing exception and
 cleanup paths. A raw-stream duplication failure now identifies `fcntl` in its diagnostic.
 
-### R06 experimental evidence
+#### R06 experimental evidence
 
 The new [descriptor regression](../../tests/handle/close-on-exec.phpt) first inspects `/proc/self/fdinfo`. Before the
 implementation change, it found **zero close-on-exec descriptors out of ten**: two request-counter descriptors, three
@@ -574,10 +621,9 @@ Verification on Linux x86-64 with PHP 8.1.34 debug:
 - The full suite with `PERFIDIOUS_TEST_OPCACHE` pointing to the installed opcache module passed **83 tests, with
   21 skipped and zero failures**.
 - The same five focused tests under `USE_ZEND_ALLOC=0 make test TEST_PHP_ARGS='-n -m'` passed with zero reported leaks.
-- Composer validation, generated-stub freshness, PHP_CodeSniffer, PHPStan, and all four declaration-analysis
-  configurations passed.
+- [PHP checks](#shared-php-checks) passed.
 
-### R06 reliability review
+#### R06 reliability review
 
 Verdict: **PASS_WITH_RESIDUAL_RISK**. The independent Breaker found no actionable correctness defect in the five-file
 slice, affected callers, or cleanup paths. The independent Test Attacker reran all five focused tests twice, checked
@@ -590,18 +636,13 @@ kernel support introduced in Linux 3.14. That compatibility requirement is now e
 The child-process checks establish the corrected behavior for those three local PHP launch paths. They do not
 reproduce inheritance with the old implementation or cover every PHP launcher. Concurrent ZTS fork/exec, older Linux
 kernels, native Windows/macOS, and remote CI remain unverified. Failure to allocate a PHP stream after successful native
-duplication was not injected. The production change is confined to the Linux backend. Changes remain uncommitted for
-review.
+duplication was not injected. The production change is confined to the Linux backend.
 
-### R06 review follow-up
+#### R06 review follow-up
 
 Review base: `0efc1c7`.
 
-The external review message and `tmp.md` were read and considered alongside a separate Codex review of the current
-diff, request-counter callers, descriptor ownership, error paths, and regression assertions. No actionable production
-defect was found. No production or test changes were needed in this follow-up.
-
-The handoff's low-priority concern about `fdinfo` reporting stale close-on-exec flags on duplicates was rejected. The
+The review's low-priority concern about `fdinfo` reporting stale close-on-exec flags on duplicates was rejected. The
 [Linux manual](https://man7.org/linux/man-pages/man5/proc_pid_fdinfo.5.html) identifies that behavior as a bug fixed in
 Linux 3.1, before this patch's Linux 3.14 requirement. The
 [kernel formatter](https://github.com/torvalds/linux/blob/master/fs/proc/fd.c) includes the current descriptor's
@@ -619,19 +660,17 @@ exit successfully. The parent's stream and handle remained usable afterward. Thi
 transfer still works alongside prevention of accidental descriptor inheritance.
 
 Fresh verification passed the Linux build, all five focused PHPTs, and the full PHP 8.1.34 suite with the installed
-opcache module: **83 passed, 21 skipped, zero failures**. Composer validation, generated-stub freshness, PHP syntax,
-PHP_CodeSniffer, PHPStan and all four declaration-analysis configurations passed. Markdown and final diff checks
-also passed. Other platform/version combinations and the earlier runtime verification limits remain unverified.
+opcache module: **83 passed, 21 skipped, zero failures**. [PHP checks](#shared-php-checks) and PHP syntax passed.
+Markdown and final diff checks also passed. Other platform/version combinations and the earlier runtime verification
+limits remain unverified.
 
-The handoff file was removed after evaluation and checks. Nothing was committed.
-
-## Follow-up: R07 metadata identifier validation
+### Follow-up: R07 metadata identifier validation
 
 Implementation review base: `82bdc34`.
 
 This slice addresses the PMU/event-identifier part of R07. `get_pmu_info()`, `get_pmu_event_info()`, and
 `list_pmu_events()` now validate the original PHP integer before converting it to libpfm's native identifier type.
-PID bounds and CPU-ID validation remain pending for a separate slice.
+PID bounds and CPU-ID validation are recorded in the [next R07 slice](#follow-up-r07-pid-and-cpu-validation).
 
 The three PMU lookup paths share a checked wrapper around `pfm_get_pmu_info()`. Values below `PFM_PMU_NONE` or at or
 above `PFM_PMU_MAX` return `PFM_ERR_INVAL` before any cast to `pfm_pmu_t`. Values within that range still go through
@@ -644,7 +683,7 @@ to the `int` accepted by `pfm_get_event_info()`. Enumeration already supplies na
 helper. Invalid values keep the existing `PmuNotFoundException` or `PmuEventNotFoundException` class, with libpfm's
 `PFM_ERR_INVAL` code. Diagnostics now use PHP's signed-integer format and display the full original identifier.
 
-### R07 metadata experimental evidence
+#### R07 metadata experimental evidence
 
 The new [metadata regression](../../tests/pmu-identifiers.phpt) failed before implementation. Adding or subtracting
 one 32-bit modulus from a valid identifier caused all three PMU lookup paths and the event-index lookup to accept the
@@ -664,10 +703,9 @@ Verification on Linux x86-64 with PHP 8.1.34 debug and libpfm 4.13.0:
 - The full suite with `PERFIDIOUS_TEST_OPCACHE` pointing to the installed opcache module passed **84 tests, with
   21 skipped and zero failures**.
 - The same six focused tests under `USE_ZEND_ALLOC=0 make test TEST_PHP_ARGS='-n -m'` passed with zero reported leaks.
-- Composer validation, generated-stub freshness, PHP_CodeSniffer, PHPStan, and all four declaration-analysis
-  configurations passed.
+- [PHP checks](#shared-php-checks) passed.
 
-### R07 metadata reliability review
+#### R07 metadata reliability review
 
 Verdict: **PASS_WITH_RESIDUAL_RISK**. The independent Breaker found no actionable correctness defect. The independent
 Test Attacker found no production failure and strengthened the regression with two cases where both identifiers are
@@ -675,34 +713,28 @@ invalid. These protect the existing PMU-before-event error precedence, including
 The strengthened six-test suite passed. No further production changes were needed.
 
 A 32-bit PHP runtime, other PHP/libpfm versions, native Windows/macOS, and remote CI were not exercised for this slice.
-The PMU/event association issue in R09 is separate and remains pending. Changes remain uncommitted for review.
+PMU/event association is addressed separately in [R09](#follow-up-r09-pmuevent-ownership).
 
-### R07 metadata review follow-up
+#### R07 metadata review follow-up
 
 Review base: `82bdc34`.
 
-The external review message and `tmp.md` were read and considered alongside a separate Codex review of the current
-diff, metadata callers, native conversions, error paths, and regression assertions. Both reviews found no actionable
-defect. No production or test changes were needed in this follow-up.
-
-The handoff's include-order suggestion was left unchanged. `src/private.h` already depended on libpfm types before
-this patch, and every current Linux caller includes `pfmlib.h` first. No affected caller was found. The regression's
-fixed PMU identifier and error codes match the existing metadata tests and installed libpfm definitions. PID/CPU
-validation remains a separate R07 slice, and checking whether an event belongs to the requested PMU remains R09.
+No include-order change: every current Linux caller includes `pfmlib.h` before `src/private.h`, and the dependency
+predates this patch. No affected caller was found. The regression's fixed PMU identifier and error codes match the
+existing metadata tests and installed libpfm definitions. The subsequent R07 slice covers PID/CPU validation; R09 checks
+PMU/event association.
 
 A fresh metadata experiment enumerated all available PMUs and events, then compared each object with a direct lookup
 using its identifiers. All **386 PMUs and 18,393 events** round-tripped without a mismatch. This checks that the new
 bounds preserve valid metadata beyond the software PMU used in the regression.
 
 Fresh verification on Linux x86-64 with PHP 8.1.34 debug and libpfm 4.13.0 passed the build, all six focused PHPTs,
-and the full suite with the installed opcache module: **84 passed, 21 skipped, zero failures**. Composer validation,
-generated-stub freshness, PHP syntax, PHP_CodeSniffer, PHPStan and all four declaration-analysis configurations passed.
-Markdown and final diff checks also passed. Other platforms, 32-bit PHP, other PHP/libpfm versions, and remote CI
-remain unverified. The earlier Valgrind run was not repeated because this follow-up made no production or test edits.
+and the full suite with the installed opcache module: **84 passed, 21 skipped, zero failures**.
+[PHP checks](#shared-php-checks) and PHP syntax passed. Markdown and final diff checks also passed. Other platforms,
+32-bit PHP, other PHP/libpfm versions, and remote CI remain unverified. The earlier Valgrind run was not repeated because
+this follow-up made no production or test edits.
 
-The handoff file was removed after evaluation and checks. Nothing was committed.
-
-## Follow-up: R07 PID and CPU validation
+### Follow-up: R07 PID and CPU validation
 
 Implementation review base: `81540cd`.
 
@@ -721,7 +753,7 @@ The Linux declaration documents the PID/CPU constraints and `ValueError`, and th
 The two existing positive-overflow PHPTs now skip when PHP integers are only 32 bits, because their `PHP_INT_MAX`
 inputs cannot exceed the native Linux PID or CPU integer width in that configuration.
 
-### R07 PID and CPU experimental evidence
+#### R07 PID and CPU experimental evidence
 
 The new [argument regression](../../tests/handle/open-identifier-bounds.phpt) first failed against the unchanged
 implementation. `PHP_INT_MIN` and a value just below the native PID minimum reached event validation instead of
@@ -745,11 +777,10 @@ Verification on Linux x86-64 with PHP 8.1.34 debug:
 - `NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test TESTS='tests/handle/open-identifier-bounds.phpt tests/handle/open-fails-invalid-pid.phpt tests/handle/open-fails-invalid-cpu.phpt tests/handle/open-fails-non-string-event-no-open.phpt tests/handle/open-failure-cleanup.phpt tests/pmu-identifiers.phpt'` passed all six tests.
 - The full suite with the installed opcache module passed **85 tests, with 21 skipped and zero failures**.
 - The same six focused tests under `USE_ZEND_ALLOC=0 make test TEST_PHP_ARGS='-n -m'` passed with zero reported leaks.
-- Composer validation, generated-stub freshness, PHP_CodeSniffer, PHPStan, and all four declaration-analysis
-  configurations passed.
+- [PHP checks](#shared-php-checks) passed.
 - PHP syntax, changed C-fragment formatting, Markdown, and final diff checks passed.
 
-### R07 PID and CPU reliability review
+#### R07 PID and CPU reliability review
 
 Verdict: **PASS_WITH_RESIDUAL_RISK**. The independent Breaker found no actionable correctness defect. The independent
 Test Attacker found no production failure and strengthened the regression to protect the exact positive PID boundary,
@@ -761,9 +792,9 @@ No further production changes were needed.
 
 A 32-bit PHP runtime, other PHP versions, native Windows/macOS, physical CPU-topology changes, and remote CI remain
 unverified. Non-debug capability behavior was not executed, including error precedence for a positive PID paired with
-an invalid CPU. That check retains its existing position before CPU validation. Changes remain uncommitted for review.
+an invalid CPU. That check retains its existing position before CPU validation.
 
-## Follow-up: R08 referenced event strings
+### Follow-up: R08 referenced event strings
 
 Implementation review base: `322f7e2`.
 
@@ -775,7 +806,7 @@ The existing handle factory retains its own string reference for each accepted e
 caller's referenced variable after opening therefore leaves the handle's original event names intact. Non-string
 values still raise `TypeError` before native acquisition, and objects with `__toString()` are not coerced.
 
-### R08 experimental evidence
+#### R08 experimental evidence
 
 The new [reference regression](../../tests/handle/event-name-references.phpt) first failed against the unchanged
 implementation: a reference to a dynamically constructed valid event name raised `TypeError: All event names must
@@ -796,11 +827,10 @@ Verification on Linux x86-64 with PHP 8.1.34 debug:
 - `NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test TESTS='tests/handle/event-name-references.phpt tests/handle/event-name-references-invalid.phpt tests/handle/event-name-lifetime.phpt tests/handle/open-fails-non-string-event.phpt tests/handle/open-fails-non-string-event-no-open.phpt tests/handle/open-failure-cleanup.phpt tests/sampler/sampler-reference-metrics.phpt'` passed all seven tests.
 - The full suite with the installed opcache module passed **87 tests, with 21 skipped and zero failures**.
 - The same seven focused tests under `USE_ZEND_ALLOC=0 make test TEST_PHP_ARGS='-n -m'` passed with zero reported leaks.
-- Composer validation, generated-stub freshness, PHP_CodeSniffer, PHPStan, and all four declaration-analysis
-  configurations passed.
+- [PHP checks](#shared-php-checks) passed.
 - PHP syntax, Markdown, and final diff checks passed.
 
-### R08 reliability review
+#### R08 reliability review
 
 Verdict: **PASS_WITH_RESIDUAL_RISK**. The independent Breaker found no actionable correctness defect and confirmed the
 reference, lifetime, and rejection behavior with direct probes. The independent Test Attacker found no production
@@ -812,9 +842,8 @@ The strengthened seven-test suite, full suite, Valgrind checks, and static check
 No further production changes were needed.
 
 Other PHP versions, release builds, 32-bit PHP, native Windows/macOS, and remote CI were not exercised for this slice.
-Changes remain uncommitted for review.
 
-## Follow-up: R09 PMU/event ownership
+### Follow-up: R09 PMU/event ownership
 
 Implementation review base: `a67269f`.
 
@@ -826,7 +855,7 @@ the requested PMU.
 PMU validation still precedes event lookup. Existing bounds checks and errors for invalid identifiers retain their
 behavior. The Linux stub documents the ownership requirement, and the aggregate stub has been regenerated.
 
-### R09 experimental evidence
+#### R09 experimental evidence
 
 A direct call against the unchanged implementation requested an event owned by PMU 7 (`netburst`) using PMU 8
 (`netburst_p`). It returned owner ID 7 with the incorrect name `netburst_p::TC_deliver_mode`.
@@ -847,11 +876,10 @@ Verification on Linux x86-64 with PHP 8.1.34 debug:
 - `NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test TESTS='tests/get-pmu-event-info-mismatched-pmu.phpt tests/get-pmu-event-info.phpt tests/get-pmu-info.phpt tests/list-pmu-events.phpt tests/list-pmu-events-unknown-pmu.phpt tests/list-pmus.phpt tests/pmu-identifiers.phpt tests/get-pmu-event-info-long-name.phpt tests/readonly-pmu-event-info.phpt'` passed all nine tests.
 - The full suite with the installed opcache module passed **88 tests, with 21 skipped and zero failures**.
 - The same nine focused tests under `USE_ZEND_ALLOC=0 make test TEST_PHP_ARGS='-n -m'` passed with zero reported leaks.
-- Composer validation, generated-stub freshness, PHP_CodeSniffer, PHPStan, and all four declaration-analysis
-  configurations passed.
+- [PHP checks](#shared-php-checks) passed.
 - PHP syntax, changed C-fragment formatting, Markdown, and final diff checks passed.
 
-### R09 reliability review
+#### R09 reliability review
 
 Verdict: **PASS_WITH_RESIDUAL_RISK**. The independent Breaker found no actionable correctness defect and checked
 mismatch rejection and recovery across all 18,393 installed events. The independent Test Attacker found no production
@@ -864,9 +892,9 @@ nine-test suite, full suite, Valgrind checks, and static checks were rerun succe
 production changes were needed.
 
 Other PHP/libpfm versions, release builds, 32-bit PHP, native Windows/macOS, and remote CI were not exercised for this
-slice. Changes remain uncommitted for review.
+slice.
 
-## Follow-up: R10 non-zero counter assertion
+### Follow-up: R10 non-zero counter assertion
 
 Implementation review base: `675a486`.
 
@@ -879,7 +907,7 @@ The Linux-only test still requires usable native perf counters. It does not turn
 into a skip. Linux CI configures perf permissions before running the suite. A failure on another host needs diagnosis
 of both the extension and the native counter environment. This slice changes the test and this report only.
 
-### R10 experimental evidence
+#### R10 experimental evidence
 
 The original test passed before editing. Both `['counter' => 0] > 0` and `[] > 0` also returned `true` in a direct PHP
 probe. More significantly, a real handle left disabled returned an event value of `0` after CPU work, yet comparing
@@ -906,11 +934,10 @@ Verification on Linux x86-64 with PHP 8.1.34 debug:
 - `NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test TESTS='tests/handle/non-zero-after-enable.phpt tests/handle/enable.phpt tests/handle/disable.phpt tests/handle/read.phpt tests/handle/reset-enabled.phpt tests/handle/zero-after-reset.phpt tests/handle/sequential-reads.phpt'` passed all seven tests.
 - The full suite with the installed opcache module passed **88 tests, with 21 skipped and zero failures**.
 - The changed PHPT under `USE_ZEND_ALLOC=0 make test TEST_PHP_ARGS='-n -m'` passed with zero reported leaks.
-- Composer validation, generated-stub freshness, PHP_CodeSniffer, PHPStan, and all four declaration-analysis
-  configurations passed.
+- [PHP checks](#shared-php-checks) passed.
 - PHP syntax, Markdown, and final diff checks passed.
 
-### R10 test review
+#### R10 test review
 
 Verdict: **KEEP**. The WIO strategy and test reviews found no required edits. The review used the Test Level Selection,
 Test Oracles And Assertions, and Mutation Testing references to assess the native integration boundary and assertion
@@ -925,9 +952,8 @@ These repetitions provide local evidence, without establishing stability on ever
 Other PHP versions, release builds, 32-bit PHP, perf-restricted or non-counting hosts, and remote CI were not exercised
 for this slice. The workload deadline uses wall time, so heavy preemption can reduce the CPU work performed. The test
 checks positivity only, without establishing measurement accuracy or a minimum elapsed CPU interval.
-Changes remain uncommitted for review.
 
-## Follow-up: R12 CI diagnostics and coverage metadata
+### Follow-up: R12 CI diagnostics and coverage metadata
 
 Implementation review base: `93ed18b`.
 
@@ -944,7 +970,7 @@ Both Codecov upload steps in the [CI workflow](../../.github/workflows/ci.yml) n
 `slug: jbboehr/php-perfidious`, matching the repository named in Composer's source metadata. The upload action, token
 reference, coverage file, and execution conditions retain their existing configuration.
 
-### R12 experimental evidence
+#### R12 experimental evidence
 
 A temporary Python driver ran the actual Docker script from isolated fixture directories. A substitute `docker`
 executable recorded its arguments and returned a controlled status. The script's Bash error trap, `find`, and `cat`
@@ -971,14 +997,12 @@ Verification on Linux x86-64 with PHP 8.1.34 debug:
 - `bash -n .github/scripts/docker.sh`, ShellCheck on that script, and `actionlint` passed.
 - Both Codecov slug values were checked against the declared repository. This checks configuration only.
 - The full PHP suite with the installed opcache module passed **88 tests, with 21 skipped and zero failures**.
-- Composer validation, generated-stub freshness, PHP_CodeSniffer, PHPStan, and all four declaration-analysis
-  configurations passed.
+- [PHP checks](#shared-php-checks) passed.
 - Markdown lint and final diff checks passed.
 
 Real Docker execution, remote CI, and Codecov upload acceptance or attribution were not exercised for this slice.
-Changes remain uncommitted for review.
 
-## Follow-up: sampler API documentation
+### Follow-up: sampler API documentation
 
 Implementation review base: `554872e`.
 
@@ -996,7 +1020,7 @@ It also clarifies that reading a closed sampler fails while `metrics()` remains 
 private exception constructor now has a body, the process example contains a bounded workload, and the thread example
 requests CPU time on its supported Windows/macOS platforms and closes its sampler.
 
-### Documentation experimental evidence
+#### Documentation experimental evidence
 
 Before editing, direct calls confirmed that empty and duplicate sets raise `ValueError`, a `'cpu-time'` string raises
 `TypeError`, and an instruction request raises `UnsupportedMetricException`. The original declaration block failed
@@ -1014,17 +1038,16 @@ Verification on Linux x86-64 with PHP 8.1.34 debug:
 
 - `NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test TESTS='tests/sampler/arginfo.phpt tests/sampler/enums.phpt tests/sampler/metric-units.phpt tests/sampler/object-model.phpt tests/sampler/process-sampler.phpt tests/sampler/process-extended-metrics.phpt tests/sampler/sampler-errors.phpt tests/sampler/unsupported-metric-exception.phpt tests/sampler/sampler-lifetime.phpt tests/sampler/sampler-since-order.phpt tests/sampler/sampler-delta-properties.phpt tests/darwin/sampler-probe-shim.phpt'` passed all twelve tests.
 - The full suite with the installed opcache module passed **88 tests, with 21 skipped and zero failures**.
-- Composer validation, generated-stub freshness, PHP_CodeSniffer, PHPStan, and all four declaration-analysis
-  configurations passed.
+- [PHP checks](#shared-php-checks) passed.
 - Markdown lint, 77 local link targets and Markdown heading fragments, and final diff checks passed.
 
 Native Windows/macOS execution, other PHP versions, 32-bit PHP, and remote CI were not exercised for this documentation
 slice. The Darwin probe test uses native-call substitutes on Linux. Source inspection of another platform's support
 mask establishes intended support, without establishing availability on a particular host.
 
-The development guide remains a separate planned slice. Changes remain uncommitted for review.
+The [development guide](#follow-up-development-guide) was added in the next slice.
 
-## Follow-up: development guide
+### Follow-up: development guide
 
 Implementation review base: `6213405`.
 
@@ -1037,7 +1060,7 @@ The commands and explanations were checked against the CI workflow, Nix flake an
 stub generator, and test fixtures. Package builds are distinguished from check outputs, the ZTS CLI target from
 concurrent threaded execution, and sanitizer instrumentation from leak checking.
 
-### Development guide experimental evidence
+#### Development guide experimental evidence
 
 Verification on Linux x86-64 with PHP 8.1.34 NTS and extension debug support enabled:
 
@@ -1045,8 +1068,8 @@ Verification on Linux x86-64 with PHP 8.1.34 NTS and extension debug support ena
   `phpize`, Composer, and pre-commit are available.
 - Ran the documented `phpize`, configure, and build sequence in a fresh temporary export of the reviewed source.
   The module loaded successfully, `Perfidious\DEBUG` was true, and its public API contract test passed.
-- Composer installation found the locked dependencies already installed. Strict validation, stub freshness,
-  PHP_CodeSniffer, PHPStan, all four declaration-analysis configurations, and declaration syntax/load checks passed.
+- Composer installation found the locked dependencies already installed. [PHP checks](#shared-php-checks) with strict
+  Composer validation and declaration syntax/load checks passed.
 - The single-test PHPT example passed. The sampler directory passed 13 tests with three platform skips. The
   request-handle directory passed all 11 tests, including both preload cases with `PERFIDIOUS_TEST_OPCACHE` set.
 - The documented Valgrind cleanup test passed with zero reported test leaks. The full Linux suite passed
@@ -1068,9 +1091,7 @@ The full Nix build/check matrix, NixOS VM, sanitizer runtime, native Windows/mac
 execution were not run for this documentation slice. Nix evaluation and dry runs establish target resolution, not
 successful builds or runtime behavior. The focused Valgrind run does not constitute a full leak audit.
 
-Changes remain uncommitted for review.
-
-## Follow-up: R11 bounded INI metric lists
+### Follow-up: R11 bounded INI metric lists
 
 Implementation review base: `424c5a1`.
 
@@ -1090,7 +1111,7 @@ Existing persistent handles retain their configuration and do not parse later pe
 
 The changelog records the configuration limit and deferred exception.
 
-### R11 experimental evidence
+#### R11 experimental evidence
 
 Before changing production code, the new `tests/request-handle/metric-limit.phpt` failed at 1001 names: the original
 implementation attempted native opening and reported `PmuEventNotFoundException` for the first invalid name instead
@@ -1114,10 +1135,9 @@ Verification on Linux x86-64 with PHP 8.1.34 NTS:
   zero definitely, indirectly, or possibly lost bytes. The existing libpfm initialization suppression covered one
   448-byte allocation.
 - The full debug-extension suite with the installed OpCache module passed **90 tests, with 21 skipped and zero
-  failures**. Composer validation, stub freshness, PHP_CodeSniffer, PHPStan, all four declaration-analysis
-  configurations, new-test syntax, configured pre-commit hooks, and diff checks passed.
+  failures**. [PHP checks](#shared-php-checks), new-test syntax, configured pre-commit hooks, and diff checks passed.
 
-### R11 reliability review
+#### R11 reliability review
 
 Reliability verdict: **PASS_WITH_RESIDUAL_RISK**. Independent correctness and test reviews found no production defect
 in the slice. The test review added the all-empty-field boundaries and `fpm-metric-limit.phpt`, which reuses the local
@@ -1134,9 +1154,7 @@ No stack-exhaustion, allocation-bailout, or oversized-configuration crash experi
 Windows/macOS, other PHP versions, 32-bit builds, concurrent ZTS requests, the full NixOS VM, and sanitizer runtime
 were not exercised for this slice.
 
-Changes remain uncommitted for review.
-
-## Follow-up: deterministic Windows sampler tests
+### Follow-up: deterministic Windows sampler tests
 
 Implementation review base: `c1c7eb5`.
 
@@ -1175,7 +1193,7 @@ The profiling doubles follow the direct error-return convention of
 [EnableThreadProfiling](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-enablethreadprofiling) and
 [ReadThreadProfilingData](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-readthreadprofilingdata).
 
-### Windows sampler experimental evidence
+#### Windows sampler experimental evidence
 
 Verification on Linux x86-64 with PHP 8.1.34 NTS:
 
@@ -1189,7 +1207,7 @@ Verification on Linux x86-64 with PHP 8.1.34 NTS:
 - Standalone Valgrind execution with `--error-exitcode=97 --leak-check=full --show-leak-kinds=all` reported zero errors,
   no remaining allocations, and no suppressions.
 - The full extension suite with the installed OpCache module passed **91 tests, with 21 skipped and zero failures**.
-  Composer validation, stub freshness, PHP_CodeSniffer, PHPStan, all four declaration-analysis configurations,
+  [PHP checks](#shared-php-checks),
   extracted PHPT syntax, configured pre-commit hooks, C formatting, local documentation links, and diff checks passed.
 
 An independent test-strategy review accepted the component-test approach, and a subsequent read-only test review
@@ -1199,39 +1217,27 @@ separate lifecycle scenario described above. Final verification followed that re
 These doubles do not validate Windows SDK ABI, permissions, native profiling or scheduling behavior, actual cleanup
 failure semantics, Zend exception allocation or bailout, concurrent ZTS requests, or a 32-bit runtime. Native
 Windows/macOS execution and sanitizer runtime were not exercised for this slice. Existing native Windows PHPTs remain
-the integration checks; the separate Windows close-failure question below remains unresolved.
+the integration checks; the [Windows close-failure question](#windows-sampler-close-failures) remains unresolved.
 
-Changes remain uncommitted for review.
+## Initial review and verification
 
-The findings, source line numbers, and examples below describe the reviewed revision identified above. Examples using
-the removed global API require that revision; they are retained as historical experimental evidence.
+Reviewed revision: `4ec048b2cbb38ff1b7af49642fdaf1732a9d6706`.
+Initial verification experiments: 2026-09-05 UTC, Linux x86-64, PHP 8.1.34, debug extension build.
 
-## Evidence overview
+The initial review combined source inspection, native API documentation, ordinary tests, and three focused experiments;
+it did not experimentally verify every finding. Further checks covered FPM attribution, reset behavior, descriptor
+flags, references, metadata, and exceptions, followed by Darwin/scaling shims, configure correction, and CI log fixtures.
+No production code was changed during that initial review.
 
-| ID | Issue | Evidence status |
-| --- | --- | --- |
-| R01 | Persistent FPM counters target the initializing process | Reproduced with two local FPM workers |
-| R02 | Darwin process CPU time exposes Mach ticks as nanoseconds | Source trace and compiled Linux sampler shim; no native macOS run |
-| R03 | Reset counts are scaled with lifetime timing fields | Live reset behavior and actual scaling output verified; multiplex timing supplied by a fixture |
-| R04 | Allocation bailout can strand native resources before ownership transfer | Factories reordered; controlled ownership/error-path fixture passed; no allocation-failure experiment |
-| R05 | Dash silently disables requested instrumentation | Fixed; twelve Dash/Bash configure cases and a Dash-configured Linux debug build passed |
-| R06 | Counter descriptors lack close-on-exec flags | Fixed; ten descriptor flags and three PHP child-launch paths checked, with atomic syscalls confirmed |
-| R07 | Identifier validation narrows values or rejects sparse CPU IDs | Metadata and PID/CPU bounds fixed with regressions; simulated sparse admission verified, physical sparse topology untested |
-| R08 | Referenced event strings are rejected | Fixed; reference acceptance, bindings, name lifetime, and non-string rejection verified |
-| R09 | PMU/event lookup can combine unrelated metadata | Fixed; mismatches rejected in both directions and all 18,393 installed events round-tripped with consistent ownership |
-| R10 | Non-zero counter assertion compares an array with zero | Fixed; live counting passes, while disabled, zero, empty, and wrong-typed results fail the corrected assertion |
-| R11 | INI metric lists use unbounded stack allocation | Source concern; no oversized configuration executed |
-| R12 | CI log selection and Codecov metadata are incorrect | Fixed; actual failure handler passed isolated log/empty/success fixtures, workflow lint passed, external Codecov outcome unchecked |
+The findings and examples below describe that revision, including the removed global API. Historical source-line links
+are pinned to it. The initial priority was R01–R05 because of measurement, lifecycle, and build effects; the current
+status and remaining work are listed above. The examples are historical reproductions, not current usage guidance.
 
-R01–R05 deserve attention first because they affect measurement correctness or the reliability of runtime and build
-behavior. The remaining findings are smaller correctness, hardening, test, and maintenance issues. These priorities are
-not claims of demonstrated security exploitation.
+### R01: Persistent counters are created before FPM workers fork
 
-## R01: Persistent counters are created before FPM workers fork
-
-**Locations:** [src/linux/platform.c:167](../../src/linux/platform.c#L167),
-[src/linux/platform.c:178](../../src/linux/platform.c#L178),
-[src/handle.c:328](../../src/handle.c#L328).
+**Locations:** [src/linux/platform.c:167](https://github.com/jbboehr/php-perfidious/blob/4ec048b2cbb38ff1b7af49642fdaf1732a9d6706/src/linux/platform.c#L167),
+[src/linux/platform.c:178](https://github.com/jbboehr/php-perfidious/blob/4ec048b2cbb38ff1b7af49642fdaf1732a9d6706/src/linux/platform.c#L178),
+[src/handle.c:328](https://github.com/jbboehr/php-perfidious/blob/4ec048b2cbb38ff1b7af49642fdaf1732a9d6706/src/handle.c#L328).
 
 Both persistent groups are opened during MINIT. The helper uses `pid=0, cpu=-1`, selecting the calling task. FPM then forks
 its workers, which inherit descriptors for those original events. Request hooks reset, enable, and disable the existing
@@ -1285,14 +1291,14 @@ echo json_encode(['pid' => getmypid(), 'deltas' => $deltas]), "\n";
 
 **Recommended change:** create persistent groups after entering each worker, or detect process changes and recreate them
 before use. Verify worker attribution and isolation, including request reset behavior. The existing
-[VM test](../../flake.nix#L260) deliberately checks lifecycle rather than counter magnitudes and uses only one worker;
+[VM test](https://github.com/jbboehr/php-perfidious/blob/4ec048b2cbb38ff1b7af49642fdaf1732a9d6706/flake.nix#L260) deliberately checks lifecycle rather than counter magnitudes and uses only one worker;
 that test is useful but cannot establish measurement attribution. Shared cross-worker control operations follow from
 the descriptor ownership model; this experiment did not separately quantify their interference.
 
-## R02: Darwin process CPU time has the wrong unit
+### R02: Darwin process CPU time has the wrong unit
 
-**Locations:** [src/darwin/functions.c:264](../../src/darwin/functions.c#L264),
-[src/darwin/sampler.c:151](../../src/darwin/sampler.c#L151).
+**Locations:** [src/darwin/functions.c:264](https://github.com/jbboehr/php-perfidious/blob/4ec048b2cbb38ff1b7af49642fdaf1732a9d6706/src/darwin/functions.c#L264),
+[src/darwin/sampler.c:151](https://github.com/jbboehr/php-perfidious/blob/4ec048b2cbb38ff1b7af49642fdaf1732a9d6706/src/darwin/sampler.c#L151).
 
 The low-level API assigns `ri_user_time` and `ri_system_time` directly to properties named `userTimeNs` and `systemTimeNs`.
 The common sampler also adds the raw fields as its nanosecond CPU-time value. Apple's implementation obtains these
@@ -1327,11 +1333,11 @@ paths. Initialize its timebase independently of `thread_selfcounts` availability
 process CPU deltas against an independent `getrusage()` oracle converted from seconds/microseconds. Preserve the existing
 overflow checks rather than introducing an unchecked `ticks * numer` multiplication.
 
-## R03: Reset counts and timing fields cover different intervals
+### R03: Reset counts and timing fields cover different intervals
 
-**Locations:** [src/linux/platform.c:213](../../src/linux/platform.c#L213),
-[src/linux/platform.c:271](../../src/linux/platform.c#L271),
-[src/handle.c:231](../../src/handle.c#L231).
+**Locations:** [src/linux/platform.c:213](https://github.com/jbboehr/php-perfidious/blob/4ec048b2cbb38ff1b7af49642fdaf1732a9d6706/src/linux/platform.c#L213),
+[src/linux/platform.c:271](https://github.com/jbboehr/php-perfidious/blob/4ec048b2cbb38ff1b7af49642fdaf1732a9d6706/src/linux/platform.c#L271),
+[src/handle.c:231](https://github.com/jbboehr/php-perfidious/blob/4ec048b2cbb38ff1b7af49642fdaf1732a9d6706/src/handle.c#L231).
 
 Request hooks reset counts, while `phpinfo()` scales them with the enabled/running times returned by the kernel. Those
 times remain cumulative across reset. This behavior is explicitly documented for `PERF_EVENT_IOC_RESET` in
@@ -1388,10 +1394,10 @@ reset semantics and the scaling calculation, without claiming an observed hardwa
 from cumulative counts and times. Preserve or explicitly revise the public raw-timing contract. Add a deterministic
 test whose scheduling ratios differ across intervals.
 
-## R04: Native resources precede their PHP cleanup owner
+### R04: Native resources precede their PHP cleanup owner
 
-**Locations:** [src/windows/functions.c:630](../../src/windows/functions.c#L630),
-[src/sampler.c:451](../../src/sampler.c#L451), [src/functions.c:290](../../src/functions.c#L290).
+**Locations:** [src/windows/functions.c:630](https://github.com/jbboehr/php-perfidious/blob/4ec048b2cbb38ff1b7af49642fdaf1732a9d6706/src/windows/functions.c#L630),
+[src/sampler.c:451](https://github.com/jbboehr/php-perfidious/blob/4ec048b2cbb38ff1b7af49642fdaf1732a9d6706/src/sampler.c#L451), [src/functions.c:290](https://github.com/jbboehr/php-perfidious/blob/4ec048b2cbb38ff1b7af49642fdaf1732a9d6706/src/functions.c#L290).
 
 Several factories acquire native resources and only then allocate the PHP object responsible for releasing them.
 If the later allocation hits the request memory limit, Zend can bail out before ownership is attached. The ordinary
@@ -1420,9 +1426,9 @@ request allocations while acquired native resources remain unpublished. Where th
 and ownership cannot be published incrementally, consider narrowly scoped bailout cleanup that releases the native
 resources and propagates the bailout.
 
-## R05: Dash silently disables requested instrumentation
+### R05: Dash silently disables requested instrumentation
 
-**Location:** [config.m4:127](../../config.m4#L127), including the following coverage and sanitizer conditionals.
+**Location:** [config.m4:127](https://github.com/jbboehr/php-perfidious/blob/4ec048b2cbb38ff1b7af49642fdaf1732a9d6706/config.m4#L127), including the following coverage and sanitizer conditionals.
 
 The three branches use `test "$option" == "yes"`. Dash rejects `==` in this context. The condition fails, but configure
 continues and exits successfully. This is conditional on the shell actually selected; Autoconf may select Bash in other
@@ -1436,7 +1442,7 @@ tools, libcap, and libpfm installed:
 ```sh
 review_dash=$(command -v dash) || exit 1
 review_dir=$(mktemp -d)
-git archive HEAD config.m4 m4 src php_perfidious.h | tar -x -C "$review_dir"
+git archive 4ec048b2cbb38ff1b7af49642fdaf1732a9d6706 config.m4 m4 src php_perfidious.h | tar -x -C "$review_dir"
 (
     cd "$review_dir" || exit 1
     phpize && CONFIG_SHELL="$review_dash" ./configure \
@@ -1467,10 +1473,10 @@ reviewed source; the R05 follow-up above applies the correction.
 Add configuration checks that assert the requested instrumentation is present. These experiments checked generation of
 flags; they did not compile or execute an instrumented sanitizer build.
 
-## R06: Counter descriptors lack close-on-exec flags
+### R06: Counter descriptors lack close-on-exec flags
 
-**Locations:** [src/handle.c:368](../../src/handle.c#L368),
-[src/handle.c:428](../../src/handle.c#L428), [src/handle.c:555](../../src/handle.c#L555).
+**Locations:** [src/handle.c:368](https://github.com/jbboehr/php-perfidious/blob/4ec048b2cbb38ff1b7af49642fdaf1732a9d6706/src/handle.c#L368),
+[src/handle.c:428](https://github.com/jbboehr/php-perfidious/blob/4ec048b2cbb38ff1b7af49642fdaf1732a9d6706/src/handle.c#L428), [src/handle.c:555](https://github.com/jbboehr/php-perfidious/blob/4ec048b2cbb38ff1b7af49642fdaf1732a9d6706/src/handle.c#L555).
 
 The event opens pass zero flags, and `rawStream()` uses `dup()`. Neither requests close-on-exec behavior.
 
@@ -1493,11 +1499,11 @@ duplicate_fd = fcntl(fd, F_DUPFD_CLOEXEC, 0);
 Use atomic creation/duplication rather than setting the descriptor flag afterward, which leaves an inheritance window
 in a threaded process. Add an isolated process-boundary check to establish the behavior of supported PHP launchers.
 
-## R07: Native identifier validation is incomplete
+### R07: Native identifier validation is incomplete
 
-**Locations:** [src/functions.c:244](../../src/functions.c#L244),
-[src/private.h:83](../../src/private.h#L83), [src/functions.c:87](../../src/functions.c#L87),
-[src/pmu_info.c:82](../../src/pmu_info.c#L82).
+**Locations:** [src/functions.c:244](https://github.com/jbboehr/php-perfidious/blob/4ec048b2cbb38ff1b7af49642fdaf1732a9d6706/src/functions.c#L244),
+[src/private.h:83](https://github.com/jbboehr/php-perfidious/blob/4ec048b2cbb38ff1b7af49642fdaf1732a9d6706/src/private.h#L83), [src/functions.c:87](https://github.com/jbboehr/php-perfidious/blob/4ec048b2cbb38ff1b7af49642fdaf1732a9d6706/src/functions.c#L87),
+[src/pmu_info.c:82](https://github.com/jbboehr/php-perfidious/blob/4ec048b2cbb38ff1b7af49642fdaf1732a9d6706/src/pmu_info.c#L82).
 
 There are three related cases:
 
@@ -1528,9 +1534,9 @@ This is a proposed fragment, not a complete patch. PID checks must cover both bo
 PMU checks should use libpfm's valid identifier domain. Add lower-bound and sparse-topology coverage beside the existing
 positive-overflow tests.
 
-## R08: Referenced event strings are rejected
+### R08: Referenced event strings are rejected
 
-**Location:** [src/functions.c:273](../../src/functions.c#L273).
+**Location:** [src/functions.c:273](https://github.com/jbboehr/php-perfidious/blob/4ec048b2cbb38ff1b7af49642fdaf1732a9d6706/src/functions.c#L273).
 
 The event-list loop checks the stored zval type directly. An array element can contain a reference whose value is a
 string, including after ordinary by-reference iteration. The API promises a list of strings, but rejects this case.
@@ -1556,9 +1562,9 @@ try {
 **Recommended change:** dereference the local element pointer before type checking and extracting its string.
 Test both references to valid strings and references to invalid values.
 
-## R09: PMU/event lookup returns inconsistent metadata
+### R09: PMU/event lookup returns inconsistent metadata
 
-**Location:** [src/pmu_event_info.c:103](../../src/pmu_event_info.c#L103).
+**Location:** [src/pmu_event_info.c:103](https://github.com/jbboehr/php-perfidious/blob/4ec048b2cbb38ff1b7af49642fdaf1732a9d6706/src/pmu_event_info.c#L103).
 
 The event is looked up by its global event index, independently of the supplied PMU. The result constructor combines
 that event with the supplied PMU's name and presence flag without verifying that they belong together.
@@ -1587,9 +1593,9 @@ var_dump($second->pmu, $result->pmu, $result->name);
 **Recommended change:** reject mismatched PMU/event pairs or derive the PMU metadata from the event's actual owner.
 Add a regression check that a returned object's name, owner, and presence flag refer to the same PMU.
 
-## R10: The non-zero counter test does not inspect a counter
+### R10: The non-zero counter test does not inspect a counter
 
-**Location:** [tests/handle/non-zero-after-enable.phpt:17](../../tests/handle/non-zero-after-enable.phpt#L17).
+**Location:** [tests/handle/non-zero-after-enable.phpt:17](https://github.com/jbboehr/php-perfidious/blob/4ec048b2cbb38ff1b7af49642fdaf1732a9d6706/tests/handle/non-zero-after-enable.phpt#L17).
 
 The test compares the entire array returned by `readArray()` with zero. PHP's cross-type comparison makes this succeed
 even when no positive counter exists.
@@ -1606,9 +1612,9 @@ var_dump([] > 0);
 workload. Separately identify environments where native perf counting is unavailable or unreliable. Preserve useful
 deterministic lifecycle checks, but do not interpret them as evidence that counters advance or measure the right task.
 
-## R11: INI metric lists bypass the stack-allocation bound
+### R11: INI metric lists bypass the stack-allocation bound
 
-**Location:** [src/linux/platform.c:127](../../src/linux/platform.c#L127).
+**Location:** [src/linux/platform.c:127](https://github.com/jbboehr/php-perfidious/blob/4ec048b2cbb38ff1b7af49642fdaf1732a9d6706/src/linux/platform.c#L127).
 
 The public event-list API limits event count, but the INI path splits the complete string and allocates a pointer array
 of that size with `alloca()`. There is no equivalent count bound before the native stack allocation. A sufficiently
@@ -1621,11 +1627,11 @@ remote-input vulnerability.
 **Recommended change:** share the count limit across entry points or use a checked heap allocation for the temporary
 array. Verify bounded rejection and cleanup without relying on a process crash as the expected behavior.
 
-## R12: CI diagnostics and coverage metadata need correction
+### R12: CI diagnostics and coverage metadata need correction
 
-### Docker log selection
+#### Docker log selection
 
-**Location:** [.github/scripts/docker.sh:14](../../.github/scripts/docker.sh#L14).
+**Location:** [.github/scripts/docker.sh:14](https://github.com/jbboehr/php-perfidious/blob/4ec048b2cbb38ff1b7af49642fdaf1732a9d6706/.github/scripts/docker.sh#L14).
 
 `find tests -print0 -name '*.log'` performs the output action before applying the filename predicate. The error handler
 therefore feeds directories and unrelated files to `cat`, obscuring the actual failure.
@@ -1647,10 +1653,10 @@ The corrected pipeline emitted exactly the two log contents, produced no stderr,
 two fixture log files, it again exited zero with no output. This verifies selection, quoting, directory exclusion, and
 the empty-log case; it did not launch Docker or trigger a real CI job failure.
 
-### Codecov repository slug
+#### Codecov repository slug
 
-**Locations:** [.github/workflows/ci.yml:348](../../.github/workflows/ci.yml#L348) and
-[ci.yml:461](../../.github/workflows/ci.yml#L461).
+**Locations:** [.github/workflows/ci.yml:348](https://github.com/jbboehr/php-perfidious/blob/4ec048b2cbb38ff1b7af49642fdaf1732a9d6706/.github/workflows/ci.yml#L348) and
+[ci.yml:461](https://github.com/jbboehr/php-perfidious/blob/4ec048b2cbb38ff1b7af49642fdaf1732a9d6706/.github/workflows/ci.yml#L461).
 
 Both upload steps specify `jbboehr/php-perfifidous` rather than `jbboehr/php-perfidious`.
 The typo is directly visible in the configuration. Recent upload outcomes were not checked against Codecov, so rejected
@@ -1660,47 +1666,10 @@ or misattributed uploads remain a possible consequence rather than an observed s
 slug: jbboehr/php-perfidious
 ```
 
-## Additional improvements and unresolved questions
-
-### Deterministic Windows failure and counter-width tests
-
-Addressed by the [deterministic Windows sampler follow-up](#follow-up-deterministic-windows-sampler-tests) and its
-[standalone harness](../../tests/windows/sampler-harness.c). Acquisition failures, recoverable read errors, independent
-counter wraps, and successful cleanup now have controlled coverage on a Unix host. Windows SDK ABI, real native
-failures, and cleanup-failure behavior still require native investigation; passing the shim does not establish those
-properties.
-
-### Persistent handles under a threaded ZTS SAPI
-
-Inspect initialization of module-global handles in actual worker threads. A CLI binary compiled with ZTS exercises
-thread-aware compilation but does not establish multi-threaded request behavior. This remains a coverage question
-related to R01. No threaded embedding/SAPI experiment was performed.
-
-### 32-bit Linux support and page-fault width
-
-[Context-switch handling](../../src/linux/sampler.c#L162) explicitly widens 32-bit counters, while
-[page-fault handling](../../src/linux/sampler.c#L148) rejects negative signed values. Clarify the intended 32-bit support
-contract and test native-width boundaries accordingly. This was not exercised on 32-bit Linux and is not counted as a
-separately reproduced defect.
-
-### Windows sampler close failures
-
-[Sampler cleanup](../../src/windows/sampler.c#L255) discards the profiling-disable result, whereas the low-level
-`ThreadProfile::close()` retains ownership when disable fails. However, the design already requires thread-scoped
-samplers to be closed on the same thread, and no supported normal-use failure was established. Keep this as a lifecycle
-question; do not claim an additional normal-use leak without that evidence. Native Windows execution was unavailable.
-
-### Debug descriptor invalidation
-
-`Handle::debugCloseFd()` deliberately invalidates native state for failure-path tests. Its behavior can complicate a
-test if another descriptor is opened and reuses the number before cleanup. This is intentional debug-only mutation,
-not a confirmed production finding. When extending such tests, make descriptor lifetime explicit and avoid accidentally
-testing reuse of an unrelated resource.
-
 ### Exception documentation
 
-[The design document](../SAMPLER_API.md#lifecycle-and-errors) says a non-Metric input should throw `ValueError`, whereas
-the implementation and test expect `TypeError`. The follow-up experimentally confirmed:
+At the initial review, the sampler document specified `ValueError` for a non-Metric input, while the implementation and
+test expected `TypeError`. The initial verification pass confirmed:
 
 ```php
 <?php
@@ -1711,22 +1680,12 @@ try {
 }
 ```
 
-Observed output: `TypeError: All metrics must be instances of Perfidious\Metric`. Update the prose to match the intended
-contract. Also distinguish implemented semantics from proposed future work and make the platform/metric support matrix
-easy to find.
+Observed output: `TypeError: All metrics must be instances of Perfidious\Metric`. The
+[sampler documentation follow-up](#follow-up-sampler-api-documentation) corrected this wording, distinguished current
+support from future work, and linked the support matrix. The missing contributor workflow was addressed by the
+[development-guide follow-up](#follow-up-development-guide).
 
-### Developer experience and code maintenance
-
-Add a short development guide linked from [CONTRIBUTING.md](../../CONTRIBUTING.md). Contributors should be able to find
-Composer checks, PHPT execution, debug hooks, VM tests, and the optional static sanitizer build without reconstructing
-them from CI, Nix, and the changelog. Keep those instructions in maintainer documentation.
-
-Prefer targeted fixes over a broad refactor. The shared sampler/backend separation, immutable outputs, explicit
-ownership flags, reference-lifetime tests, and runtime-versus-stub contract check are useful existing structure.
-Generated native arginfo may eventually reduce declaration duplication, but is an optional maintenance improvement;
-retain the public-contract tests if adopting it.
-
-## Baseline checks and limits
+### Baseline checks and limits
 
 At the reviewed revision, the earlier baseline checks passed:
 
@@ -1734,20 +1693,20 @@ At the reviewed revision, the earlier baseline checks passed:
 - Full PHPT suite: 98 tests, 78 passed, 20 skipped, zero failures.
 - Full PHPT suite under Valgrind with Zend allocation disabled: 78 passed, 20 skipped, zero failures and zero reported
   test leaks. This is the standard PHPT memory check, not an exhaustive process-wide leak proof.
-- Composer strict validation, aggregate stub freshness, PHP syntax checks, PHP_CodeSniffer, PHPStan, and the four API
-  declaration analysis configurations.
+- [PHP checks](#shared-php-checks) (with strict Composer validation) and PHP syntax.
 - Actionlint, repository ShellCheck, Nix formatting, Markdown lint, and diff whitespace checks.
 
-The follow-up runtime experiments used the same revision; the configure correction was tested only in a temporary
+The initial verification experiments used this same revision; the configure correction was tested only in a temporary
 checkout with the three documented operator substitutions. The compiled Darwin shim exercised project code with
 substitute native calls on Linux. These checks did not include native Windows/macOS, the complete multi-version Nix
 matrix, 32-bit PHP, or ASan/UBSan. The FPM check was a temporary local pool, not a rerun of the project's full NixOS VM
 tests. Memory exhaustion and oversized INI input remain untested concerns. No use-after-free, double-free, or heap-buffer
 defect was confirmed; these checks do not prove their absence.
 
-The evidence table deliberately retains partial or source-only statuses for R02, R04, R06, R07, R11, and the Codecov
-portion of R12. In particular, descriptor flags do not establish every launcher's inheritance behavior, and successful
-ordinary cleanup does not establish allocation-bailout cleanup. Those gaps must not be counted as passed experiments.
+At this initial revision, R02, R04, R06, R07, R11, and the Codecov portion of R12 retained partial or source-only
+verification status. In particular, descriptor flags do not establish every launcher's inheritance behavior, and
+successful ordinary cleanup does not establish allocation-bailout cleanup. Those gaps must not be counted as passed
+experiments.
 
 The final focused PHPT run selected `tests/info-scaling.phpt` and `tests/darwin/sampler-probe-shim.phpt`: both passed,
 with zero failures and zero skips. These existing tests validate the fixture infrastructure and ordinary behavior;

@@ -1,151 +1,13 @@
 # Sampler API
 
-This document describes the sampler implemented in the current source tree. See the [support matrix](#support-matrix)
-for available metric/scope combinations and [lifecycle and errors](#lifecycle-and-errors) for validation and failure
-behavior. Unimplemented extensions are described under [future work](#future-work).
+The sampler measures an explicit list of metrics for the current process or native thread. Opening starts cumulative
+measurement; two samples from the same sampler produce a delta. Missing counters raise an exception instead of
+returning `null` or a synthetic zero. The low-level platform APIs remain available for richer native data.
 
-## Summary
+See the [support matrix](#support-matrix) for implemented combinations, [lifecycle and errors](#lifecycle-and-errors)
+for failure behavior, and [future work](#future-work) for proposed extensions.
 
-The sampler API provides one vocabulary and lifecycle for a small set of counters while keeping the existing
-`Perfidious`, `Perfidious\Windows`, and `Perfidious\Darwin` low-level APIs available. Unsupported metric/scope
-combinations are rejected when opening the sampler.
-
-The API has these properties:
-
-- the current process is the default scope, while current-thread support is an opt-in platform capability;
-- the caller requests a non-empty list of metrics explicitly;
-- unsupported scope and metric combinations fail when the sampler is opened;
-- a sampler begins counting when it is opened and returns cumulative values relative to that point;
-- two samples from the same sampler can produce a delta;
-- samples expose values through `value(Metric)` rather than a public keyed collection;
-- metrics expose their units for generic reporting;
-- missing counters are never represented by `null` or by a synthetic zero; and
-- platform namespaces remain the place for richer platform-specific primitives.
-
-There is no default metric list. A default containing every metric would fail on common Windows and macOS
-configurations, while a lowest-common-denominator default would be too limited to be useful.
-
-There is a default scope: the current process. This matches typical PHP-FPM and CLI execution, where one process handles
-one PHP request or program at a time. Thread scope remains opt-in for threaded runtimes and counters that exist only for
-the current thread.
-
-Metrics are string-backed so configuration adapters can use one canonical `Metric::from()` mapping. The backing values
-are semantic identifiers such as `cpu-time`; they are not exposed as sample array keys and do not encode presentation
-units. `Metric::unit()` exposes the measurement unit separately.
-
-## API shape
-
-These illustrative declarations summarize the current PHP interface. The extension provides the method implementations.
-The [common stub](../stubs/common.stub.php) contains the complete declarations.
-
-```php
-namespace Perfidious;
-
-enum Scope: string
-{
-    case CurrentProcess = 'current-process';
-    case CurrentThread = 'current-thread';
-}
-
-enum MetricUnit
-{
-    case Nanoseconds;
-    case Count;
-}
-
-enum Metric: string
-{
-    case CpuTime = 'cpu-time';
-    case PageFaults = 'page-faults';
-    case ContextSwitches = 'context-switches';
-    case CpuCycles = 'cpu-cycles';
-    case Instructions = 'instructions';
-
-    public function unit(): MetricUnit
-    {
-    }
-}
-
-final class Sampler
-{
-    private function __construct()
-    {
-    }
-
-    /** @param non-empty-list<Metric> $metrics */
-    public static function open(array $metrics, Scope $scope = Scope::CurrentProcess): self
-    {
-    }
-
-    /** @return non-empty-list<Metric> */
-    public function metrics(): array
-    {
-    }
-
-    public function read(): Sample
-    {
-    }
-
-    public function close(): void
-    {
-    }
-}
-
-final class Sample
-{
-    private function __construct()
-    {
-    }
-
-    public function value(Metric $metric): int
-    {
-    }
-
-    public function since(Sample $earlier): SampleDelta
-    {
-    }
-}
-
-final class SampleDelta
-{
-    private function __construct()
-    {
-    }
-
-    /** Monotonic time between the completion of the two reads. */
-    public readonly int $elapsedTimeNs;
-
-    public function value(Metric $metric): int
-    {
-    }
-}
-
-final class UnsupportedMetricException extends \RuntimeException implements ExceptionInterface
-{
-    private function __construct()
-    {
-    }
-
-    public readonly Scope $scope;
-
-    /** @var non-empty-list<Metric> */
-    public readonly array $unsupportedMetrics;
-}
-
-final class ClosedException extends \LogicException implements ExceptionInterface
-{
-}
-
-final class WrongThreadException extends \LogicException implements ExceptionInterface
-{
-}
-
-final class ResourceBusyException extends \RuntimeException implements ExceptionInterface
-{
-}
-```
-
-Typical use:
+## Usage
 
 ```php
 use Perfidious\Metric;
@@ -180,10 +42,46 @@ $sampler = Sampler::open([Metric::CpuTime], Scope::CurrentThread);
 $sampler->close();
 ```
 
+## API shape
+
+All names below are in `Perfidious`. The [common stub](../stubs/common.stub.php) contains the complete declarations.
+`Sampler`, `Sample`, and `SampleDelta` are final classes with private constructors.
+
+| Operation | Signature or property |
+| --- | --- |
+| Open a sampler | `Sampler::open(array $metrics, Scope $scope = Scope::CurrentProcess): self` |
+| List configured metrics in request order | `Sampler::metrics(): array` returns `non-empty-list<Metric>` |
+| Read cumulative counters | `Sampler::read(): Sample` |
+| Release native resources | `Sampler::close(): void` |
+| Read a sampled value | `Sample::value(Metric $metric): int` |
+| Subtract an earlier sample | `Sample::since(Sample $earlier): SampleDelta` |
+| Read a counter difference | `SampleDelta::value(Metric $metric): int` |
+| Read the monotonic time between completed reads | `SampleDelta::$elapsedTimeNs` is a readonly `int` |
+| Determine a metric's unit | `Metric::unit(): MetricUnit` |
+
+`$metrics` must be a non-empty list of unique `Metric` cases. There is no default metric list: selecting every metric
+would fail on common hosts, while a preset limited to the shared metrics would be too restrictive. The default scope
+is `Scope::CurrentProcess`.
+
+`Metric` and `Scope` are string-backed enums for configuration through `Metric::from()` and `Scope::from()`:
+
+| Enum case | Backing value |
+| --- | --- |
+| `Metric::CpuTime` | `cpu-time` |
+| `Metric::PageFaults` | `page-faults` |
+| `Metric::ContextSwitches` | `context-switches` |
+| `Metric::CpuCycles` | `cpu-cycles` |
+| `Metric::Instructions` | `instructions` |
+| `Scope::CurrentProcess` | `current-process` |
+| `Scope::CurrentThread` | `current-thread` |
+
+Backing values identify metrics; samples expose values through `value(Metric)`, without public array keys.
+`MetricUnit` has the cases `Nanoseconds` and `Count`; units are separate from metric identifiers.
+
 Cross-platform applications that want to degrade gracefully should catch `UnsupportedMetricException`, remove its
-`$unsupportedMetrics` from the requested set, and retry. The exception's `$scope` identifies the rejected request;
-its message remains a human-readable summary rather than the machine-readable recovery interface. The exception is
-created only by the extension and is not serializable, ensuring that its readonly metadata is always initialized.
+`$unsupportedMetrics` from the requested set, and retry. That readonly property is a `non-empty-list<Metric>`; the
+readonly `Scope $scope` identifies the rejected request. The message is a human-readable summary. The exception has a
+private constructor, is created only by the extension, and is not serializable, so its metadata is always initialized.
 
 An advisory capability-discovery API is deliberately omitted. Hardware availability and
 permissions can change between a capability check and `Sampler::open()`, so opening the sampler must remain the
@@ -200,14 +98,8 @@ and closed from that same thread. It is an advanced scope for ZTS builds, thread
 counters that are unavailable process-wide. PHP fibers share an operating-system thread, so thread scope does not
 isolate one fiber from another.
 
-Windows supports `Metric::CpuTime`, `Metric::ContextSwitches`, and `Metric::CpuCycles` for this scope. Windows
-current-thread page faults and instructions still throw `UnsupportedMetricException`. Darwin supports
-`Metric::CpuTime`; its other current-thread metrics remain unsupported.
-
-Linux intentionally rejects all `Scope::CurrentThread` requests. `perf_event_open()` can bind a
-counter group to the calling native thread without enumerating the process's threads, but PHP-FPM and CLI normally
-execute PHP on one native thread. For those callers, thread scope usually adds no useful isolation over process scope.
-Revisit this decision when a ZTS or embedded-PHP consumer needs to exclude work performed by other native threads.
+See the [support matrix](#support-matrix) for current-thread availability and the
+[deferred Linux backend](#deferred-linux-current-thread-backend) for its rationale and proposed mapping.
 
 The sampler does not target arbitrary process or thread identifiers. The platform-specific APIs can continue to
 expose facilities that do so.
@@ -266,26 +158,6 @@ with `UnsupportedMetricException`.
 a zero count is treated as unavailable. CPU time and page faults are the shared metric set supported by all three
 process backends.
 
-Linux current-thread support is deferred until it has a concrete PHP use case. It is not available through the current
-sampler API.
-
-The important consequences are:
-
-- no five-counter preset works across every platform and scope;
-- Linux current-thread support is deliberately deferred despite kernel support;
-- Linux process-wide cycles and instructions must not be implemented by attaching `perf_event_open()` only to the
-  calling thread;
-- Windows process context switches and instructions have no honest mapping in the current backend;
-- Windows thread page faults have no honest mapping in the current backend;
-- Darwin thread page faults and context switches have no honest mapping in the current backend; and
-- Darwin cycle and instruction fields can remain zero on hardware or virtual machines where the kernel cannot collect
-  them, so the high-level sampler probes process cycles when opening and leaves instructions in the low-level API.
-
-Windows thread instructions are not supported by the sampler. `EnableThreadProfiling()`
-can expose globally configured hardware counters, but configuring those counters requires a kernel driver and the
-current low-level API cannot prove that a selected index represents retired instructions. Applications that control
-such a driver can continue to use `Perfidious\Windows\enable_current_thread_profiling()` directly.
-
 ## Backend mapping
 
 ### Linux
@@ -294,9 +166,8 @@ The [Linux sampler backend](../src/linux/sampler.c) uses `getrusage(RUSAGE_SELF)
 faults, and context switches. CPU time combines `ru_utime` and `ru_stime`, page faults combine `ru_minflt` and
 `ru_majflt`, and context switches combine `ru_nvcsw` and `ru_nivcsw`.
 
-The common sampler does not use the low-level `Perfidious\open()` perf-event backend. Process cycles, instructions,
-and all current-thread requests are unsupported. A possible current-thread perf-event backend is described under
-[future work](#future-work).
+The common sampler does not use the low-level `Perfidious\open()` perf-event backend. A possible perf-event mapping
+and the requirement to account for all process threads are described under [future work](#future-work).
 
 ### Windows
 
@@ -313,6 +184,11 @@ Thread context switches and cycles map to
 [`EnableThreadProfiling()`](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-enablethreadprofiling)
 and
 [`PERFORMANCE_DATA`](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-performance_data).
+
+Windows thread instructions are not supported by the sampler. `EnableThreadProfiling()`
+can expose globally configured hardware counters, but configuring those counters requires a kernel driver and the
+current low-level API cannot prove that a selected index represents retired instructions. Applications that control
+such a driver can continue to use `Perfidious\Windows\enable_current_thread_profiling()` directly.
 
 ### Darwin
 
@@ -344,7 +220,9 @@ requested metric is nominally supported for the selected platform and scope.
 Reading an explicitly closed handle, sampler, or thread profile throws `ClosedException`. Reading a Windows or Darwin
 current-thread sampler from a different native thread throws `WrongThreadException`. A conflicting Windows thread
 profiling session throws `ResourceBusyException`; callers can release the existing sampler or low-level profile and
-retry. These state errors are deliberately not subclasses of `IOException`.
+retry. `ClosedException` and `WrongThreadException` extend `LogicException`; `ResourceBusyException`,
+`UnsupportedMetricException`, and `IOException` extend `RuntimeException`. All are final and implement
+`Perfidious\ExceptionInterface`. The state errors are not subclasses of `IOException`.
 
 Native permission, resource, and call failures use `IOException`. Counter values that do not
 fit in a PHP integer use `OverflowException`.
@@ -391,7 +269,6 @@ The sampler API does not:
 The shared API and the `Yes`/`Probed` combinations in the support matrix are implemented. The following extensions are
 proposals, not currently available sampler behavior:
 
-- Linux current-thread support remains deferred until a ZTS or embedded-PHP consumer demonstrates a need for it.
 - Additional Darwin current-thread metrics require a usable native source and reliable availability checks.
 - Instruction counting remains proposed. Its intended metric is the native retired-instruction count charged to the
   selected scope. Interrupt and speculative execution accounting can vary by processor and operating system, so it
@@ -402,6 +279,10 @@ Future additions should use the same classes on every platform, test successful 
 combinations fail without leaking partially opened native resources.
 
 ### Deferred Linux current-thread backend
+
+Linux thread support is deferred until a ZTS or embedded-PHP consumer needs it. Typical PHP-FPM and CLI programs execute
+PHP on one native thread, so thread scope usually adds no useful isolation for those callers. A consumer that needs to
+exclude work by other native threads would justify revisiting this decision.
 
 Current-thread metrics could map to a `perf_event_open()` group containing the requested perf events. The Linux API
 defines `pid == 0` and `cpu == -1` as the calling thread. See the

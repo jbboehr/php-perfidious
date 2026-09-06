@@ -260,18 +260,9 @@
               enabled ++ lib.optional (all ? opcache) all.opcache ++ [package];
           };
 
-          # CLI tests see one request per process. Serve this docroot over php-fpm to exercise
-          # the request handle's reuse across requests and its repeated reset/enable/disable lifecycle.
-          #
-          # note: this deliberately does NOT assert on real counter magnitudes (e.g. timeEnabled
-          # growing across requests) - perf counters were found to be unreliable/frozen inside
-          # nested-virtualization CI runners (confirmed even for a single non-forked long-lived
-          # process), which is also why the CLI .phpt suite never asserts real counter values.
-          # What's actually novel/valuable here - and fully deterministic regardless of PMU/timer
-          # virtualization quirks - is proving the *same* worker process survives many repeated
-          # RINIT/RSHUTDOWN cycles (i.e. real requests) without request_handle()
-          # erroring, returning corrupt data, or crashing the worker: exactly the class of
-          # use-after-free / double-reset bug a one-shot-per-process CLI test can never catch.
+          # Exercise request-handle reuse and reset/enable/disable across requests in one FPM worker.
+          # This VM check avoids counter-magnitude assertions because nested virtualization can
+          # prevent counters from advancing, even in a single process. Other PHPTs test live counts.
           fpmDocroot = ./nix/vm-test;
         in
           pkgs.testers.runNixOSTest {
@@ -492,15 +483,10 @@
             default = packages.php81-gcc;
           };
 
-        # Statically-linked, whole-process ASan/UBSan build: perfidious source is embedded
-        # directly into a php source tree (as ext/perfidious) and built in, so there's no
-        # dlopen() of a separate .so at all. That matters because PHP's extension loader always
-        # dlopen()s with RTLD_DEEPBIND, which is fundamentally incompatible with sanitizer
-        # runtimes - an ordinary dynamically-loaded .so built with -fsanitize=address just can't
-        # be loaded at all, so a ASan/UBSan build has to avoid dlopen() entirely like this.
-        #
-        # Deliberately NOT wired into `packages`/`checks`/`devShells`: it rebuilds the whole of
-        # PHP core from source (slow), so it's opt-in only via
+        # Build Perfidious into PHP to avoid the dynamic loader's RTLD_DEEPBIND/sanitizer conflict.
+        # Only Perfidious's objects are instrumented; PHP core links the sanitizer runtimes.
+        # Rebuilding PHP is slow, so these targets are excluded from the normal package/check/shell
+        # matrices and exposed separately via
         # `nix build .#sanitize-static-php82` / `.#sanitize-static-php82-check`.
         sanitizeStdenv =
           if pkgs.stdenv.cc.isClang

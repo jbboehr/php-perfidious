@@ -17,8 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-// ok, these aren't all examples per se
-// this one lists all or available PMU events
+// List libpfm events for the selected PMUs.
 
 use function Perfidious\list_pmus;
 use function Perfidious\list_pmu_events;

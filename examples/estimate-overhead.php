@@ -17,8 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-// ok, these aren't all examples per se
-// this one tries to estimate the overhead of calling Perfidious\Handle::read()
+// Estimate the overhead of Perfidious\Handle::readArray().
 
 use function Perfidious\open;
 
