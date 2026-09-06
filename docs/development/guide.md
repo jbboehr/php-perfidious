@@ -233,3 +233,15 @@ sanitizer runtimes into PHP, but it does not instrument all PHP core code.
 The check target sets `USE_ZEND_ALLOC=0`, supplies the sanitizer runtime environment, and uses an ordinary PHP binary
 for stub reflection through `PERFIDIOUS_STUB_PHP`. LeakSanitizer is disabled in that target. Use the Valgrind checks
 for leak testing, and inspect sanitizer test skips rather than assuming they match a shared-module build.
+
+The static build skips fixtures that require a shared module or replace the built-in extension, including the FPM
+fixtures. Debug-only and ZTS tests also skip in this release NTS target. Native harnesses compiled by PHPTs do not
+inherit the extension's sanitizer flags. See the [sanitizer verification record](project-review.md#follow-up-asanubsan-runtime-verification)
+for the measured coverage and separate instrumented harness runs.
+
+To rerun the suite after a cached success and save its output:
+
+```sh
+nix build --rebuild --no-link -L .#sanitize-static-php82-check > /tmp/perfidious-sanitizer-phpt.log 2>&1
+cat /tmp/perfidious-sanitizer-phpt.log
+```

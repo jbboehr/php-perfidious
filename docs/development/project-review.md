@@ -57,9 +57,11 @@ testing reuse of an unrelated resource.
 ### Other platform and instrumentation coverage
 
 The [NixOS VM follow-up](#follow-up-nixos-vm-integration) passed the three existing x86-64 VM targets. Two guest preload
-PHPTs still skip because the suite runs as root. Native Windows/macOS and sanitizer runtime remain unverified for
-several slices; evaluate those gaps against each change's recorded environment and limits. Passing a Unix shim does
-not establish native execution.
+PHPTs still skip because the suite runs as root. The [ASan/UBSan follow-up](#follow-up-asanubsan-runtime-verification)
+passed on Linux with PHP 8.2.32 release NTS. Sanitizer coverage of debug hooks, FPM, and ZTS remains unverified, as does
+local native Windows/macOS execution. The [PIE CI follow-up](#follow-up-pie-compatibility-for-the-64-bit-policy) records
+successful native-platform CI jobs separately. Evaluate these gaps against each change's recorded environment and
+limits. Passing a Unix shim does not establish native execution.
 
 ### Optional shutdown recovery and declaration generation
 
@@ -1278,8 +1280,9 @@ threaded SAPIs, allocation bailout, and exhaustive concurrent schedules remain u
 ### Follow-up: 64-bit PHP requirement
 
 Implementation review base: `7387345`. Perfidious now requires 64-bit PHP on every platform. The public header rejects
-builds unless PHP's `SIZEOF_SIZE_T` and `SIZEOF_ZEND_LONG` are both eight, and Composer declares `php-64bit` as a
-requirement. Windows retains its existing x64-only configure rule.
+builds unless PHP's `SIZEOF_SIZE_T` and `SIZEOF_ZEND_LONG` are both eight. The initial Composer `php-64bit` requirement
+was later removed for [PIE compatibility](#follow-up-pie-compatibility-for-the-64-bit-policy). Windows retains its
+existing x64-only configure rule.
 
 Counters and nanosecond durations are returned as PHP integers. Supporting 32-bit PHP would require a narrower value
 contract and additional counter-width testing. The former Linux context-switch widening path covered only part of that
@@ -1353,6 +1356,77 @@ paths in the release guest suites. Earlier local experiments retain their own sc
 
 Configured lint hooks and documentation links passed. Host PHPT, Valgrind, and sanitizer suites were not rerun because
 the changes affect VM test dependencies and retained evidence.
+
+### Follow-up: ASan/UBSan runtime verification
+
+Review base: `d5e99ea`. On Linux x86-64, the existing static sanitizer target built PHP 8.2.32 release NTS with GCC 15.2.0
+and passed 72 PHPTs, with 41 skips, zero warnings, and zero failures. No ASan or UBSan findings appeared. No extension,
+test, or build changes were needed.
+
+```sh
+nix build --no-link -L .#sanitize-static-php82-check
+```
+
+A forced rerun with `--rebuild` reproduced the same result. The [development guide](guide.md#optional-asanubsan-build)
+includes the command to save fresh test output without relying on Nix log retention.
+
+The compilation log confirmed `-fsanitize=address,undefined` and `-fno-sanitize-recover=all` on all ten Linux extension
+source files. The executable links `libasan` and `libubsan`. Disassembly of
+`perfidious_handle_read_to_array_with_times()` contains both sanitizers' checks, and a separate verbose startup probe
+confirmed ASan initialization. PHP core and dependencies were not instrumented.
+
+The target used `USE_ZEND_ALLOC=0`, `ASAN_OPTIONS=detect_leaks=0:abort_on_error=1`, and
+`UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1`. LeakSanitizer was disabled. The passing Zend-memory usage assertion
+does not establish leak freedom in this configuration: the runtime probe returned zero from `memory_get_usage()`.
+Earlier Valgrind evidence retains its separate scope.
+
+The 41 skips comprise 18 native-platform tests, 13 debug-only tests, six FPM fixtures requiring a shared module, one
+request-metric fixture requiring a shared module, two fixtures replacing the extension, and one ZTS test. The passing
+Darwin probe and Windows sampler harness PHPTs compile their native programs without sanitizer flags, so their suite
+passes alone do not establish instrumented native coverage.
+
+Separate experiments covered two of those limitations:
+
+- The [Darwin probe](../../tests/darwin/sampler-probe-harness.c) and
+  [Windows sampler](../../tests/windows/sampler-harness.c) harnesses were rebuilt with the same compiler and PHP headers, plus
+  `-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -g -O1`. Both passed with empty stderr.
+- A temporary copy of the [request-metric fixture](../../tests/request-handle/metric-limit.phpt)'s `FILE` section omitted
+  its shared-module helper and child `extension=` argument. All nine existing cases matched the unchanged PHPT expectation
+  under static sanitizer PHP, including accepted and rejected field counts, empty fields, and disabled configuration. This was a separate
+  experiment, not an additional suite pass or a change to the committed fixture.
+
+These runs cover the selected Linux release configuration and controlled native harnesses. They do not establish
+sanitizer coverage of debug hooks, FPM lifecycle/preloading, ZTS, the two replacement-extension fixtures, PHP core,
+dependencies, or native Windows/macOS execution. Configured lint hooks and documentation links passed. Ordinary host,
+VM, and Valgrind suites were not rerun for this documentation-only slice.
+
+### Follow-up: PIE compatibility for the 64-bit policy
+
+Review base: `d5e99ea`. The [CI run for the 64-bit change](https://github.com/jbboehr/php-perfidious/actions/runs/34059241725)
+failed only its PIE job. The other 59 jobs passed, including the configured native Windows and macOS jobs. These are
+remote CI results, separate from the local experiments above.
+
+PIE 1.4.10 reported an x86-64 PHP 8.1.34 target but rejected Perfidious's `php-64bit` requirement as missing. Its
+[platform repository](https://github.com/php/pie/blob/1.4.10/src/ComposerIntegration/PhpBinaryPathBasedPlatformRepository.php)
+constructs the target's platform packages without adding `php-64bit`. The requirement is valid in ordinary Composer,
+but it blocks this PIE release before compilation.
+
+The manifest and lockfile now omit `php-64bit`. The public header's width guard and Windows x64 configure restriction
+still enforce the 64-bit policy when building. Dependency versions are unchanged. Reconsider the metadata requirement
+when PIE supports that platform package.
+
+The local reproduction used the release's verified PHAR, an isolated PIE working directory, and a path repository for
+the checkout. `pie build jbboehr/perfidious:@dev --no-interaction --no-cache` failed with the same missing-platform
+error before the metadata change. Afterward, the same command resolved the package, ran phpize/configure, and built
+the extension. The resulting module loaded successfully under PHP 8.1.34 and passed its full suite: 79 passed,
+34 skipped, zero warnings, and zero failures. The skips were 18 native-platform tests, 13 debug-only tests, two preload
+tests without OpCache, and one ZTS test.
+
+The real 64-bit header consumer compiled. Controlled width checks still rejected either or both of `size_t` and
+`zend_long` set to four bytes. This rechecks the retained guard, not an actual 32-bit build. Composer validation and an
+installation dry run, stub freshness, PHPCS, PHPStan, configured linters, and documentation links passed. Local
+verification stopped at PIE build and module loading, without system-wide installation or INI changes. The existing
+PIE installation CI job remains the integration regression test; a pushed run of this correction is still required.
 
 ## Initial review and verification
 
