@@ -25,6 +25,7 @@
 #include "php_perfidious.h"
 #include "sampler.h"
 #include "zend_helpers.h"
+#include "common_arginfo.h"
 
 PERFIDIOUS_LOCAL zend_class_entry *perfidious_metric_ce;
 PERFIDIOUS_LOCAL zend_class_entry *perfidious_scope_ce;
@@ -356,16 +357,11 @@ static void perfidious_throw_unsupported_metrics(
 }
 
 // clang-format off
-ZEND_BEGIN_ARG_INFO_EX(perfidious_private_construct_arginfo, false, 0, 0)
-ZEND_END_ARG_INFO()
 
 static PHP_METHOD(PerfidiousSamplerObject, __construct)
 {
     ZEND_PARSE_PARAMETERS_NONE();
 }
-
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_metric_unit_arginfo, false, 0, Perfidious\\MetricUnit, false)
-ZEND_END_ARG_INFO()
 
 static PHP_METHOD(PerfidiousMetric, unit)
 {
@@ -380,10 +376,6 @@ static PHP_METHOD(PerfidiousMetric, unit)
     RETURN_OBJ_COPY(zend_enum_get_case_cstr(perfidious_metric_unit_ce, perfidious_metric_unit_case_name(metric)));
 }
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_sampler_open_arginfo, false, 1, Perfidious\\Sampler, false)
-    ZEND_ARG_TYPE_INFO(false, metrics, IS_ARRAY, false)
-    ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(false, scope, Perfidious\\Scope, false, "Perfidious\\Scope::CurrentProcess")
-ZEND_END_ARG_INFO()
 // clang-format on
 
 static PHP_METHOD(PerfidiousSampler, open)
@@ -457,9 +449,6 @@ static PHP_METHOD(PerfidiousSampler, open)
     obj->metric_count = metric_count;
 }
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(perfidious_sampler_metrics_arginfo, false, 0, IS_ARRAY, false)
-ZEND_END_ARG_INFO()
-
 static PHP_METHOD(PerfidiousSampler, metrics)
 {
     struct perfidious_sampler_obj *obj;
@@ -478,9 +467,6 @@ static PHP_METHOD(PerfidiousSampler, metrics)
         add_next_index_zval(return_value, &metric);
     }
 }
-
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_sampler_read_arginfo, false, 0, Perfidious\\Sample, false)
-ZEND_END_ARG_INFO()
 
 static PHP_METHOD(PerfidiousSampler, read)
 {
@@ -541,9 +527,6 @@ static PHP_METHOD(PerfidiousSampler, read)
     }
 }
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(perfidious_sampler_close_arginfo, false, 0, IS_VOID, false)
-ZEND_END_ARG_INFO()
-
 static PHP_METHOD(PerfidiousSampler, close)
 {
     struct perfidious_sampler_obj *obj;
@@ -556,10 +539,6 @@ static PHP_METHOD(PerfidiousSampler, close)
         obj->sampler = NULL;
     }
 }
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(perfidious_sample_value_arginfo, false, 1, IS_LONG, false)
-    ZEND_ARG_OBJ_INFO(false, metric, Perfidious\\Metric, false)
-ZEND_END_ARG_INFO()
 
 static void perfidious_sample_value(INTERNAL_FUNCTION_PARAMETERS, uint32_t metrics, const uint64_t *values)
 {
@@ -591,10 +570,6 @@ static PHP_METHOD(PerfidiousSample, value)
 
     perfidious_sample_value(INTERNAL_FUNCTION_PARAM_PASSTHRU, obj->metrics, obj->values);
 }
-
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(perfidious_sample_since_arginfo, false, 1, Perfidious\\SampleDelta, false)
-    ZEND_ARG_OBJ_INFO(false, earlier, Perfidious\\Sample, false)
-ZEND_END_ARG_INFO()
 
 static PHP_METHOD(PerfidiousSample, since)
 {
@@ -658,29 +633,29 @@ static PHP_METHOD(PerfidiousSampleDelta, value)
 
 // clang-format off
 static const zend_function_entry perfidious_metric_methods[] = {
-    PHP_ME(PerfidiousMetric, unit, perfidious_metric_unit_arginfo, ZEND_ACC_PUBLIC)
+    PHP_ME(PerfidiousMetric, unit, arginfo_class_Perfidious_Metric_unit, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
 static const zend_function_entry perfidious_sampler_methods[] = {
-    PHP_ME(PerfidiousSamplerObject, __construct, perfidious_private_construct_arginfo, ZEND_ACC_PRIVATE)
-    PHP_ME(PerfidiousSampler, open, perfidious_sampler_open_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(PerfidiousSampler, metrics, perfidious_sampler_metrics_arginfo, ZEND_ACC_PUBLIC)
-    PHP_ME(PerfidiousSampler, read, perfidious_sampler_read_arginfo, ZEND_ACC_PUBLIC)
-    PHP_ME(PerfidiousSampler, close, perfidious_sampler_close_arginfo, ZEND_ACC_PUBLIC)
+    PHP_ME(PerfidiousSamplerObject, __construct, arginfo_class_Perfidious_Sampler___construct, ZEND_ACC_PRIVATE)
+    PHP_ME(PerfidiousSampler, open, arginfo_class_Perfidious_Sampler_open, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(PerfidiousSampler, metrics, arginfo_class_Perfidious_Sampler_metrics, ZEND_ACC_PUBLIC)
+    PHP_ME(PerfidiousSampler, read, arginfo_class_Perfidious_Sampler_read, ZEND_ACC_PUBLIC)
+    PHP_ME(PerfidiousSampler, close, arginfo_class_Perfidious_Sampler_close, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
 static const zend_function_entry perfidious_sample_methods[] = {
-    PHP_ME(PerfidiousSamplerObject, __construct, perfidious_private_construct_arginfo, ZEND_ACC_PRIVATE)
-    PHP_ME(PerfidiousSample, value, perfidious_sample_value_arginfo, ZEND_ACC_PUBLIC)
-    PHP_ME(PerfidiousSample, since, perfidious_sample_since_arginfo, ZEND_ACC_PUBLIC)
+    PHP_ME(PerfidiousSamplerObject, __construct, arginfo_class_Perfidious_Sample___construct, ZEND_ACC_PRIVATE)
+    PHP_ME(PerfidiousSample, value, arginfo_class_Perfidious_Sample_value, ZEND_ACC_PUBLIC)
+    PHP_ME(PerfidiousSample, since, arginfo_class_Perfidious_Sample_since, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
 static const zend_function_entry perfidious_sample_delta_methods[] = {
-    PHP_ME(PerfidiousSamplerObject, __construct, perfidious_private_construct_arginfo, ZEND_ACC_PRIVATE)
-    PHP_ME(PerfidiousSampleDelta, value, perfidious_sample_value_arginfo, ZEND_ACC_PUBLIC)
+    PHP_ME(PerfidiousSamplerObject, __construct, arginfo_class_Perfidious_SampleDelta___construct, ZEND_ACC_PRIVATE)
+    PHP_ME(PerfidiousSampleDelta, value, arginfo_class_Perfidious_SampleDelta_value, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 // clang-format on

@@ -26,6 +26,7 @@
 #include <ext/spl/spl_exceptions.h>
 #include "php_perfidious.h"
 #include "zend_helpers.h"
+#include "common_arginfo.h"
 
 PERFIDIOUS_PUBLIC zend_class_entry *perfidious_exception_interface_ce;
 PERFIDIOUS_PUBLIC zend_class_entry *perfidious_pmu_not_found_exception_ce;
@@ -38,9 +39,6 @@ PERFIDIOUS_PUBLIC zend_class_entry *perfidious_resource_busy_exception_ce;
 PERFIDIOUS_PUBLIC zend_class_entry *perfidious_unsupported_metric_exception_ce;
 
 // clang-format off
-ZEND_BEGIN_ARG_INFO_EX(perfidious_unsupported_metric_exception_construct_arginfo, false, 0, 0)
-ZEND_END_ARG_INFO()
-
 static PHP_METHOD(PerfidiousUnsupportedMetricException, __construct)
 {
     ZEND_PARSE_PARAMETERS_NONE();
@@ -50,7 +48,7 @@ static const zend_function_entry perfidious_unsupported_metric_exception_methods
     PHP_ME(
         PerfidiousUnsupportedMetricException,
         __construct,
-        perfidious_unsupported_metric_exception_construct_arginfo,
+        arginfo_class_Perfidious_UnsupportedMetricException___construct,
         ZEND_ACC_PRIVATE
     )
     PHP_FE_END

@@ -68,12 +68,10 @@ Windows/macOS sanitizer execution remains unverified. The [PIE CI follow-up](#fo
 successful native-platform CI jobs separately. Evaluate these gaps against each change's recorded environment and
 limits. Passing a Unix shim does not establish native execution.
 
-### Optional shutdown recovery and declaration generation
+### Optional shutdown recovery
 
 The transient shutdown-disable retry concern remains deferred with injected CLI evidence; see the
 [R03 decision](#r03-review-follow-up). No naturally occurring failure or incorrect next-request measurement was found.
-Generated native arginfo remains an optional way to reduce declaration duplication. Retain the public-contract tests
-if adopting it; the existing sampler/backend separation and explicit ownership are useful boundaries.
 
 ## Implementation and verification records
 
@@ -1628,6 +1626,47 @@ fixtures against both existing PHP 8.2.32 NTS ASan/UBSan executables, with debug
 were reused because extension source is unchanged; the full sanitizer suites were not rerun. [PHP checks](#shared-php-checks),
 PHP/Python syntax, configured lint hooks, and documentation links passed. Native Windows/macOS, AArch64 execution, ZTS,
 and Valgrind were not rerun for this slice.
+
+### Follow-up: Generated native arginfo
+
+Review base: `a15d069`. PHP's standard stub generator now produces the public arginfo in `src/*_arginfo.h` from the four
+canonical files in `stubs/`, replacing 35 handwritten blocks. Function tables, handlers, and debug-only arginfo remain
+in C. The generated headers are committed and located separately from the canonical stubs, so normal extension builds
+consume them without invoking the PHP SDK's generator.
+
+The [generation command](guide.md#composer-declarations-and-formatting) uses PHP 8.5.8's `gen_stub.php` and PHP-Parser
+5.6.1, pinned through Nix. A Bash wrapper copies the stubs to a temporary directory, runs the upstream generator, and
+either copies or compares the four headers. The existing pre-commit check includes generation freshness; the CI matrix
+still has 27 entries. The headers retain the upstream generator's formatting and are marked as generated in Git.
+
+The initial experiment rejected the unchanged stubs: PHP 8.1's generator stopped at namespace constants, and PHP 8.5's
+generator rejected rich PHPDoc parameter types. The canonical stubs now use explicit class names instead of `self` and
+PHPStan-specific tags for those richer types. Existing generic declarations, enum defaults, parameter names, nullable
+returns, and the untyped resource return are preserved. The aggregate stub was regenerated.
+
+Experimental verification on Linux x86-64:
+
+- Four focused API, arginfo, object-model, and argument-error PHPTs passed before and after the refactor. The complete
+  Linux runtime reflection snapshot was identical before and after rebuilding.
+- A temporary extension compiled all 35 old/new arginfo pairs, including the Windows and Darwin declarations, with
+  PHP 8.1.34 NTS and PHP 8.5.8 ZTS headers. Reflection found identical parameter names, types, required counts, defaults,
+  reference/variadic flags, and return types for every pair on both runtimes. This checks metadata, not native backends.
+- Freshness checking failed when headers were absent, when a header's PID default was corrupted, and when the canonical
+  PID default changed without regeneration. Regeneration repaired the header or reflected the new stub default, and
+  subsequent checks passed.
+- The existing public-contract PHPT rejected an altered canonical PID default against the unchanged runtime and passed
+  after restoration. It remains independent of the generated C metadata.
+
+| Configuration | Full PHPT suite | Valgrind PHPT pass |
+| --- | --- | --- |
+| PHP 8.1.34, debug extension, host | 92 passed, 22 skipped | Not rerun |
+| PHP 8.1.34, release extension, Nix | 75 passed, 39 skipped | 75 passed, 39 skipped, no reported test leaks |
+| PHP 8.5.8, release extension, Nix | 75 passed, 39 skipped | 75 passed, 39 skipped, no reported test leaks |
+
+The suites had no warnings or failures. The release Nix checks skip the seven FPM fixtures because Python is absent;
+the host suite exercised them. [PHP checks](#shared-php-checks), the updated Nix pre-commit check, Bash syntax, and
+documentation links passed. Native Windows/macOS execution, other PHP versions, full ZTS lifecycle, VM, and sanitizer
+suites were not rerun for this metadata refactor.
 
 ## Initial review and verification
 

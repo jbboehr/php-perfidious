@@ -43,6 +43,7 @@
 #include "php_perfidious.h"
 #include "resource_usage.h"
 #include "../zend_helpers.h"
+#include "../darwin_arginfo.h"
 
 #define PHP_PERFIDIOUS_DARWIN_NAMESPACE PHP_PERFIDIOUS_NAMESPACE "\\Darwin"
 #define PERFIDIOUS_DARWIN_THSC_TIME_CPI 3
@@ -68,8 +69,6 @@ static perfidious_darwin_thread_selfcounts_fn perfidious_darwin_thread_selfcount
 static mach_timebase_info_data_t perfidious_darwin_timebase;
 
 // clang-format off
-ZEND_BEGIN_ARG_INFO_EX(perfidious_darwin_result_construct_arginfo, 0, 0, 0)
-ZEND_END_ARG_INFO()
 
 static PHP_METHOD(PerfidiousDarwinResult, __construct)
 {
@@ -77,7 +76,7 @@ static PHP_METHOD(PerfidiousDarwinResult, __construct)
 }
 
 static const zend_function_entry perfidious_darwin_result_methods[] = {
-    PHP_ME(PerfidiousDarwinResult, __construct, perfidious_darwin_result_construct_arginfo, ZEND_ACC_PRIVATE)
+    PHP_ME(PerfidiousDarwinResult, __construct, arginfo_class_Perfidious_Darwin_ProcessResourceUsage___construct, ZEND_ACC_PRIVATE)
     PHP_FE_END
 };
 // clang-format on
@@ -230,15 +229,6 @@ perfidious_darwin_read_current_thread_resource_usage(struct perfidious_darwin_th
     return SUCCESS;
 }
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(
-    perfidious_darwin_get_current_process_resource_usage_arginfo,
-    false,
-    0,
-    Perfidious\\Darwin\\ProcessResourceUsage,
-    false
-)
-ZEND_END_ARG_INFO()
-
 static PHP_FUNCTION(perfidious_darwin_get_current_process_resource_usage)
 {
     struct rusage_info_v4 process_usage;
@@ -321,15 +311,6 @@ static PHP_FUNCTION(perfidious_darwin_get_current_process_resource_usage)
     );
 }
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(
-    perfidious_darwin_get_current_thread_resource_usage_arginfo,
-    false,
-    0,
-    Perfidious\\Darwin\\ThreadResourceUsage,
-    false
-)
-ZEND_END_ARG_INFO()
-
 static PHP_FUNCTION(perfidious_darwin_get_current_thread_resource_usage)
 {
     struct perfidious_darwin_thread_resource_usage usage;
@@ -366,8 +347,8 @@ static PHP_FUNCTION(perfidious_darwin_get_current_thread_resource_usage)
 // clang-format off
 PERFIDIOUS_LOCAL
 const zend_function_entry perfidious_darwin_functions[] = {
-    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_DARWIN_NAMESPACE "\\get_current_process_resource_usage", ZEND_FN(perfidious_darwin_get_current_process_resource_usage), perfidious_darwin_get_current_process_resource_usage_arginfo, 0)
-    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_DARWIN_NAMESPACE "\\get_current_thread_resource_usage", ZEND_FN(perfidious_darwin_get_current_thread_resource_usage), perfidious_darwin_get_current_thread_resource_usage_arginfo, 0)
+    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_DARWIN_NAMESPACE "\\get_current_process_resource_usage", ZEND_FN(perfidious_darwin_get_current_process_resource_usage), arginfo_Perfidious_Darwin_get_current_process_resource_usage, 0)
+    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_DARWIN_NAMESPACE "\\get_current_thread_resource_usage", ZEND_FN(perfidious_darwin_get_current_thread_resource_usage), arginfo_Perfidious_Darwin_get_current_thread_resource_usage, 0)
     PHP_FE_END
 };
 // clang-format on

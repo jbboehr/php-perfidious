@@ -27,9 +27,10 @@ Before structural changes, read the relevant public documentation, contracts, an
 - [Development guide](docs/development/guide.md): local builds, generation, static analysis, PHPTs, and platform checks.
 - [Project review](docs/development/project-review.md): experimental evidence, accepted decisions, and unresolved limits.
 
-The platform declarations in `stubs/` are canonical. Regenerate `perfidious.stub.php` with
-`php tools/generate-aggregate-stub.php` after changing them. Preserve public behavior with tests through the PHP API;
-use native fixtures for failure paths that cannot be exercised reliably through live platform calls.
+The platform declarations in `stubs/` are canonical. After changing them, regenerate `perfidious.stub.php` with
+`php tools/generate-aggregate-stub.php` and native arginfo with `nix run .#generate-arginfo`. Preserve public behavior
+with tests through the PHP API; use native fixtures for failure paths that cannot be exercised reliably through live
+platform calls.
 
 Keep maintainer workflows and implementation notes in `docs/development/`. Keep `README.md` focused on end users.
 

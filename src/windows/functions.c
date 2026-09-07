@@ -37,6 +37,7 @@
 #include "private.h"
 #include "thread_profile.h"
 #include "../zend_helpers.h"
+#include "../windows_arginfo.h"
 
 #define PHP_PERFIDIOUS_WINDOWS_NAMESPACE PHP_PERFIDIOUS_NAMESPACE "\\Windows"
 #define PERFIDIOUS_WINDOWS_HARDWARE_COUNTER_MASK_MAX 0xffff
@@ -59,8 +60,6 @@ static zend_class_entry *perfidious_windows_hardware_counter_snapshot_ce;
 static zend_object_handlers perfidious_windows_thread_profile_obj_handlers;
 
 // clang-format off
-ZEND_BEGIN_ARG_INFO_EX(perfidious_windows_result_construct_arginfo, 0, 0, 0)
-ZEND_END_ARG_INFO()
 
 static PHP_METHOD(PerfidiousWindowsResult, __construct)
 {
@@ -68,7 +67,7 @@ static PHP_METHOD(PerfidiousWindowsResult, __construct)
 }
 
 static const zend_function_entry perfidious_windows_result_methods[] = {
-    PHP_ME(PerfidiousWindowsResult, __construct, perfidious_windows_result_construct_arginfo, ZEND_ACC_PRIVATE)
+    PHP_ME(PerfidiousWindowsResult, __construct, arginfo_class_Perfidious_Windows_ProcessTimes___construct, ZEND_ACC_PRIVATE)
     PHP_FE_END
 };
 // clang-format on
@@ -225,19 +224,12 @@ static zend_object *perfidious_windows_thread_profile_obj_create(zend_class_entr
 }
 
 // clang-format off
-ZEND_BEGIN_ARG_INFO_EX(perfidious_windows_thread_profile_construct_arginfo, 0, 0, 0)
-ZEND_END_ARG_INFO()
 
 static PHP_METHOD(PerfidiousWindowsThreadProfile, __construct)
 {
     ZEND_PARSE_PARAMETERS_NONE();
 }
 // clang-format on
-
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(
-    perfidious_windows_thread_profile_read_arginfo, false, 0, Perfidious\\Windows\\ThreadProfileSnapshot, false
-)
-ZEND_END_ARG_INFO()
 
 static PHP_METHOD(PerfidiousWindowsThreadProfile, read)
 {
@@ -348,9 +340,6 @@ static PHP_METHOD(PerfidiousWindowsThreadProfile, read)
     zval_ptr_dtor(&hardware_counters);
 }
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(perfidious_windows_thread_profile_close_arginfo, false, 0, IS_VOID, false)
-ZEND_END_ARG_INFO()
-
 static PHP_METHOD(PerfidiousWindowsThreadProfile, close)
 {
     struct perfidious_windows_thread_profile_obj *obj;
@@ -374,17 +363,12 @@ static PHP_METHOD(PerfidiousWindowsThreadProfile, close)
 
 // clang-format off
 static const zend_function_entry perfidious_windows_thread_profile_methods[] = {
-    PHP_ME(PerfidiousWindowsThreadProfile, __construct, perfidious_windows_thread_profile_construct_arginfo, ZEND_ACC_PRIVATE)
-    PHP_ME(PerfidiousWindowsThreadProfile, read, perfidious_windows_thread_profile_read_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
-    PHP_ME(PerfidiousWindowsThreadProfile, close, perfidious_windows_thread_profile_close_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
+    PHP_ME(PerfidiousWindowsThreadProfile, __construct, arginfo_class_Perfidious_Windows_ThreadProfile___construct, ZEND_ACC_PRIVATE)
+    PHP_ME(PerfidiousWindowsThreadProfile, read, arginfo_class_Perfidious_Windows_ThreadProfile_read, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
+    PHP_ME(PerfidiousWindowsThreadProfile, close, arginfo_class_Perfidious_Windows_ThreadProfile_close, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
     PHP_FE_END
 };
 // clang-format on
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
-    perfidious_windows_query_current_process_cycle_time_arginfo, false, 0, IS_LONG, false
-)
-ZEND_END_ARG_INFO()
 
 static PHP_FUNCTION(perfidious_windows_query_current_process_cycle_time)
 {
@@ -405,11 +389,6 @@ static PHP_FUNCTION(perfidious_windows_query_current_process_cycle_time)
     RETURN_LONG(result);
 }
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
-    perfidious_windows_query_current_thread_cycle_time_arginfo, false, 0, IS_LONG, false
-)
-ZEND_END_ARG_INFO()
-
 static PHP_FUNCTION(perfidious_windows_query_current_thread_cycle_time)
 {
     ULONG64 value;
@@ -428,11 +407,6 @@ static PHP_FUNCTION(perfidious_windows_query_current_thread_cycle_time)
 
     RETURN_LONG(result);
 }
-
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(
-    perfidious_windows_get_current_process_times_arginfo, false, 0, Perfidious\\Windows\\ProcessTimes, false
-)
-ZEND_END_ARG_INFO()
 
 static PHP_FUNCTION(perfidious_windows_get_current_process_times)
 {
@@ -469,11 +443,6 @@ static PHP_FUNCTION(perfidious_windows_get_current_process_times)
     );
 }
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(
-    perfidious_windows_get_current_thread_times_arginfo, false, 0, Perfidious\\Windows\\ThreadTimes, false
-)
-ZEND_END_ARG_INFO()
-
 static PHP_FUNCTION(perfidious_windows_get_current_thread_times)
 {
     FILETIME creation_time;
@@ -506,11 +475,6 @@ static PHP_FUNCTION(perfidious_windows_get_current_thread_times)
         perfidious_windows_thread_times_ce, Z_OBJ_P(return_value), ZEND_STRL("userTime100ns"), values[2]
     );
 }
-
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(
-    perfidious_windows_get_current_process_memory_info_arginfo, false, 0, Perfidious\\Windows\\ProcessMemoryInfo, false
-)
-ZEND_END_ARG_INFO()
 
 static PHP_FUNCTION(perfidious_windows_get_current_process_memory_info)
 {
@@ -579,12 +543,6 @@ static PHP_FUNCTION(perfidious_windows_get_current_process_memory_info)
     );
 }
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(
-    perfidious_windows_enable_current_thread_profiling_arginfo, false, 0, Perfidious\\Windows\\ThreadProfile, false
-)
-    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(false, hardwareCounterMask, IS_LONG, false, "0")
-ZEND_END_ARG_INFO()
-
 static PHP_FUNCTION(perfidious_windows_enable_current_thread_profiling)
 {
     zend_long hardware_counters = 0;
@@ -650,12 +608,12 @@ static PHP_FUNCTION(perfidious_windows_enable_current_thread_profiling)
 // clang-format off
 PERFIDIOUS_LOCAL
 const zend_function_entry perfidious_windows_functions[] = {
-    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\query_current_process_cycle_time", ZEND_FN(perfidious_windows_query_current_process_cycle_time), perfidious_windows_query_current_process_cycle_time_arginfo, 0)
-    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\query_current_thread_cycle_time", ZEND_FN(perfidious_windows_query_current_thread_cycle_time), perfidious_windows_query_current_thread_cycle_time_arginfo, 0)
-    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\get_current_process_times", ZEND_FN(perfidious_windows_get_current_process_times), perfidious_windows_get_current_process_times_arginfo, 0)
-    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\get_current_thread_times", ZEND_FN(perfidious_windows_get_current_thread_times), perfidious_windows_get_current_thread_times_arginfo, 0)
-    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\get_current_process_memory_info", ZEND_FN(perfidious_windows_get_current_process_memory_info), perfidious_windows_get_current_process_memory_info_arginfo, 0)
-    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\enable_current_thread_profiling", ZEND_FN(perfidious_windows_enable_current_thread_profiling), perfidious_windows_enable_current_thread_profiling_arginfo, 0)
+    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\query_current_process_cycle_time", ZEND_FN(perfidious_windows_query_current_process_cycle_time), arginfo_Perfidious_Windows_query_current_process_cycle_time, 0)
+    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\query_current_thread_cycle_time", ZEND_FN(perfidious_windows_query_current_thread_cycle_time), arginfo_Perfidious_Windows_query_current_thread_cycle_time, 0)
+    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\get_current_process_times", ZEND_FN(perfidious_windows_get_current_process_times), arginfo_Perfidious_Windows_get_current_process_times, 0)
+    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\get_current_thread_times", ZEND_FN(perfidious_windows_get_current_thread_times), arginfo_Perfidious_Windows_get_current_thread_times, 0)
+    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\get_current_process_memory_info", ZEND_FN(perfidious_windows_get_current_process_memory_info), arginfo_Perfidious_Windows_get_current_process_memory_info, 0)
+    PERFIDIOUS_RAW_FENTRY(PHP_PERFIDIOUS_WINDOWS_NAMESPACE "\\enable_current_thread_profiling", ZEND_FN(perfidious_windows_enable_current_thread_profiling), arginfo_Perfidious_Windows_enable_current_thread_profiling, 0)
     PHP_FE_END
 };
 // clang-format on

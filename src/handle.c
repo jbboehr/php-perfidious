@@ -43,6 +43,7 @@
 #include "php_perfidious.h"
 #include "handle.h"
 #include "private.h"
+#include "linux_arginfo.h"
 
 PERFIDIOUS_PUBLIC zend_class_entry *perfidious_handle_ce;
 static zend_object_handlers perfidious_handle_obj_handlers;
@@ -851,13 +852,13 @@ static PHP_METHOD(PerfidiousHandle, debugInjectScalingRead)
 
 // clang-format off
 static zend_function_entry perfidious_handle_methods[] = {
-    PHP_ME(PerfidiousHandle, close, perfidious_handle_close_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
-    PHP_ME(PerfidiousHandle, disable, perfidious_handle_disable_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
-    PHP_ME(PerfidiousHandle, enable, perfidious_handle_enable_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
-    PHP_ME(PerfidiousHandle, rawStream, perfidious_handle_raw_stream_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
-    PHP_ME(PerfidiousHandle, read, perfidious_handle_read_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
-    PHP_ME(PerfidiousHandle, readArray, perfidious_handle_read_array_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
-    PHP_ME(PerfidiousHandle, reset, perfidious_handle_reset_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
+    PHP_ME(PerfidiousHandle, close, arginfo_class_Perfidious_Handle_close, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
+    PHP_ME(PerfidiousHandle, disable, arginfo_class_Perfidious_Handle_disable, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
+    PHP_ME(PerfidiousHandle, enable, arginfo_class_Perfidious_Handle_enable, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
+    PHP_ME(PerfidiousHandle, rawStream, arginfo_class_Perfidious_Handle_rawStream, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
+    PHP_ME(PerfidiousHandle, read, arginfo_class_Perfidious_Handle_read, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
+    PHP_ME(PerfidiousHandle, readArray, arginfo_class_Perfidious_Handle_readArray, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
+    PHP_ME(PerfidiousHandle, reset, arginfo_class_Perfidious_Handle_reset, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
 #ifdef PERFIDIOUS_DEBUG
     PHP_ME(PerfidiousHandle, debugCorruptMetricIds, perfidious_handle_debug_corrupt_metric_ids_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)
     PHP_ME(PerfidiousHandle, debugCloseFd, perfidious_handle_debug_close_fd_arginfo, ZEND_ACC_PUBLIC | ZEND_ACC_FINAL)

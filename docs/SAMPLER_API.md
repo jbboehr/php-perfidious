@@ -49,7 +49,7 @@ All names below are in `Perfidious`. The [common stub](../stubs/common.stub.php)
 
 | Operation | Signature or property |
 | --- | --- |
-| Open a sampler | `Sampler::open(array $metrics, Scope $scope = Scope::CurrentProcess): self` |
+| Open a sampler | `Sampler::open(array $metrics, Scope $scope = Scope::CurrentProcess): Sampler` |
 | List configured metrics in request order | `Sampler::metrics(): array` returns `non-empty-list<Metric>` |
 | Read cumulative counters | `Sampler::read(): Sample` |
 | Release native resources | `Sampler::close(): void` |

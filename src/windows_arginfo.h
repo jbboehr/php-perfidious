@@ -1,0 +1,40 @@
+/* This is a generated file, edit the .stub.php file instead.
+ * Stub hash: e8a4fb075fe1620bf33c348c8401a59fff24c496 */
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_Perfidious_Windows_query_current_process_cycle_time, 0, 0, IS_LONG, 0)
+ZEND_END_ARG_INFO()
+
+#define arginfo_Perfidious_Windows_query_current_thread_cycle_time arginfo_Perfidious_Windows_query_current_process_cycle_time
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_Perfidious_Windows_get_current_process_times, 0, 0, Perfidious\\Windows\\ProcessTimes, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_Perfidious_Windows_get_current_thread_times, 0, 0, Perfidious\\Windows\\ThreadTimes, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_Perfidious_Windows_get_current_process_memory_info, 0, 0, Perfidious\\Windows\\ProcessMemoryInfo, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_Perfidious_Windows_enable_current_thread_profiling, 0, 0, Perfidious\\Windows\\ThreadProfile, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, hardwareCounterMask, IS_LONG, 0, "0")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Perfidious_Windows_ProcessTimes___construct, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+#define arginfo_class_Perfidious_Windows_ThreadTimes___construct arginfo_class_Perfidious_Windows_ProcessTimes___construct
+
+#define arginfo_class_Perfidious_Windows_ProcessMemoryInfo___construct arginfo_class_Perfidious_Windows_ProcessTimes___construct
+
+#define arginfo_class_Perfidious_Windows_HardwareCounterSnapshot___construct arginfo_class_Perfidious_Windows_ProcessTimes___construct
+
+#define arginfo_class_Perfidious_Windows_ThreadProfileSnapshot___construct arginfo_class_Perfidious_Windows_ProcessTimes___construct
+
+#define arginfo_class_Perfidious_Windows_ThreadProfile___construct arginfo_class_Perfidious_Windows_ProcessTimes___construct
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Perfidious_Windows_ThreadProfile_read, 0, 0, Perfidious\\Windows\\ThreadProfileSnapshot, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Perfidious_Windows_ThreadProfile_close, 0, 0, IS_VOID, 0)
+ZEND_END_ARG_INFO()
+

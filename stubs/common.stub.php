@@ -104,14 +104,14 @@ final class Sampler
     }
 
     /**
-     * @param non-empty-list<Metric> $metrics
+     * @phpstan-param non-empty-list<Metric> $metrics
      * @throws UnsupportedMetricException|ResourceBusyException|IOException|OverflowException
      */
-    public static function open(array $metrics, Scope $scope = Scope::CurrentProcess): self
+    public static function open(array $metrics, Scope $scope = Scope::CurrentProcess): Sampler
     {
     }
 
-    /** @return non-empty-list<Metric> */
+    /** @phpstan-return non-empty-list<Metric> */
     public function metrics(): array
     {
     }
@@ -136,7 +136,7 @@ final class Sample
     {
     }
 
-    public function since(self $earlier): SampleDelta
+    public function since(Sample $earlier): SampleDelta
     {
     }
 }

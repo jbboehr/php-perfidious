@@ -179,6 +179,27 @@
             touch $out
           '';
 
+        # Keep the parser version aligned with the pinned PHP gen_stub.php.
+        arginfoParser = pkgs.fetchFromGitHub {
+          owner = "nikic";
+          repo = "PHP-Parser";
+          tag = "v5.6.1";
+          hash = "sha256-h65fcmWoYLoOSzH5xQRTKe4FN5VYrhZy0c9tyG+EgfM=";
+        };
+        arginfoGenerator = pkgs.runCommand "perfidious-gen-stub" {} ''
+          mkdir -p $out
+          cp ${pkgs.php85.unwrapped.dev}/lib/build/gen_stub.php $out/gen_stub.php
+          ln -s ${arginfoParser} $out/PHP-Parser-5.6.1
+        '';
+        generateArginfo = pkgs.writeShellApplication {
+          name = "perfidious-generate-arginfo";
+          runtimeInputs = [pkgs.bash pkgs.coreutils pkgs.diffutils pkgs.php85];
+          text = ''
+            export PERFIDIOUS_GEN_STUB=${arginfoGenerator}/gen_stub.php
+            exec bash tools/generate-arginfo.sh "$@"
+          '';
+        };
+
         pre-commit-check = pre-commit-hooks.lib.${system}.run {
           src = src';
           hooks = {
@@ -207,6 +228,13 @@
               };
             };
             shellcheck.enable = true;
+            arginfo = {
+              enable = true;
+              name = "Generated arginfo";
+              entry = "${generateArginfo}/bin/perfidious-generate-arginfo --check";
+              files = "^(stubs/.*\\.stub\\.php|src/.*_arginfo\\.h|tools/generate-arginfo\\.sh|flake\\.(nix|lock))$";
+              pass_filenames = false;
+            };
           };
         };
 
@@ -641,6 +669,11 @@
           debugSupport = true;
         };
       in {
+        apps.generate-arginfo = {
+          type = "app";
+          program = "${generateArginfo}/bin/perfidious-generate-arginfo";
+        };
+
         # Sanitizer targets are added only here, to the *returned*
         # packages set, not the `packages` variable devShells/checks below are built from - see
         # makeSanitizeStaticPhp's comment above.

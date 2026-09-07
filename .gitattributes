@@ -8,3 +8,4 @@ flake.lock                  linguist-generated=true
 m4/**                       linguist-generated=true linguist-vendored=true
 nix/**                      linguist-documentation=true
 nix/composer-project.nix    linguist-generated=true
+src/*_arginfo.h              linguist-generated=true whitespace=-blank-at-eof

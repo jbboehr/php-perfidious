@@ -93,14 +93,14 @@ final class Sampler
     }
 
     /**
-     * @param non-empty-list<Metric> $metrics
+     * @phpstan-param non-empty-list<Metric> $metrics
      * @throws UnsupportedMetricException|ResourceBusyException|IOException|OverflowException
      */
-    public static function open(array $metrics, Scope $scope = Scope::CurrentProcess): self
+    public static function open(array $metrics, Scope $scope = Scope::CurrentProcess): Sampler
     {
     }
 
-    /** @return non-empty-list<Metric> */
+    /** @phpstan-return non-empty-list<Metric> */
     public function metrics(): array
     {
     }
@@ -125,7 +125,7 @@ final class Sample
     {
     }
 
-    public function since(self $earlier): SampleDelta
+    public function since(Sample $earlier): SampleDelta
     {
     }
 }
@@ -180,7 +180,7 @@ function get_pmu_event_info(int $pmu, int $idx): PmuEventInfo
 }
 
 /**
- * @return list<PmuInfo>
+ * @phpstan-return list<PmuInfo>
  * @see https://perfmon2.sourceforge.net/manv4/pfm_get_pmu_info.html
  */
 function list_pmus(): array
@@ -188,7 +188,7 @@ function list_pmus(): array
 }
 
 /**
- * @return list<PmuEventInfo>
+ * @phpstan-return list<PmuEventInfo>
  * @throws PmuNotFoundException|PmuEventNotFoundException
  * @see https://perfmon2.sourceforge.net/manv4/pfm_get_event_info.html
  */
@@ -197,7 +197,7 @@ function list_pmu_events(int $pmu): array
 }
 
 /**
- * @param list<string> $event_names a list of libpfm event names, see list_pmu_events
+ * @param array $event_names a list of libpfm event names, see list_pmu_events
  * @param int $pid process/thread selector, which must fit the native PID type
  * @param int $cpu -1 or a nonnegative CPU ID that fits a native int, with availability checked by the kernel
  * @throws PmuEventNotFoundException|IOException|OverflowException|\ValueError
@@ -244,18 +244,18 @@ final class Handle
     }
 
     /**
-     * @return $this
+     * @phpstan-return $this
      * @throws ClosedException|IOException
      */
-    final public function enable(): self
+    final public function enable(): Handle
     {
     }
 
     /**
-     * @return $this
+     * @phpstan-return $this
      * @throws ClosedException|IOException
      */
-    final public function disable(): self
+    final public function disable(): Handle
     {
     }
 
@@ -297,10 +297,10 @@ final class Handle
      * Clears counts while preserving the enabled state. Lifetime timing totals are not cleared.
      * Active counters are briefly disabled to capture the timing baseline used by phpinfo().
      *
-     * @return $this
+     * @phpstan-return $this
      * @throws ClosedException|IOException
      */
-    final public function reset(): self
+    final public function reset(): Handle
     {
     }
 }
