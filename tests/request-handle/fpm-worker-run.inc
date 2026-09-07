@@ -3,7 +3,10 @@ require __DIR__ . '/fpm-worker-artifacts.inc';
 $fpm = perfidious_test_fpm_path();
 $module = perfidious_test_fpm_module_path();
 $mode ??= 'worker';
-if ($fpm === null || $module === null) {
+if ($mode === 'preload' || $mode === 'preload-disabled') {
+    $opcache = perfidious_test_opcache_path();
+}
+if ($fpm === null || $module === null || $opcache === null) {
     throw new RuntimeException('FPM test artifacts changed after SKIPIF');
 }
 $process = proc_open(

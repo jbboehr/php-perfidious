@@ -82,16 +82,17 @@ def request(socket_path, script, metrics=None, query=""):
 def main():
     fpm, module, opcache, mode = sys.argv[1:]
     if mode not in {
-        "worker", "initialization-error", "metric-limit", "unconsumed-error", "preload-disabled"
+        "worker", "initialization-error", "metric-limit", "unconsumed-error", "preload", "preload-disabled"
     }:
         raise RuntimeError(f"Unknown FPM test mode: {mode}")
     # Non-root preloading runs in the master itself, which exercises inherited handles.
-    if opcache and os.geteuid() == 0:
+    preloading = mode in {"preload", "preload-disabled"}
+    if preloading and os.geteuid() == 0:
         raise RuntimeError("Run the preload test as a non-root user")
     with tempfile.TemporaryDirectory(prefix="perfidious-fpm-") as directory:
         root = Path(directory)
         script = root / "worker.php"
-        if mode == "worker":
+        if mode in {"worker", "preload"}:
             fixture_name = "fpm-worker.inc"
         elif mode == "metric-limit":
             fixture_name = "fpm-unconsumed-error.inc"
@@ -108,7 +109,7 @@ user = {pwd.getpwuid(os.getuid()).pw_name}
 group = {grp.getgrgid(os.getgid()).gr_name}
 listen = {root / 'fpm.sock'}
 pm = static
-pm.max_children = {2 if mode == 'worker' else 1}
+pm.max_children = {2 if mode in {'worker', 'preload'} else 1}
 catch_workers_output = yes
 clear_env = no
 security.limit_extensions = .php
@@ -126,7 +127,7 @@ security.limit_extensions = .php
         ]
         if module:
             command += ["-d", f"extension={module}"]
-        if opcache:
+        if preloading:
             preload = root / "preload.php"
             preload.write_text("""<?php
 function perfidious_preloaded() {}
@@ -135,7 +136,9 @@ $fds = array_filter(glob('/proc/self/fd/*'), static function ($fd) {
 });
 file_put_contents(__DIR__ . '/preload.json', json_encode(['pid' => getmypid(), 'perfFds' => count($fds)]));
 """)
-            command += ["-d", f"zend_extension={opcache}", "-d", f"opcache.preload={preload}"]
+            if opcache:
+                command += ["-d", f"zend_extension={opcache}"]
+            command += ["-d", f"opcache.preload={preload}"]
         with (root / "startup.log").open("w+") as log:
             process = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT)
             try:
@@ -148,11 +151,12 @@ file_put_contents(__DIR__ . '/preload.json', json_encode(['pid' => getmypid(), '
                     time.sleep(0.025)
                 else:
                     raise RuntimeError("FPM did not create its socket")
-                if mode == "preload-disabled":
+                if preloading:
                     master = json.loads((root / "preload.json").read_text())
+                    check(master == {"pid": process.pid, "perfFds": 2}, master)
+                if mode == "preload-disabled":
                     results = [request(root / "fpm.sock", script) for _ in range(2)]
                     print(json.dumps({"master": master, "results": results}))
-                    check(master == {"pid": process.pid, "perfFds": 2}, master)
                     check(len({result["pid"] for result in results}) == 1, results)
                     for result in results:
                         check(result["pid"] != master["pid"], result)
@@ -223,7 +227,7 @@ file_put_contents(__DIR__ . '/preload.json', json_encode(['pid' => getmypid(), '
                             check(result["start"] < result["fresh"] / 2, result)
                             if result["opens"] is not None:
                                 # One automatic open per worker; each prior workload opens one oracle.
-                                check(result["opens"] == 1 + bool(opcache) + number, result)
+                                check(result["opens"] == 1 + preloading + number, result)
             finally:
                 exited_early = process.poll() is not None
                 process.terminate()

@@ -255,8 +255,7 @@
               enabled,
               all,
             }:
-            # not all php versions have opcache packaged as a selectable extension yet
-            # (e.g. php85, as of this nixpkgs revision)
+            # PHP 8.5 has built-in OpCache; earlier versions use a shared extension.
               enabled ++ lib.optional (all ? opcache) all.opcache ++ [package];
           };
 
@@ -284,6 +283,13 @@
                     php.unwrapped.dev
                     pkgs.python3
                   ];
+                users = lib.optionalAttrs runPhpt {
+                  groups.phpt = {};
+                  users.phpt = {
+                    isSystemUser = true;
+                    group = "phpt";
+                  };
+                };
 
                 services.nginx = {
                   enable = true;
@@ -340,6 +346,26 @@
                 machine1.succeed("cp --no-preserve=mode,ownership ${php.unwrapped.dev}/lib/build/run-tests.php .")
                 phpt_output = machine1.succeed("TEST_PHP_DETAILED=1 NO_INTERACTION=1 REPORT_EXIT_STATUS=1 php run-tests.php || (find tests -name '*.log' | xargs -n1 cat ; exit 1)")
                 (driver.out_dir / "phpt.log").write_text(phpt_output, encoding="utf-8")
+
+                # Non-root preloading runs in the FPM master and exercises inherited counters.
+                machine1.succeed("install -d -o phpt -g phpt /tmp/perfidious-preload")
+                machine1.succeed("runuser -u phpt -- cp -r --no-preserve=mode,ownership ${src}/tests ${php.unwrapped.dev}/lib/build/run-tests.php /tmp/perfidious-preload/")
+                preload_command = (
+                    "runuser -u phpt -- sh -c 'cd /tmp/perfidious-preload && "
+                    "TEST_PHP_DETAILED=1 NO_INTERACTION=1 REPORT_EXIT_STATUS=1 "
+                    "${lib.optionalString (php.extensions ? opcache) "PERFIDIOUS_TEST_OPCACHE=${php.extensions.opcache}/lib/php/extensions/opcache.so "}"
+                    "php run-tests.php --show-diff -W results.txt "
+                    "tests/request-handle/fpm-preload.phpt tests/request-handle/fpm-preload-disabled.phpt'"
+                )
+                preload_status, preload_output = machine1.execute(preload_command)
+                (driver.out_dir / "phpt-preload.log").write_text(preload_output, encoding="utf-8")
+                preload_results = machine1.succeed("cat /tmp/perfidious-preload/results.txt")
+                (driver.out_dir / "phpt-preload-results.txt").write_text(preload_results, encoding="utf-8")
+                assert preload_status == 0, preload_output
+                assert sorted(preload_results.splitlines()) == [
+                    "PASSED\t/tmp/perfidious-preload/tests/request-handle/fpm-preload-disabled.phpt",
+                    "PASSED\t/tmp/perfidious-preload/tests/request-handle/fpm-preload.phpt",
+                ], preload_results
               ''}
 
               machine1.wait_for_unit("nginx.service")

@@ -19,6 +19,18 @@ function perfidious_test_fpm_module_path(): ?string
     return perfidious_test_module_path();
 }
 
+function perfidious_test_opcache_path(): ?string
+{
+    // PHP 8.5 builds OpCache into PHP; an empty path omits zend_extension in FPM.
+    if (PHP_VERSION_ID >= 80500 && extension_loaded('Zend OPcache')) {
+        return '';
+    }
+
+    $candidate = getenv('PERFIDIOUS_TEST_OPCACHE') ?: ini_get('extension_dir') . '/opcache.so';
+
+    return is_file($candidate) ? $candidate : null;
+}
+
 function perfidious_test_module_path(): ?string
 {
     $maps = @file('/proc/self/maps', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);

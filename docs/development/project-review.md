@@ -57,8 +57,9 @@ testing reuse of an unrelated resource.
 
 ### Other platform and instrumentation coverage
 
-The [NixOS VM follow-up](#follow-up-nixos-vm-integration) passed the three existing x86-64 VM targets. Two guest preload
-PHPTs still skip because the suite runs as root. The [ASan/UBSan follow-up](#follow-up-asanubsan-runtime-verification)
+The [NixOS VM follow-up](#follow-up-nixos-vm-integration) passed the three existing x86-64 VM targets. The
+[unprivileged preload follow-up](#follow-up-unprivileged-vm-preload-tests) adds a separate guest run requiring both
+preload PHPTs to pass, verified under software emulation. The [ASan/UBSan follow-up](#follow-up-asanubsan-runtime-verification)
 passed on Linux with PHP 8.2.32 release NTS. The [debug sanitizer follow-up](#follow-up-debug-hooks-under-asanubsan)
 additionally exercised twelve debug-only tests. The [FPM sanitizer follow-up](#follow-up-fpm-under-asanubsan) passed all
 six existing FPM fixtures, including preloading, in both extension build modes. The
@@ -1572,6 +1573,61 @@ PHP core and dependencies remain uninstrumented, LeakSanitizer and Zend allocati
 harnesses do not inherit sanitizer flags. These runs cover the selected Linux CLI configurations. They do not establish
 production threaded-SAPI integration, other PHP versions, native Windows/macOS sanitizer behavior, or exhaustive race
 detection. VM tests and a direct threaded Valgrind run were not repeated for this slice.
+
+### Follow-up: Unprivileged VM preload tests
+
+Review base: `8157fda`. The two release VM checks now run the preload PHPTs separately as an unprivileged `phpt` user.
+They retain the root suite and its preload skips, then require two explicit `PASSED` records from the separate run.
+The result includes `phpt.log`, `phpt-preload.log`, and `phpt-preload-results.txt`. Extension source and the ordinary CI
+matrix are unchanged.
+
+PHP 8.1 receives the matching shared OpCache path. PHP 8.5 has built-in OpCache, so the fixtures now select preloading
+by test mode and omit `zend_extension` when no shared module is needed. Both preload cases check that the FPM master
+ran the preload script and owned two perf descriptors. Existing worker attribution, request reset, and disabled-pool
+descriptor cleanup assertions remain.
+
+Experimental checks established three gaps before correction:
+
+- The baseline PHP 8.1 guest returned success with both preload tests skipped as root. The new result assertion rejects
+  those recorded skips, as well as missing, empty, or duplicate results; it accepts the two recorded passes.
+- The PHP 8.5 fixtures skipped as a non-root user because they required `opcache.so`. Both passed after adding built-in
+  OpCache support. The paired executable also reported OpCache loaded with `-n` and no shared module in `extension_dir`.
+- Omitting `opcache.preload` in a temporary fixture copy still passed the enabled-pool test with a release extension.
+  Extending the master-state assertion to that case made the same mutation fail; restoring the setting passed both tests.
+
+All three x86-64 VM drivers were built with their Python type and lint checks. Their scripts ran under QEMU software
+emulation with `-cpu max -machine accel=tcg -display none`, using Linux 6.18.40 guests:
+
+| Target | Root PHPT suite | Unprivileged preload run | Nginx/FPM lifecycle |
+| --- | --- | --- | --- |
+| `php81-gcc-vmtest` | 79 passed, 35 skipped | 2 passed, no skips | Passed |
+| `php85-gcc-vmtest` | 79 passed, 35 skipped | 2 passed, no skips | Passed |
+| `php81-gcc-debug-vmtest` | Not part of this target | Not part of this target | Passed, including injected failures |
+
+The PHPT runs had no warnings or failures. Each root suite retains 18 native-platform skips, 13 debug-only skips, the
+two root-user preload skips, one ZTS skip, and one capability-test skip. The separate preload runs exercise both cases
+in each release guest without relaxing their counter assertions.
+
+On a host without KVM, reproduce a release driver run with:
+
+```sh
+nix build -L --out-link /tmp/perfidious-vm-driver .#checks.x86_64-linux.php81-gcc-vmtest.driver
+install -d -m 0700 /tmp/perfidious-vm-tcg-results /tmp/perfidious-vm-tcg-state
+XDG_RUNTIME_DIR=/tmp/perfidious-vm-tcg-state \
+  QEMU_OPTS='-cpu max -machine accel=tcg -display none' \
+  /tmp/perfidious-vm-driver/bin/nixos-test-driver -o /tmp/perfidious-vm-tcg-results
+cat /tmp/perfidious-vm-tcg-results/phpt-preload.log
+```
+
+Use the PHP 8.5 or debug target's `.driver` for those runs. The normal check derivations still require KVM; these
+executions used the built drivers directly with the stated emulator options. `/dev/kvm` was unavailable, so the changed
+configuration was not rerun with hardware acceleration.
+
+The host PHP 8.1.34 debug suite passed 92 tests with 22 skips and no failures. All seven FPM tests passed with the final
+fixtures against both existing PHP 8.2.32 NTS ASan/UBSan executables, with debug and release extensions. Those executables
+were reused because extension source is unchanged; the full sanitizer suites were not rerun. [PHP checks](#shared-php-checks),
+PHP/Python syntax, configured lint hooks, and documentation links passed. Native Windows/macOS, AArch64 execution, ZTS,
+and Valgrind were not rerun for this slice.
 
 ## Initial review and verification
 

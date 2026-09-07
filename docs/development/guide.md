@@ -102,11 +102,11 @@ The [request-handle tests](../../tests/request-handle) include local FPM fixture
 the same worker. They need Python 3, `proc_open()`, and a matching `php-fpm` executable beside the tested PHP binary.
 By default, the fixture locates the loaded `perfidious.so` and loads it in FPM. If both PHP and FPM have Perfidious built
 in, set `PERFIDIOUS_TEST_FPM_BUILTIN=1` to omit the shared-module argument. The preload cases also require a non-root
-user and the matching OpCache shared module.
+user and OpCache. They use PHP 8.5's built-in OpCache automatically.
 
 Run the group with `TESTS='tests/request-handle'`. If OpCache is outside PHP's `extension_dir`, set
 `PERFIDIOUS_TEST_OPCACHE` to the absolute path of that PHP build's `opcache.so` before running the tests. Loading
-OpCache in the CLI alone does not supply its path to the FPM fixture.
+shared OpCache in the CLI alone does not supply its path to the FPM fixture.
 
 The fixture checks FPM's exit status and scans startup and worker logs for sanitizer reports, including during
 shutdown. Failed runs include those logs in the PHPT output. The
@@ -215,15 +215,19 @@ nix build -L .#checks.x86_64-linux.php81-gcc-debug-vmtest
 This target starts Nginx and a single FPM worker, then checks repeated requests and injected lifecycle failures using
 [nix/vm-test/index.php](../../nix/vm-test/index.php). It does not rerun the full PHPT suite. The `php81-gcc-vmtest` and
 `php85-gcc-vmtest` checks also run PHPTs inside the VM, with Python, a C compiler, and matching PHP headers available for
-the native and FPM fixtures. Successful release checks retain the suite output, including skip reasons, as `phpt.log`:
+the native and FPM fixtures. They also run the two preload PHPTs separately as the unprivileged `phpt` user, requiring
+both to pass. Release checks retain the main suite output as `phpt.log`, the preload output as `phpt-preload.log`, and
+the per-test preload statuses as `phpt-preload-results.txt`:
 
 ```sh
 nix build -L --out-link /tmp/perfidious-vm-result .#checks.x86_64-linux.php81-gcc-vmtest
 cat /tmp/perfidious-vm-result/phpt.log
+cat /tmp/perfidious-vm-result/phpt-preload.log
 ```
 
-Use `php85-gcc-vmtest` for the PHP 8.5 release check. The guest suite runs as root, so the two PHPTs requiring non-root
-master-process preloading skip. The guest configures its own perf permissions; host or nested virtualization
+Use `php85-gcc-vmtest` for the PHP 8.5 release check. The main suite retains its root-user preload skips; the separate
+run exercises master-process preloading and fails on any skip. PHP 8.1 receives its matching shared OpCache path;
+PHP 8.5 uses built-in OpCache. The guest configures its own perf permissions; host or nested virtualization
 restrictions can still affect counter availability. The Nginx/FPM lifecycle assertions deliberately avoid counter
 magnitudes and do not replace the PHPTs that check live measurements.
 
