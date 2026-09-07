@@ -47,10 +47,8 @@ perfidious_pmu_event_info_ctor(pfm_pmu_info_t *pmu_info, pfm_event_info_t *info,
 
     PERFIDIOUS_ASSERT_RETURN(SUCCESS == object_init_ex(return_value, perfidious_pmu_event_info_ce));
 
-    int buf_ret = snprintf(buf, sizeof(buf), "%s::%s", pmu_info->name, info->name);
-    // snprintf() returns the length that would have been written absent truncation, which can
-    // exceed what's actually in buf - clamp so we never read past its end
-    size_t buf_len = buf_ret < 0 ? 0 : MIN((size_t) buf_ret, sizeof(buf) - 1);
+    int buf_ret = slprintf(buf, sizeof(buf), "%s::%s", pmu_info->name, info->name);
+    size_t buf_len = buf_ret < 0 ? 0 : (size_t) buf_ret;
 
     ZVAL_STRINGL(&tmp, buf, buf_len);
     zend_update_property_ex(Z_OBJCE_P(return_value), Z_OBJ_P(return_value), PERFIDIOUS_INTERNED_NAME, &tmp);

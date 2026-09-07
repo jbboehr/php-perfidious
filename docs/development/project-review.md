@@ -1668,6 +1668,29 @@ the host suite exercised them. [PHP checks](#shared-php-checks), the updated Nix
 documentation links passed. Native Windows/macOS execution, other PHP versions, full ZTS lifecycle, VM, and sanitizer
 suites were not rerun for this metadata refactor.
 
+### Follow-up: PHP bounded formatting
+
+Review base: `f102007`. The first wheel-audit replacement uses PHP's `slprintf()` for PMU event names and `vslprintf()`
+for `perfidious_error_helper()`. These functions return the number of bytes written, removing the manual upper-bound
+clamps. The 512-byte buffers, 511-byte payload limit, negative-result handling, and warning/exception routing remain.
+Object initialization is the next separate wheel-audit slice.
+
+Experimental verification on Linux x86-64:
+
+- The PHP 8.1.34 debug extension rebuilt with fatal compiler warnings. Eight focused name, diagnostic, and deferred-error
+  PHPTs passed before and after the change; the full suite passed 90 tests with 24 skips and no warnings or failures.
+- The PMU event-name API matched the expected 511-byte prefix for 121 input-length pairs, including empty strings and
+  values on both sides of the truncation boundary.
+- A temporary extension compiled the old and new error helpers on PHP 8.1.34 NTS and PHP 8.5.8 ZTS. All 24 cases per
+  runtime preserved warning severity, exception class/code, default-mode behavior, and message bytes. Inputs included
+  empty, boundary-length, oversized, UTF-8, and embedded-NUL strings. A one-byte reduction in the replacement's buffer
+  limit made the comparison fail as expected.
+- Both long-name PHPTs passed under Valgrind with no reported test leaks. [PHP checks](#shared-php-checks), generated
+  arginfo freshness, configured lint hooks, documentation links, and diff checks passed.
+
+The full-suite skips covered native Windows/Darwin, release-only tests, unavailable OpCache, PID permissions, and ZTS.
+The full PHP 8.5, native Windows/macOS, VM, and sanitizer suites were not rerun for this mechanical replacement.
+
 ## Initial review and verification
 
 Reviewed revision: `4ec048b2cbb38ff1b7af49642fdaf1732a9d6706`.

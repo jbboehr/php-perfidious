@@ -135,12 +135,10 @@ perfidious_error_helper(zend_class_entry *restrict exception_ce, zend_long code,
     va_list args;
 
     va_start(args, format);
-    bytes = vsnprintf(buffer, sizeof(buffer), format, args);
+    bytes = vslprintf(buffer, sizeof(buffer), format, args);
     va_end(args);
 
-    // vsnprintf() returns the length that would have been written absent truncation, which can
-    // exceed what's actually in buffer - clamp so we never read past its end
-    int len = bytes < 0 ? 0 : (int) MIN((size_t) bytes, sizeof(buffer) - 1);
+    int len = bytes < 0 ? 0 : bytes;
 
     switch (PERFIDIOUS_G(error_mode)) {
         case PERFIDIOUS_ERROR_MODE_WARNING:
