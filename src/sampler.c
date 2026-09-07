@@ -121,13 +121,6 @@ static zend_object *perfidious_sampler_obj_create(zend_class_entry *class_entry)
 {
     struct perfidious_sampler_obj *obj = zend_object_alloc(sizeof(*obj), class_entry);
 
-    obj->sampler = NULL;
-    obj->identity = NULL;
-    memset(&obj->origin, 0, sizeof(obj->origin));
-    obj->time_origin_ns = 0;
-    obj->metrics = 0;
-    memset(obj->metric_order, 0, sizeof(obj->metric_order));
-    obj->metric_count = 0;
     zend_object_std_init(&obj->std, class_entry);
     object_properties_init(&obj->std, class_entry);
     obj->std.handlers = &perfidious_sampler_obj_handlers;
@@ -148,10 +141,6 @@ static zend_object *perfidious_sample_obj_create(zend_class_entry *class_entry)
 {
     struct perfidious_sample_obj *obj = zend_object_alloc(sizeof(*obj), class_entry);
 
-    obj->identity = NULL;
-    memset(obj->values, 0, sizeof(obj->values));
-    obj->time_ns = 0;
-    obj->metrics = 0;
     zend_object_std_init(&obj->std, class_entry);
     object_properties_init(&obj->std, class_entry);
     obj->std.handlers = &perfidious_sample_obj_handlers;
@@ -163,8 +152,6 @@ static zend_object *perfidious_sample_delta_obj_create(zend_class_entry *class_e
 {
     struct perfidious_sample_delta_obj *obj = zend_object_alloc(sizeof(*obj), class_entry);
 
-    memset(obj->values, 0, sizeof(obj->values));
-    obj->metrics = 0;
     zend_object_std_init(&obj->std, class_entry);
     object_properties_init(&obj->std, class_entry);
     obj->std.handlers = &perfidious_sample_delta_obj_handlers;

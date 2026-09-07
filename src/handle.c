@@ -96,7 +96,7 @@ static zend_object *perfidious_handle_obj_create(zend_class_entry *ce)
 {
     struct perfidious_handle_obj *obj;
 
-    obj = ecalloc(1, sizeof(*obj) + zend_object_properties_size(ce));
+    obj = zend_object_alloc(sizeof(*obj), ce);
     zend_object_std_init(&obj->std, ce);
     object_properties_init(&obj->std, ce);
     obj->std.handlers = &perfidious_handle_obj_handlers;

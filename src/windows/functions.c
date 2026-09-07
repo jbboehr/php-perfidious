@@ -212,10 +212,6 @@ static zend_object *perfidious_windows_thread_profile_obj_create(zend_class_entr
     struct perfidious_windows_thread_profile_obj *obj =
         zend_object_alloc(sizeof(struct perfidious_windows_thread_profile_obj), ce);
 
-    obj->handle = NULL;
-    obj->hardware_counter_mask = 0;
-    obj->cycle_time_origin = 0;
-    memset(obj->hardware_counter_origins, 0, sizeof(obj->hardware_counter_origins));
     zend_object_std_init(&obj->std, ce);
     object_properties_init(&obj->std, ce);
     obj->std.handlers = &perfidious_windows_thread_profile_obj_handlers;

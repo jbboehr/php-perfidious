@@ -1691,6 +1691,31 @@ Experimental verification on Linux x86-64:
 The full-suite skips covered native Windows/Darwin, release-only tests, unavailable OpCache, PID permissions, and ZTS.
 The full PHP 8.5, native Windows/macOS, VM, and sanitizer suites were not rerun for this mechanical replacement.
 
+### Follow-up: Zend object allocation
+
+Review base: `4e88016`. The second wheel-audit replacement uses `zend_object_alloc()` for Linux handles and removes
+redundant payload zeroing from the sampler, sample, delta, and Windows thread-profile creators. All five structs place
+`zend_object` last, as required by the allocator. Standard object initialization, property initialization, and handlers
+remain unchanged. The PHP 8.1 and 8.5 headers document and implement this payload-zeroing contract.
+
+Experimental verification on Linux x86-64:
+
+- Seven construction, object-model, lifetime, error, and cleanup PHPTs passed before and after the change. The PHP
+  8.1.34 debug extension rebuilt with fatal compiler warnings; the full suite passed 90 tests with 24 skips and no
+  warnings or failures.
+- A temporary extension compiled the exact old and new Linux handle and common sampler-family creators on PHP 8.1.34
+  NTS and PHP 8.5.8 ZTS. Each runtime passed 2,400 allocations across the four object layouts and zero, one, or three
+  declared properties, checking zeroed payloads, class entries, handlers, property defaults, and destruction after
+  dirtying same-sized allocations. A replacement that omitted payload zeroing failed the check on both runtimes.
+- Six focused PHPTs passed under Valgrind without reported test leaks. The native construction fixture also passed
+  directly under Valgrind on both PHP versions, covering failed opens, failed initial reads, close, and destruction.
+- [PHP checks](#shared-php-checks), generated arginfo freshness, configured lint hooks, documentation links, and diff
+  checks passed.
+
+The full-suite skips covered native Windows/Darwin, release-only tests, unavailable OpCache, PID permissions, and ZTS.
+The Windows creator was inspected but not compiled or executed. Full PHP 8.5, native Windows/macOS, VM, and sanitizer
+suites were not rerun for this mechanical replacement.
+
 ## Initial review and verification
 
 Reviewed revision: `4ec048b2cbb38ff1b7af49642fdaf1732a9d6706`.
