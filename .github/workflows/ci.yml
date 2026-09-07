@@ -163,18 +163,14 @@ jobs:
                 github.event_name != 'push' ||
                 !startsWith(github.ref_name, 'windows/')
             }}
-        name: "macOS | PHP ${{ matrix.php-version }} ${{ matrix.arch }}"
-        runs-on: ${{ matrix.runner }}
+        name: "macOS | PHP ${{ matrix.php-version }} arm64"
+        runs-on: macos-15
         strategy:
             fail-fast: false
             matrix:
-                include:
-                    - php-version: "8.1"
-                      arch: x64
-                      runner: macos-15-intel
-                    - php-version: "8.5"
-                      arch: arm64
-                      runner: macos-15
+                php-version:
+                    - "8.1"
+                    - "8.5"
         steps:
             -   uses: actions/checkout@v7
 
@@ -196,7 +192,8 @@ jobs:
                     NO_INTERACTION: 1
                     REPORT_EXIT_STATUS: 1
 
-            -   run: cat tests/*.log
+            -   name: Print test failure diagnostics
+                run: find tests -type f \( -name '*.log' -o -name '*.diff' -o -name '*.mem' \) -print -exec cat {} \;
                 if: failure()
 
             -   name: Verify extension is loaded
@@ -271,7 +268,8 @@ jobs:
                     REPORT_EXIT_STATUS: 1
                     USE_ZEND_ALLOC: 0
 
-            -   run: cat tests/*.log
+            -   name: Print test failure diagnostics
+                run: find tests -type f \( -name '*.log' -o -name '*.diff' -o -name '*.mem' \) -print -exec cat {} \;
                 if: failure()
 
 
@@ -333,7 +331,8 @@ jobs:
                     NO_INTERACTION: 1
                     REPORT_EXIT_STATUS: 1
 
-            -   run: cat tests/*.log
+            -   name: Print test failure diagnostics
+                run: find tests -type f \( -name '*.log' -o -name '*.diff' -o -name '*.mem' \) -print -exec cat {} \;
                 if: failure()
 
             -   run: |

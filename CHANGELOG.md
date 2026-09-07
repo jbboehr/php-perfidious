@@ -12,7 +12,7 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
   PIE.
 - An experimental low-level Windows x64 backend for process and thread cycle counts, process CPU time and page faults,
   and current-thread profiling data, with immutable typed result objects.
-- Experimental macOS process and current-thread resource snapshots, with Intel and ARM64 CI smoke coverage.
+- Experimental macOS process and current-thread resource snapshots on Apple Silicon with ARM64 PHP.
 - Structured `scope` and `unsupportedMetrics` metadata on `UnsupportedMetricException`, allowing callers to retry
   sampler requests without parsing exception messages.
 - An idempotent `Handle::close()` method for deterministic release of owned Linux performance-counter descriptors;

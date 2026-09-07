@@ -133,6 +133,8 @@ Windows and macOS sampler backends reject it. Processor accounting varies, so co
 
 ## Support matrix
 
+macOS support is limited to Apple Silicon with ARM64 PHP. Intel Macs are unsupported and untested.
+
 This matrix describes the implemented sampler backends. `Yes` means the backend supports the combination, subject to
 native permissions, resource availability, and call failures. `No` means `Sampler::open()` rejects the combination
 with `UnsupportedMetricException`.

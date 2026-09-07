@@ -1,7 +1,7 @@
 # Development guide
 
 Run these commands from the repository root. The build and runtime examples below cover Linux. Native Windows and
-macOS builds have separate jobs in [CI](../../.github/workflows/ci.yml). The
+Apple Silicon macOS builds have separate jobs in [CI](../../.github/workflows/ci.yml). The
 [sampler support matrix](../SAMPLER_API.md#support-matrix) describes the available APIs on each platform.
 
 ## Build a local module
