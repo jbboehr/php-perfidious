@@ -7,7 +7,7 @@ Investigation base: `6af852a6d0dffeb6c812c86bc37c04e10182b804`. The agreed work 
 | S01 | Share the Linux and Windows native-test launchers | Implemented below |
 | S02 | Remove redundant Windows counter initialization flags | Implemented below |
 | S03 | Remove redundant resets during Linux event construction | Implemented below |
-| S04 | Use the main Nixpkgs pin for PHP 8.4 | Planned; validate the changed dependency closure |
+| S04 | Use the main Nixpkgs pin for PHP 8.4 | Implemented below |
 
 ## S01: shared native-test launcher
 
@@ -111,3 +111,45 @@ Linux x86-64, PHP 8.1.34 debug, 2026-09-07:
 
 These runs exercised real user-only perf events on the local kernel. Other kernels, architectures, PHP configurations,
 VM, native Windows/macOS, Valgrind, and sanitizer suites were not rerun for this slice.
+
+## S04: PHP 8.4 uses the main Nixpkgs pin
+
+Review base: `abe7b35`.
+
+[The flake](../../flake.nix) now takes PHP 8.4 from the existing `nixos-26.05` pin (`21ea275a7c46`), alongside PHP 8.2,
+8.3, and 8.5. The dedicated `nixpkgs-unstable` input (`0954f7ee2f6b`) and its lock entry are removed. All retained lock
+entries are unchanged. PHP 8.1 still uses `nix-phps` and its own transitive Nixpkgs pin.
+
+PHP remains at 8.4.23, with the same 53 loaded extensions. The runtime's dependency closure changes:
+
+| Runtime component | Before | After |
+| --- | --- | --- |
+| PCRE | 10.47 | 10.46 |
+| SQLite | 3.53.3 | 3.51.2 |
+| ICU | 73.2 | 73.2 |
+| Closure paths | 121 | 121 |
+| Unpacked closure size | 249.1 MiB | 248.6 MiB |
+
+Other transitive libraries also change with the pin. Both PHP runtimes load without startup warnings. One-off checks
+passed Unicode regular expressions and UTF-8 database round trips through both SQLite3 and PDO SQLite before and after
+the switch. These checks establish basic runtime compatibility, not equivalence of every dependency feature.
+
+### Verification
+
+Linux x86-64, PHP 8.4.23 NTS, 2026-09-07:
+
+- `nix flake check --no-build --all-systems` passed. Comparing evaluated derivation paths on x86-64 and AArch64 showed
+  changes only to the four PHP 8.4 package/check/shell variants and the lint check. Output names and
+  the generated CI matrix are unchanged.
+- A fresh baseline `checks.x86_64-linux.php84-gcc` build passed 69 tests with 49 skips in both its ordinary and
+  Valgrind 3.26.0 suites. The replacement GCC, Clang, and GCC coverage checks each passed with the same counts.
+  GCC debug coverage passed 79 tests with 39 skips in both suites. All runs reported zero failed or leaked tests.
+- All four installed modules loaded with the expected debug settings. Both coverage checks produced LCOV data and HTML
+  reports. Installed-module smoke runs used separate `GCOV_PREFIX` directories to keep release and debug profile data
+  from sharing their compiled-in paths.
+- Aggregate-stub freshness, PHP_CodeSniffer, and all five documented PHPStan commands passed under the replacement PHP.
+  Composer validation, configured lint hooks, local documentation links, and `git diff --check` passed.
+
+AArch64 was evaluated only. Suite skips covered native Windows/macOS, restricted perf events, PID permissions, ZTS,
+debug-only cases in release builds, and FPM fixtures requiring Python 3. Native non-Linux, VM, and sanitizer runs were
+not repeated for this pin consolidation.

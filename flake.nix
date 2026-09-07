@@ -20,7 +20,6 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";
-    nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
     agent-badge = {
       url = "github:jbboehr/agent-badge.ts/master";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -52,7 +51,6 @@
   outputs = {
     self,
     nixpkgs,
-    nixpkgs-unstable,
     agent-badge,
     systems,
     flake-utils,
@@ -64,7 +62,6 @@
     flake-utils.lib.eachDefaultSystem (
       system: let
         pkgs = nixpkgs.legacyPackages.${system};
-        pkgs-unstable = nixpkgs-unstable.legacyPackages.${system};
         lib = pkgs.lib;
 
         src' = gitignore.lib.gitignoreSource ./.;
@@ -464,9 +461,8 @@
 
         matrix = with pkgs; {
           php = {
-            inherit php82 php83 php85;
+            inherit php82 php83 php84 php85;
             php81 = pkgs-phps.php81;
-            php84 = pkgs-unstable.php84;
           };
           stdenv = {
             gcc = stdenv;
