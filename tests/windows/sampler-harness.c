@@ -600,6 +600,66 @@ static void test_wrap_during_failed_read(void)
     page_faults = 4;
     check_read(sampler, PERFIDIOUS_METRIC_PAGE_FAULTS, UINT64_C(4294967300));
     check_read(sampler, PERFIDIOUS_METRIC_PAGE_FAULTS, UINT64_C(4294967300));
+
+    failed_operation = CYCLES;
+    for (DWORD raw = 2; raw > 0; raw--) {
+        page_faults = raw;
+        CHECK("failed reads retain observed wraps", perfidious_platform_sampler_read(sampler, &snapshot) == FAILURE);
+        check_error(&io_class, ERROR_ACCESS_DENIED, "QueryProcessCycleTime");
+    }
+    failed_operation = NONE;
+    page_faults = 4;
+    check_read(sampler, PERFIDIOUS_METRIC_PAGE_FAULTS, UINT64_C(12884901892));
+    perfidious_platform_sampler_close(sampler);
+}
+
+static void
+seed_counter_total(struct perfidious_platform_sampler *sampler, enum perfidious_metric_id metric, uint64_t total)
+{
+    /* Seed a reachable state without requiring billions of native counter wraps. */
+    if (metric == PERFIDIOUS_METRIC_PAGE_FAULTS) {
+        sampler->previous_page_faults = (DWORD) total;
+        sampler->page_fault_base = total & ~UINT64_C(0xffffffff);
+    } else {
+        sampler->previous_context_switches = (DWORD) total;
+        sampler->context_switch_base = total & ~UINT64_C(0xffffffff);
+    }
+}
+
+static void test_counter_overflow(enum perfidious_scope_id scope, enum perfidious_metric_id metric)
+{
+    reset_fixture(scope == PERFIDIOUS_SCOPE_CURRENT_PROCESS ? "page-fault overflow" : "context-switch overflow");
+    struct perfidious_platform_sampler *sampler = open_sampler(PERFIDIOUS_METRIC_MASK(metric), scope);
+    struct perfidious_sampler_snapshot snapshot;
+    const char *operation = metric == PERFIDIOUS_METRIC_PAGE_FAULTS ? "page-fault" : "context-switch";
+
+    page_faults = context_switches = 0;
+    check_read(sampler, metric, 0);
+    check_read(sampler, metric, 0);
+    page_faults = context_switches = UINT32_MAX;
+    check_read(sampler, metric, UINT64_C(4294967295));
+
+    seed_counter_total(sampler, metric, UINT64_MAX - UINT64_C(4294967296));
+    page_faults = context_switches = 0;
+    check_read(sampler, metric, UINT64_C(18446744069414584320));
+    page_faults = context_switches = UINT32_MAX - 1;
+    check_read(sampler, metric, UINT64_MAX - 1);
+
+    page_faults = context_switches = 0;
+    CHECK("overflow rejects the reading", perfidious_platform_sampler_read(sampler, &snapshot) == FAILURE);
+    check_error(&overflow_class, 0, operation);
+    CHECK("overflow leaves the counter unchanged", perfidious_platform_sampler_read(sampler, &snapshot) == FAILURE);
+    check_error(&overflow_class, 0, operation);
+    page_faults = context_switches = UINT32_MAX - 1;
+    check_read(sampler, metric, UINT64_MAX - 1);
+    page_faults = context_switches = UINT32_MAX;
+    check_read(sampler, metric, UINT64_MAX);
+    check_read(sampler, metric, UINT64_MAX);
+    page_faults = context_switches = 0;
+    CHECK("wrapping at the limit fails", perfidious_platform_sampler_read(sampler, &snapshot) == FAILURE);
+    check_error(&overflow_class, 0, operation);
+    page_faults = context_switches = UINT32_MAX;
+    check_read(sampler, metric, UINT64_MAX);
     perfidious_platform_sampler_close(sampler);
 }
 
@@ -614,6 +674,8 @@ int main(void)
     test_counter_wraps(PERFIDIOUS_SCOPE_CURRENT_PROCESS, PERFIDIOUS_METRIC_PAGE_FAULTS);
     test_counter_wraps(PERFIDIOUS_SCOPE_CURRENT_THREAD, PERFIDIOUS_METRIC_CONTEXT_SWITCHES);
     test_wrap_during_failed_read();
+    test_counter_overflow(PERFIDIOUS_SCOPE_CURRENT_PROCESS, PERFIDIOUS_METRIC_PAGE_FAULTS);
+    test_counter_overflow(PERFIDIOUS_SCOPE_CURRENT_THREAD, PERFIDIOUS_METRIC_CONTEXT_SWITCHES);
     reset_fixture("final cleanup");
     puts("Windows sampler harness passed");
     return EXIT_SUCCESS;

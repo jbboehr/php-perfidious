@@ -33,10 +33,8 @@ struct perfidious_platform_sampler
     HANDLE profile_handle;
     DWORD previous_page_faults;
     uint64_t page_fault_base;
-    bool have_page_faults;
     DWORD previous_context_switches;
     uint64_t context_switch_base;
-    bool have_context_switches;
 };
 
 PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_supported_metrics(
@@ -115,7 +113,6 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_read(
     PERFORMANCE_DATA profile_data;
     DWORD next_previous_context_switches = sampler->previous_context_switches;
     uint64_t next_context_switch_base = sampler->context_switch_base;
-    bool next_have_context_switches = sampler->have_context_switches;
 
     memset(snapshot, 0, sizeof(*snapshot));
 
@@ -201,7 +198,7 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_read(
             return perfidious_windows_throw_error("GetProcessMemoryInfo", GetLastError());
         }
 
-        if (sampler->have_page_faults && memory.PageFaultCount < sampler->previous_page_faults) {
+        if (memory.PageFaultCount < sampler->previous_page_faults) {
             if (UNEXPECTED(sampler->page_fault_base > UINT64_MAX - (UINT64_C(1) << 32))) {
                 zend_throw_exception(perfidious_overflow_exception_ce, "Windows page-fault count overflow", 0);
                 return FAILURE;
@@ -209,14 +206,13 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_read(
             sampler->page_fault_base += UINT64_C(1) << 32;
         }
         sampler->previous_page_faults = memory.PageFaultCount;
-        sampler->have_page_faults = true;
         snapshot->values[PERFIDIOUS_METRIC_PAGE_FAULTS] = sampler->page_fault_base + memory.PageFaultCount;
     }
 
     if ((sampler->metrics & PERFIDIOUS_METRIC_CONTEXT_SWITCHES_MASK) != 0) {
         ZEND_ASSERT(sampler->scope == PERFIDIOUS_SCOPE_CURRENT_THREAD);
 
-        if (next_have_context_switches && profile_data.ContextSwitchCount < next_previous_context_switches) {
+        if (profile_data.ContextSwitchCount < next_previous_context_switches) {
             if (UNEXPECTED(next_context_switch_base > UINT64_MAX - (UINT64_C(1) << 32))) {
                 zend_throw_exception(perfidious_overflow_exception_ce, "Windows context-switch count overflow", 0);
                 return FAILURE;
@@ -224,7 +220,6 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_read(
             next_context_switch_base += UINT64_C(1) << 32;
         }
         next_previous_context_switches = profile_data.ContextSwitchCount;
-        next_have_context_switches = true;
         snapshot->values[PERFIDIOUS_METRIC_CONTEXT_SWITCHES] =
             next_context_switch_base + profile_data.ContextSwitchCount;
     }
@@ -244,7 +239,6 @@ PERFIDIOUS_LOCAL zend_result perfidious_platform_sampler_read(
 
     sampler->previous_context_switches = next_previous_context_switches;
     sampler->context_switch_base = next_context_switch_base;
-    sampler->have_context_switches = next_have_context_switches;
 
     return SUCCESS;
 }

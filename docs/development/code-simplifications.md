@@ -5,7 +5,7 @@ Investigation base: `6af852a6d0dffeb6c812c86bc37c04e10182b804`. The agreed work 
 | Slice | Change | Status |
 | --- | --- | --- |
 | S01 | Share the Linux and Windows native-test launchers | Implemented below |
-| S02 | Consolidate Windows counter-widening state | Planned |
+| S02 | Remove redundant Windows counter initialization flags | Implemented below |
 | S03 | Remove redundant resets during Linux event construction | Planned; preserve explicit reset semantics and check fresh groups |
 | S04 | Use the main Nixpkgs pin for PHP 8.4 | Planned; validate the changed dependency closure |
 
@@ -43,3 +43,35 @@ Linux x86-64, PHP 8.1.34 debug, 2026-09-07:
 The characterization and mutation runners were one-off experiments. No production source changed. Native
 Windows/macOS, other PHP configurations, VM, and sanitizer suites were not rerun for this extraction. The Windows
 fixture used substitute native calls on Linux; it does not establish native Windows execution.
+
+## S02: Windows counter initialization flags
+
+Review base: `71a9f0ff7a59d2b6f97c1af7d088a95cf051ea38`.
+
+[The Windows sampler](../../src/windows/sampler.c) keeps the explicit previous native count and 64-bit wrap base for
+each counter. The two initialization flags are removed: `ecalloc()` initializes the previous counts to zero, and an
+unsigned native count cannot be less than zero on its first observation. Six fields become four. Wrap detection and
+overflow checks retain their existing comparisons and additions.
+
+The counters remain independent. Page-fault observations are retained before a later process-cycle query can fail;
+context-switch state is committed at the end of the read. Exception classes and messages are unchanged. More than one
+wrap between native observations remains unobservable.
+
+### Verification
+
+Linux x86-64, PHP 8.1.34 debug, 2026-09-07:
+
+- The Windows shim PHPT passed with assertions for zero and nonzero first readings, repeated readings, the last
+  representable wrap, exact `UINT64_MAX` readings, overflow rejection and recovery, and successive wraps observed
+  during failed cycle queries. Both counters reject a repeated overflowing observation without changing their state.
+- The native fixture compiled with GCC and `-Wall -Wextra -Werror` and passed. A separate ASan/UBSan build passed
+  with leak detection enabled and no sanitizer reports.
+- Four temporary mutations each failed a relevant assertion: treating a repeated value as a wrap, updating either
+  counter's previous reading before rejecting overflow, and discarding observations from failed reads.
+- The full PHPT suite passed 83 tests with 34 skipped, no warnings, and no failures. Composer validation, aggregate-stub
+  freshness, PHP_CodeSniffer, and all five documented PHPStan commands passed.
+- Configured lint hooks, C formatting, local documentation links, and `git diff --check` passed.
+
+These native checks use the real sampler with substitute Windows calls on Linux. Native Windows execution and SDK/ABI
+compatibility remain unverified. Other PHP configurations, native macOS, VM, and full-extension sanitizer suites were
+not rerun for this slice.
