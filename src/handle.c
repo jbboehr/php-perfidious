@@ -458,13 +458,6 @@ PERFIDIOUS_LOCAL struct perfidious_handle *perfidious_handle_try_open_ex(
             close(fd);
             goto cleanup;
         }
-        err = ioctl(fd, PERF_EVENT_IOC_RESET, fd);
-        if (err == -1) {
-            err = errno != 0 ? errno : EIO;
-            perfidious_error_set(error, perfidious_io_exception_ce, err, "ioctl failed: %s", strerror(err));
-            close(fd);
-            goto cleanup;
-        }
         handle->metrics[handle->metrics_count++] = (struct perfidious_metric){
             .fd = fd,
             .id = id,
@@ -518,14 +511,6 @@ PERFIDIOUS_LOCAL struct perfidious_handle *perfidious_handle_try_open_ex(
         }
 
         err = ioctl(fd, PERF_EVENT_IOC_ID, &id);
-        if (err == -1) {
-            err = errno != 0 ? errno : EIO;
-            perfidious_error_set(error, perfidious_io_exception_ce, err, "ioctl failed: %s", strerror(err));
-            close(fd);
-            goto cleanup;
-        }
-
-        err = ioctl(fd, PERF_EVENT_IOC_RESET, fd);
         if (err == -1) {
             err = errno != 0 ? errno : EIO;
             perfidious_error_set(error, perfidious_io_exception_ce, err, "ioctl failed: %s", strerror(err));

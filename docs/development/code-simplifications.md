@@ -6,7 +6,7 @@ Investigation base: `6af852a6d0dffeb6c812c86bc37c04e10182b804`. The agreed work 
 | --- | --- | --- |
 | S01 | Share the Linux and Windows native-test launchers | Implemented below |
 | S02 | Remove redundant Windows counter initialization flags | Implemented below |
-| S03 | Remove redundant resets during Linux event construction | Planned; preserve explicit reset semantics and check fresh groups |
+| S03 | Remove redundant resets during Linux event construction | Implemented below |
 | S04 | Use the main Nixpkgs pin for PHP 8.4 | Planned; validate the changed dependency closure |
 
 ## S01: shared native-test launcher
@@ -75,3 +75,39 @@ Linux x86-64, PHP 8.1.34 debug, 2026-09-07:
 These native checks use the real sampler with substitute Windows calls on Linux. Native Windows execution and SDK/ABI
 compatibility remain unverified. Other PHP configurations, native macOS, VM, and full-extension sanitizer suites were
 not rerun for this slice.
+
+## S03: Linux event construction resets
+
+Review base: `c3c232999702c1388c98096d81d89aa3ed038702`.
+
+[Handle construction](../../src/handle.c) no longer resets each newly opened event. Linux
+[zero-initializes event storage](https://github.com/torvalds/linux/blob/v6.12/kernel/events/core.c#L12146), and
+[group members cannot count until their leader is enabled](https://man7.org/linux/man-pages/man2/perf_event_open.2.html).
+The handle opens its dummy leader disabled, so the initial resets have no counts to clear. Removing them saves one
+ioctl and its failure path per descriptor: `N + 1` calls for `N` requested events.
+
+Explicit `Handle::reset()` and request-lifecycle resets retain their group reset, timing baselines, and enabled-state
+handling. Opening and event-ID lookup failures retain their existing cleanup paths.
+
+### Verification
+
+Linux x86-64, PHP 8.1.34 debug, 2026-09-07:
+
+- The new [initial-state test](../../tests/handle/zero-before-enable.phpt) passed before and after removal. It checks
+  empty, single-event, and multi-event groups before enabling, including reopening after use. Counts and both timing
+  totals remain zero during intervening CPU work. A temporary mutation that opened the leader enabled failed its
+  assertions; the original source was restored before the refactor.
+- Six focused PHPTs passed before and after removal: initial state, zero counts after reset, enabled-state preservation,
+  reset timing/scaling, partial-construction cleanup, and explicit descriptor errors.
+- A one-off experiment passed 70 group lifecycles against each module: ten each for empty groups, task clock, CPU clock,
+  page faults, instructions, cycles, and mixed hardware/software events. It checked initial zeros, counting after enable,
+  explicit resets while disabled and enabled, and cumulative timing. Strace recorded 160 event opens in each run;
+  reset calls fell from 300 to 140, leaving exactly the two explicit group resets per lifecycle.
+- The rebuilt module passed the full suite: 84 passed, 34 skipped, no warnings, and no failures. Composer validation,
+  aggregate-stub freshness, PHP_CodeSniffer, and all five documented PHPStan commands passed. The new PHPT body passed
+  syntax and formatting checks, excluding the side-effect rule for its combined helper and script body.
+- Configured lint hooks, local documentation links, and `git diff --check` passed. Whole-file C formatting differences
+  predate this slice; comparison with the same formatter configuration found no added diagnostics.
+
+These runs exercised real user-only perf events on the local kernel. Other kernels, architectures, PHP configurations,
+VM, native Windows/macOS, Valgrind, and sanitizer suites were not rerun for this slice.
