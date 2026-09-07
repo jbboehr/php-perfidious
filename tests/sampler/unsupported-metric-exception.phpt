@@ -12,11 +12,12 @@ use Perfidious\ExceptionInterface;
 use Perfidious\UnsupportedMetricException;
 
 $requestedMetrics = [Metric::Instructions, Metric::PageFaults];
+$unsupportedScope = PHP_OS_FAMILY === 'Linux' ? Scope::CurrentProcess : Scope::CurrentThread;
 
 try {
-    Sampler::open($requestedMetrics, Scope::CurrentThread);
+    Sampler::open($requestedMetrics, $unsupportedScope);
 } catch (UnsupportedMetricException $exception) {
-    var_dump($exception->scope === Scope::CurrentThread);
+    var_dump($exception->scope === $unsupportedScope);
     var_dump($exception->unsupportedMetrics === $requestedMetrics);
     $scopeProperty = new ReflectionProperty($exception, 'scope');
     $unsupportedMetricsProperty = new ReflectionProperty($exception, 'unsupportedMetrics');
@@ -36,7 +37,7 @@ try {
         $exception instanceof ExceptionInterface,
         (new ReflectionClass($exception))->isFinal(),
         $exception->getMessage() ===
-            'Metrics [instructions, page-faults] are not supported for scope current-thread',
+            'Metrics [instructions, page-faults] are not supported for scope ' . $unsupportedScope->value,
     );
 
     try {
@@ -68,7 +69,7 @@ try {
 [$mixedRequest, $expectedUnsupportedMetrics] = match (PHP_OS_FAMILY) {
     'Linux' => [
         [Metric::Instructions, Metric::CpuTime, Metric::CpuCycles, Metric::PageFaults],
-        [Metric::Instructions, Metric::CpuCycles],
+        [Metric::Instructions, Metric::CpuTime, Metric::CpuCycles, Metric::PageFaults],
     ],
     'Windows' => [
         [Metric::Instructions, Metric::CpuTime, Metric::ContextSwitches, Metric::PageFaults],
@@ -82,7 +83,7 @@ try {
 };
 
 try {
-    $unexpectedSampler = Sampler::open($mixedRequest);
+    $unexpectedSampler = Sampler::open($mixedRequest, Scope::CurrentProcess);
     $unexpectedSampler->close();
     echo "mixed request unexpectedly supported\n";
 } catch (UnsupportedMetricException $exception) {
@@ -112,11 +113,12 @@ set_exception_handler(static function (Throwable $exception): void {
     var_dump(
         $exception instanceof UnsupportedMetricException,
         $exception->scope === Scope::CurrentProcess,
-        $exception->unsupportedMetrics === [Metric::Instructions],
+        $exception->unsupportedMetrics === (PHP_OS_FAMILY === 'Linux'
+            ? [Metric::CpuTime, Metric::Instructions] : [Metric::Instructions]),
     );
 });
 
-Sampler::open([Metric::CpuTime, Metric::Instructions]);
+Sampler::open([Metric::CpuTime, Metric::Instructions], Scope::CurrentProcess);
 echo "exception hook was not called\n";
 ?>
 --EXPECT--

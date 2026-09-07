@@ -25,7 +25,7 @@ function oracleNs(): int
         + ($usage['ru_utime.tv_usec'] + $usage['ru_stime.tv_usec']) * 1_000;
 }
 
-$sampler = Sampler::open([Metric::CpuTime]);
+$sampler = Sampler::open([Metric::CpuTime], Perfidious\Scope::CurrentProcess);
 $outerBefore = oracleNs();
 $usageBefore = Perfidious\Darwin\get_current_process_resource_usage();
 $sampleBefore = $sampler->read();

@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 109ad58a81f16fe96f2d57b0558b2d10674d03e9 */
+ * Stub hash: 33f39df6ee60c71ce503341b4699bf69d9a443da */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Perfidious_UnsupportedMetricException___construct, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -11,7 +11,7 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Perfidious_Sampler_open, 0, 1, Perfidious\\Sampler, 0)
 	ZEND_ARG_TYPE_INFO(0, metrics, IS_ARRAY, 0)
-	ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(0, scope, Perfidious\\Scope, 0, "Perfidious\\Scope::CurrentProcess")
+	ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(0, scope, Perfidious\\Scope, 0, "Perfidious\\Scope::CurrentThread")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Perfidious_Sampler_metrics, 0, 0, IS_ARRAY, 0)

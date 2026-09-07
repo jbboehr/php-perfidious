@@ -2,6 +2,10 @@
 Sampler value objects expose only their accessor API and cannot be copied or serialized
 --EXTENSIONS--
 perfidious
+--SKIPIF--
+<?php
+require __DIR__ . '/skipif-perf-permissions.inc';
+?>
 --FILE--
 <?php
 

@@ -79,27 +79,24 @@ See also the [`examples`](./examples) directory and the [`stub`](./perfidious.st
 
 ### Cross-platform sampler
 
-`Sampler` is the starting point when the metrics you need are available through the common API. The current process is
-the default scope, and CPU time plus page faults are supported for that scope on Linux, Windows, and macOS.
+`Sampler` measures the current native thread by default. CPU time is available on Linux, Windows, and macOS.
+Linux also supports page faults, context switches, CPU cycles, and instructions, subject to perf permissions and hardware
+availability.
 See the [support matrix](docs/SAMPLER_API.md#support-matrix) for all implemented platform and scope combinations.
 
 ```php
 use Perfidious\Metric;
 use Perfidious\Sampler;
 
-$sampler = Sampler::open([
-    Metric::CpuTime,
-    Metric::PageFaults,
-]);
+$sampler = Sampler::open([Metric::CpuTime]);
 
 try {
     $before = $sampler->read();
 
-    hash('sha256', str_repeat('x', 1_000_000));
+    $digest = hash('sha256', str_repeat('x', 1_000_000));
 
     $delta = $sampler->read()->since($before);
     printf("CPU time: %d ns\n", $delta->value(Metric::CpuTime));
-    printf("Page faults: %d\n", $delta->value(Metric::PageFaults));
 } finally {
     $sampler->close();
 }
@@ -108,8 +105,9 @@ try {
 The sampler begins counting when it is opened. Each sample is cumulative from that point, while `since()` returns the
 difference between two samples from the same sampler.
 
-Current-thread CPU time is also available through the common sampler on Windows and macOS by passing
-`Scope::CurrentThread`. Other thread metrics remain platform-dependent.
+On Windows and macOS, pass `Scope::CurrentProcess` to measure the whole process. Linux supports `Scope::CurrentThread`
+only. Linux sampler metrics include kernel execution and require permission for kernel-inclusive perf events; permission
+failures throw `IOException`. See [troubleshooting](#troubleshooting).
 
 Metrics use string-backed enums, so configuration values map directly through `Metric::from()`. Generic reporters can
 inspect `Metric::unit()` to distinguish nanoseconds from counts. Opening a sampler validates the complete request. If

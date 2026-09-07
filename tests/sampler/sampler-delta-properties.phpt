@@ -2,13 +2,20 @@
 Sample deltas compose across chronological reads
 --EXTENSIONS--
 perfidious
+--SKIPIF--
+<?php
+require __DIR__ . '/skipif-perf-permissions.inc';
+?>
 --FILE--
 <?php
 
 use Perfidious\Metric;
 use Perfidious\Sampler;
+use Perfidious\Scope;
 
-$sampler = Sampler::open([Metric::PageFaults, Metric::CpuTime]);
+$scope = PHP_OS_FAMILY === 'Linux' ? Scope::CurrentThread : Scope::CurrentProcess;
+
+$sampler = Sampler::open([Metric::PageFaults, Metric::CpuTime], $scope);
 $first = $sampler->read();
 
 $pages = str_repeat('a', 2 * 1024 * 1024);

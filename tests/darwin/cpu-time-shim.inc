@@ -34,9 +34,9 @@ $ratio = getenv('PERFIDIOUS_TEST_RATIO');
 $invalid = in_array($ratio, ['0/3', '125/0', 'failure'], true);
 if ($invalid) {
     expectException(Perfidious\Darwin\get_current_process_resource_usage(...), Perfidious\IOException::class, 'mach_timebase_info');
-    expectException(static fn() => Sampler::open([Metric::CpuTime]), Perfidious\IOException::class, 'mach_timebase_info');
+    expectException(static fn() => Sampler::open([Metric::CpuTime], Perfidious\Scope::CurrentProcess), Perfidious\IOException::class, 'mach_timebase_info');
     // Unavailable CPU-time conversion must not disable unrelated metrics.
-    $cycles = Sampler::open([Metric::CpuCycles]);
+    $cycles = Sampler::open([Metric::CpuCycles], Perfidious\Scope::CurrentProcess);
     check($cycles->read()->value(Metric::CpuCycles) === 0, 'cycle-only sampler remains available');
     $cycles->close();
 } else {
@@ -53,7 +53,7 @@ if ($invalid) {
     check($usage->cycleCount === 12 && $usage->instructionCount === 34, 'hardware counts must remain unscaled');
 
     ticks('0', '0');
-    $sampler = Sampler::open([Metric::CpuTime]);
+    $sampler = Sampler::open([Metric::CpuTime], Perfidious\Scope::CurrentProcess);
     ticks('18000000', '6000000');
     check($sampler->read()->value(Metric::CpuTime) === $userNs + $systemNs, 'sampler time must be nanoseconds');
     $sampler->close();
@@ -61,26 +61,26 @@ if ($invalid) {
     if ($ratio === '125/3') {
         ticks('18446744073709551615', '0');
         expectException(Perfidious\Darwin\get_current_process_resource_usage(...), Perfidious\OverflowException::class, 'scale');
-        expectException(static fn() => Sampler::open([Metric::CpuTime]), Perfidious\OverflowException::class, 'scale');
+        expectException(static fn() => Sampler::open([Metric::CpuTime], Perfidious\Scope::CurrentProcess), Perfidious\OverflowException::class, 'scale');
         ticks('0', '18446744073709551615');
         expectException(Perfidious\Darwin\get_current_process_resource_usage(...), Perfidious\OverflowException::class, 'scale');
-        expectException(static fn() => Sampler::open([Metric::CpuTime]), Perfidious\OverflowException::class, 'scale');
+        expectException(static fn() => Sampler::open([Metric::CpuTime], Perfidious\Scope::CurrentProcess), Perfidious\OverflowException::class, 'scale');
 
         ticks('221360928884514620', '0');
         expectException(Perfidious\Darwin\get_current_process_resource_usage(...), Perfidious\OverflowException::class, 'PHP integer');
         ticks('300000000000000000', '300000000000000000');
-        expectException(static fn() => Sampler::open([Metric::CpuTime]), Perfidious\OverflowException::class, 'total CPU time');
+        expectException(static fn() => Sampler::open([Metric::CpuTime], Perfidious\Scope::CurrentProcess), Perfidious\OverflowException::class, 'total CPU time');
     } elseif ($ratio === '2/3') {
         // A direct ticks * numer would overflow even though the final result fits.
         ticks('0', '0');
-        $sampler = Sampler::open([Metric::CpuTime]);
+        $sampler = Sampler::open([Metric::CpuTime], Perfidious\Scope::CurrentProcess);
         ticks('12000000000000000000', '0');
         check(Perfidious\Darwin\get_current_process_resource_usage()->userTimeNs === 8_000_000_000_000_000_000, 'large scaled value');
         check($sampler->read()->value(Metric::CpuTime) === 8_000_000_000_000_000_000, 'large sampler value');
         $sampler->close();
 
         ticks('0', '0');
-        $sampler = Sampler::open([Metric::CpuTime]);
+        $sampler = Sampler::open([Metric::CpuTime], Perfidious\Scope::CurrentProcess);
         ticks('1', '1');
         $usage = Perfidious\Darwin\get_current_process_resource_usage();
         check($usage->userTimeNs === 0 && $usage->systemTimeNs === 0, 'each field rounds down');
@@ -90,7 +90,7 @@ if ($invalid) {
         // The whole term fits exactly, but adding the fractional term overflows uint64.
         ticks('12297829382473034411', '0');
         expectException(Perfidious\Darwin\get_current_process_resource_usage(...), Perfidious\OverflowException::class, 'scale');
-        expectException(static fn() => Sampler::open([Metric::CpuTime]), Perfidious\OverflowException::class, 'scale');
+        expectException(static fn() => Sampler::open([Metric::CpuTime], Perfidious\Scope::CurrentProcess), Perfidious\OverflowException::class, 'scale');
     }
 }
 

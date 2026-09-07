@@ -113,9 +113,15 @@ beside a failing PHPT. Tests that do not apply to the current OS or build mode r
 skips when reporting results.
 
 Linux perf-event tests need permission to call `perf_event_open()` and a usable counter source. Containers and VMs can
-restrict access or expose counters that do not advance. Permission failures and zero readings need investigation even
-if sampler tests pass, because the common Linux sampler uses `getrusage()` instead. See
+restrict access or expose counters that do not advance. The common Linux sampler includes kernel execution and requires
+permission for kernel-inclusive events. Its live PHPTs skip when that access is denied; investigate skips and zero
+readings before treating a build as verified. See
 [troubleshooting](../../README.md#troubleshooting) for the Linux access requirements.
+
+The Linux sampler fixtures separately exercise controlled syscall failures and real user-only counters on restricted
+hosts. The latter changes only the perf privilege filter and cannot verify kernel-inclusive accounting or context
+switches. VM runs exercise the normal sampler with kernel-inclusive permissions. See the
+[Linux sampler rewrite](linux-perf-sampler.md) for recorded results.
 
 The [public API contract test](../../tests/public-api-contract.phpt) compares the loaded extension with its platform
 stubs. The Linux construction, Darwin shim, and [Windows sampler shim](../../tests/windows/sampler-shim.phpt) tests

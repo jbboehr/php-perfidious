@@ -13,32 +13,28 @@ for failure behavior, and [future work](#future-work) for proposed extensions.
 use Perfidious\Metric;
 use Perfidious\Sampler;
 
-$sampler = Sampler::open([
-    Metric::CpuTime,
-    Metric::PageFaults,
-]);
+$sampler = Sampler::open([Metric::CpuTime]);
 
 try {
     $before = $sampler->read();
 
-    hash('sha256', str_repeat('x', 1_000_000));
+    $digest = hash('sha256', str_repeat('x', 1_000_000));
 
     $delta = $sampler->read()->since($before);
     printf("CPU time: %d ns\n", $delta->value(Metric::CpuTime));
-    printf("Page faults: %d\n", $delta->value(Metric::PageFaults));
 } finally {
     $sampler->close();
 }
 ```
 
-On Windows and macOS, current-thread CPU time is requested explicitly with the same metrics-first call shape:
+On Windows and macOS, request process-wide CPU time and page faults explicitly:
 
 ```php
 use Perfidious\Metric;
 use Perfidious\Sampler;
 use Perfidious\Scope;
 
-$sampler = Sampler::open([Metric::CpuTime], Scope::CurrentThread);
+$sampler = Sampler::open([Metric::CpuTime, Metric::PageFaults], Scope::CurrentProcess);
 $sampler->close();
 ```
 
@@ -49,7 +45,7 @@ All names below are in `Perfidious`. The [common stub](../stubs/common.stub.php)
 
 | Operation | Signature or property |
 | --- | --- |
-| Open a sampler | `Sampler::open(array $metrics, Scope $scope = Scope::CurrentProcess): Sampler` |
+| Open a sampler | `Sampler::open(array $metrics, Scope $scope = Scope::CurrentThread): Sampler` |
 | List configured metrics in request order | `Sampler::metrics(): array` returns `non-empty-list<Metric>` |
 | Read cumulative counters | `Sampler::read(): Sample` |
 | Release native resources | `Sampler::close(): void` |
@@ -61,7 +57,7 @@ All names below are in `Perfidious`. The [common stub](../stubs/common.stub.php)
 
 `$metrics` must be a non-empty list of unique `Metric` cases. There is no default metric list: selecting every metric
 would fail on common hosts, while a preset limited to the shared metrics would be too restrictive. The default scope
-is `Scope::CurrentProcess`.
+is `Scope::CurrentThread`.
 
 `Metric` and `Scope` are string-backed enums for configuration through `Metric::from()` and `Scope::from()`:
 
@@ -89,17 +85,13 @@ authoritative check. Capability discovery can be added later if real application
 
 ## Scope
 
-`Scope::CurrentProcess` means the current operating-system process, including all of its threads and excluding child
-processes. It is the default because it matches the execution model used by typical PHP-FPM workers and CLI programs.
-It must not silently degrade to the thread that happens to call `Sampler::open()`.
-
-`Scope::CurrentThread` means the native operating-system thread that calls `Sampler::open()`. The sampler must be read
-and closed from that same thread. It is an advanced scope for ZTS builds, threaded or embedded SAPIs, and native
-counters that are unavailable process-wide. PHP fibers share an operating-system thread, so thread scope does not
+`Scope::CurrentThread` is the default on every platform. It measures the native operating-system thread that calls
+`Sampler::open()`. Read the sampler from that same thread. PHP fibers share a native thread, so this scope does not
 isolate one fiber from another.
 
-See the [support matrix](#support-matrix) for current-thread availability and the
-[deferred Linux backend](#deferred-linux-current-thread-backend) for its rationale and proposed mapping.
+`Scope::CurrentProcess` includes all threads of the current operating-system process and excludes child processes.
+Windows and macOS support this scope. Linux rejects it; targeting a process ID with `perf_event_open()` would count
+only the main thread, which would not satisfy this contract.
 
 The sampler does not target arbitrary process or thread identifiers. The platform-specific APIs can continue to
 expose facilities that do so.
@@ -136,9 +128,8 @@ and native accounting rules, so deltas are useful on one host but should not be 
 
 ### Instructions
 
-`Metric::Instructions` names the retired-instruction count, but every current sampler backend rejects it with
-`UnsupportedMetricException`. The enum case reserves the metric name. Its proposed semantics are described under
-[future work](#future-work).
+`Metric::Instructions` counts retired instructions for the selected scope. Linux supports it for the current thread;
+Windows and macOS sampler backends reject it. Processor accounting varies, so compare deltas on the same host.
 
 ## Support matrix
 
@@ -148,26 +139,44 @@ with `UnsupportedMetricException`.
 
 | Metric | Linux process | Linux thread | Windows process | Windows thread | Darwin process | Darwin thread |
 | --- | --- | --- | --- | --- | --- | --- |
-| CPU time | Yes | No | Yes | Yes | Yes | Yes |
-| Page faults | Yes | No | Yes | No | Yes | No |
-| Context switches | Yes | No | No | Yes | Yes | No |
-| CPU cycles | No | No | Yes | Yes | Probed | No |
-| Instructions | No | No | No | No | No | No |
+| CPU time | No | Yes | Yes | Yes | Yes | Yes |
+| Page faults | No | Yes | Yes | No | Yes | No |
+| Context switches | No | Yes | No | Yes | Yes | No |
+| CPU cycles | No | Yes | Yes | Yes | Probed | No |
+| Instructions | No | Yes | No | No | No | No |
 
 `Probed` means that `Sampler::open()` accepts the metric only when the host reports a positive cumulative native count;
-a zero count is treated as unavailable. CPU time and page faults are the shared metric set supported by all three
-process backends.
+a zero count is treated as unavailable. CPU time is the shared thread metric on all three platforms. Linux checks
+requested perf events when opening; unavailable events are reported in `UnsupportedMetricException`.
 
 ## Backend mapping
 
 ### Linux
 
-The [Linux sampler backend](../src/linux/sampler.c) uses `getrusage(RUSAGE_SELF)` for process-wide CPU time, page
-faults, and context switches. CPU time combines `ru_utime` and `ru_stime`, page faults combine `ru_minflt` and
-`ru_majflt`, and context switches combine `ru_nvcsw` and `ru_nivcsw`.
+The [Linux sampler backend](../src/linux/sampler.c) opens one perf event per requested metric for the calling thread
+on any CPU, with inheritance disabled. New threads and child processes are excluded.
 
-The common sampler does not use the low-level `Perfidious\open()` perf-event backend. A possible perf-event mapping
-and the requirement to account for all process threads are described under [future work](#future-work).
+| Sampler metric | Linux event |
+| --- | --- |
+| `Metric::CpuTime` | `PERF_COUNT_SW_TASK_CLOCK` |
+| `Metric::PageFaults` | `PERF_COUNT_SW_PAGE_FAULTS` |
+| `Metric::ContextSwitches` | `PERF_COUNT_SW_CONTEXT_SWITCHES` |
+| `Metric::CpuCycles` | `PERF_COUNT_HW_CPU_CYCLES` |
+| `Metric::Instructions` | `PERF_COUNT_HW_INSTRUCTIONS` |
+
+Events include user and kernel execution and exclude hypervisor execution. Unlike the user-only low-level
+`Perfidious\open()` path, the sampler requires permission for kernel-inclusive events. Permission failures raise
+`IOException`; the backend does not substitute user-only counts or `getrusage()` readings.
+
+Events run independently so hardware multiplexing does not suspend software accounting. Each successful read scales
+an interval's count by its enabled time divided by its running time, then adds that estimate to the cumulative value.
+Earlier intervals keep their estimates when scheduling ratios change. Integer scaling rounds down. Ratios between
+separately multiplexed metrics are approximate because the events can run at different times.
+
+A counter that was enabled but never ran during an interval raises `IOException`; a scaled count that overflows raises
+`OverflowException`. A failed native read leaves the previous successful baseline intact. See
+[`perf_event_open(2)`](https://man7.org/linux/man-pages/man2/perf_event_open.2.html) for native targeting, permissions,
+and enabled/running times.
 
 ### Windows
 
@@ -217,7 +226,7 @@ If any metric is unsupported for the selected scope, opening throws
 Known-unsupported metrics are rejected before fallible host-capability probes; a probe is performed only when every
 requested metric is nominally supported for the selected platform and scope.
 
-Reading an explicitly closed handle, sampler, or thread profile throws `ClosedException`. Reading a Windows or Darwin
+Reading an explicitly closed handle, sampler, or thread profile throws `ClosedException`. Reading a
 current-thread sampler from a different native thread throws `WrongThreadException`. A conflicting Windows thread
 profiling session throws `ResourceBusyException`; callers can release the existing sampler or low-level profile and
 retry. `ClosedException` and `WrongThreadException` extend `LogicException`; `ResourceBusyException`,
@@ -269,39 +278,8 @@ The shared API and the `Yes`/`Probed` combinations in the support matrix are imp
 proposals, not currently available sampler behavior:
 
 - Additional Darwin current-thread metrics require a usable native source and reliable availability checks.
-- Instruction counting remains proposed. Its intended metric is the native retired-instruction count charged to the
-  selected scope. Interrupt and speculative execution accounting can vary by processor and operating system, so it
-  would support deltas on one host without promising cross-machine comparability. Darwin instruction fields and
-  driver-dependent Windows hardware counters remain in their low-level namespaces.
+- Windows and Darwin instruction counting needs a native source whose availability and event meaning can be verified.
+  Their low-level hardware-counter APIs remain available.
 
 Future additions should use the same classes on every platform, test successful combinations, and test that unsupported
 combinations fail without leaking partially opened native resources.
-
-### Deferred Linux current-thread backend
-
-Linux thread support is deferred until a ZTS or embedded-PHP consumer needs it. Typical PHP-FPM and CLI programs execute
-PHP on one native thread, so thread scope usually adds no useful isolation for those callers. A consumer that needs to
-exclude work by other native threads would justify revisiting this decision.
-
-Current-thread metrics could map to a `perf_event_open()` group containing the requested perf events. The Linux API
-defines `pid == 0` and `cpu == -1` as the calling thread. See the
-[Linux `perf_event_open(2)` documentation](https://www.kernel.org/pub/linux/docs/man-pages/book/man-pages-6.17.pdf).
-
-| Sampler metric | Proposed Linux event |
-| --- | --- |
-| `Metric::CpuTime` | `PERF_COUNT_SW_CPU_CLOCK` |
-| `Metric::PageFaults` | `PERF_COUNT_SW_PAGE_FAULTS` |
-| `Metric::ContextSwitches` | `PERF_COUNT_SW_CONTEXT_SWITCHES` |
-| `Metric::CpuCycles` | `PERF_COUNT_HW_CPU_CYCLES` |
-| `Metric::Instructions` | `PERF_COUNT_HW_INSTRUCTIONS` |
-
-The existing `Perfidious\open()` path always excludes kernel and hypervisor events. A future sampler perf backend
-would need separate configuration because its CPU time, cycle, and instruction definitions include kernel execution.
-It would also need to scale multiplexed hardware counters using the kernel's enabled and running times and document
-that the result is an estimate. Counter-quality metadata could be added if applications need to distinguish scaled
-readings.
-
-Process-wide cycles and instructions require a correct all-thread implementation. Linux identifies perf targets by
-task/thread, and targeting the process ID counts only the thread-group leader. The `inherit` flag omits existing
-threads and is incompatible with some grouped read formats. Process thread tracking remains deferred until there is
-a demonstrated consumer.

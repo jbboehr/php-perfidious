@@ -1,19 +1,27 @@
 --TEST--
-Sampler reads extended current-process metrics supported by each platform
+Sampler reads extended metrics for an explicit supported scope
 --EXTENSIONS--
 perfidious
+--SKIPIF--
+<?php
+require __DIR__ . '/skipif-perf-permissions.inc';
+?>
 --FILE--
 <?php
 
 use Perfidious\Metric;
 use Perfidious\Sampler;
+use Perfidious\Scope;
+
 use Perfidious\UnsupportedMetricException;
+
+$scope = PHP_OS_FAMILY === 'Linux' ? Scope::CurrentThread : Scope::CurrentProcess;
 
 $platform = PHP_OS_FAMILY;
 $darwinCyclesAvailable = false;
 if ($platform === 'Darwin') {
     try {
-        $cycleProbe = Sampler::open([Metric::CpuCycles]);
+        $cycleProbe = Sampler::open([Metric::CpuCycles], Scope::CurrentProcess);
         $cycleProbe->close();
         $darwinCyclesAvailable = true;
     } catch (UnsupportedMetricException) {
@@ -52,7 +60,7 @@ if ($readNativeCycles !== null) {
     $cycleOriginLowerBound = $readNativeCycles();
 }
 
-$sampler = Sampler::open($metrics);
+$sampler = Sampler::open($metrics, $scope);
 if ($readNativeContextSwitches !== null) {
     $contextOriginUpperBound = $readNativeContextSwitches();
     $contextBeforeLowerBound = $readNativeContextSwitches();

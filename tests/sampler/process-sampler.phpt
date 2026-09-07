@@ -1,7 +1,11 @@
 --TEST--
-Sampler reads requested current-process CPU time and page faults
+Sampler reads requested CPU time and page faults for an explicit supported scope
 --EXTENSIONS--
 perfidious
+--SKIPIF--
+<?php
+require __DIR__ . '/skipif-perf-permissions.inc';
+?>
 --FILE--
 <?php
 
@@ -9,9 +13,12 @@ use Perfidious\Metric;
 use Perfidious\Sample;
 use Perfidious\SampleDelta;
 use Perfidious\Sampler;
+use Perfidious\Scope;
+
+$scope = PHP_OS_FAMILY === 'Linux' ? Scope::CurrentThread : Scope::CurrentProcess;
 
 $metrics = [Metric::CpuTime, Metric::PageFaults];
-$sampler = Sampler::open($metrics);
+$sampler = Sampler::open($metrics, $scope);
 $before = $sampler->read();
 $pages = [];
 $accumulator = 0;

@@ -3,7 +3,10 @@ Closed handles and samplers throw Perfidious\ClosedException
 --EXTENSIONS--
 perfidious
 --SKIPIF--
-<?php require __DIR__ . '/skipif-linux-only.inc'; ?>
+<?php
+require __DIR__ . '/skipif-linux-only.inc';
+require __DIR__ . '/sampler/skipif-perf-permissions.inc';
+?>
 --FILE--
 <?php
 

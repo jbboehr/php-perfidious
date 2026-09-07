@@ -107,7 +107,7 @@ final class Sampler
      * @phpstan-param non-empty-list<Metric> $metrics
      * @throws UnsupportedMetricException|ResourceBusyException|IOException|OverflowException
      */
-    public static function open(array $metrics, Scope $scope = Scope::CurrentProcess): Sampler
+    public static function open(array $metrics, Scope $scope = Scope::CurrentThread): Sampler
     {
     }
 

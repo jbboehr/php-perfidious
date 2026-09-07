@@ -237,12 +237,12 @@ static bool perfidious_metric_from_zval(zval *value, enum perfidious_metric_id *
 
 static enum perfidious_scope_id perfidious_scope_from_zval(zval *value)
 {
-    if (value == NULL || Z_OBJ_P(value) == zend_enum_get_case_cstr(perfidious_scope_ce, "CurrentProcess")) {
-        return PERFIDIOUS_SCOPE_CURRENT_PROCESS;
+    if (value == NULL || Z_OBJ_P(value) == zend_enum_get_case_cstr(perfidious_scope_ce, "CurrentThread")) {
+        return PERFIDIOUS_SCOPE_CURRENT_THREAD;
     }
 
-    ZEND_ASSERT(Z_OBJ_P(value) == zend_enum_get_case_cstr(perfidious_scope_ce, "CurrentThread"));
-    return PERFIDIOUS_SCOPE_CURRENT_THREAD;
+    ZEND_ASSERT(Z_OBJ_P(value) == zend_enum_get_case_cstr(perfidious_scope_ce, "CurrentProcess"));
+    return PERFIDIOUS_SCOPE_CURRENT_PROCESS;
 }
 
 static bool perfidious_uint64_to_long(uint64_t value, zend_long *result)

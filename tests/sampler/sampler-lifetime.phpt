@@ -2,14 +2,21 @@
 Samples and deltas outlive their sampler and one another
 --EXTENSIONS--
 perfidious
+--SKIPIF--
+<?php
+require __DIR__ . '/skipif-perf-permissions.inc';
+?>
 --FILE--
 <?php
 
 use Perfidious\Metric;
 use Perfidious\Sampler;
+use Perfidious\Scope;
+
+$scope = PHP_OS_FAMILY === 'Linux' ? Scope::CurrentThread : Scope::CurrentProcess;
 
 $metrics = [Metric::PageFaults, Metric::CpuTime];
-$sampler = Sampler::open($metrics);
+$sampler = Sampler::open($metrics, $scope);
 $before = $sampler->read();
 usleep(1_000);
 $after = $sampler->read();

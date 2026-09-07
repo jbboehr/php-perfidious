@@ -42,6 +42,7 @@
 #include "../handle.h"
 #include "../platform.h"
 #include "../private.h"
+#include "counter_math.h"
 
 #define DEFAULT_METRICS "perf::PERF_COUNT_HW_CPU_CYCLES:u,perf::PERF_COUNT_HW_INSTRUCTIONS:u"
 
@@ -91,29 +92,6 @@ PHP_INI_BEGIN()
 PHP_INI_END()
 // clang-format on
 
-static bool perfidious_scale_uint64(uint64_t value, uint64_t multiplier, uint64_t divisor, uint64_t *result)
-{
-    ZEND_ASSERT(divisor != 0);
-
-#if defined(__SIZEOF_INT128__)
-    __extension__ typedef unsigned __int128 perfidious_uint128_t;
-    perfidious_uint128_t scaled = (perfidious_uint128_t) value * multiplier / divisor;
-
-    if (UNEXPECTED(scaled > UINT64_MAX)) {
-        return false;
-    }
-
-    *result = (uint64_t) scaled;
-    return true;
-#else
-    if (UNEXPECTED(value != 0 && multiplier > UINT64_MAX / value)) {
-        return false;
-    }
-
-    *result = value * multiplier / divisor;
-    return true;
-#endif
-}
 
 static struct perfidious_handle *split_and_open(zend_string *restrict metrics, struct perfidious_error *error)
 {

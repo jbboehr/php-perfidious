@@ -2,6 +2,10 @@
 Sampler rejects invalid, unavailable, and mismatched metric access
 --EXTENSIONS--
 perfidious
+--SKIPIF--
+<?php
+require __DIR__ . '/skipif-perf-permissions.inc';
+?>
 --FILE--
 <?php
 
@@ -34,14 +38,14 @@ try {
     $darwinCyclesAvailable = false;
     if (PHP_OS_FAMILY === 'Darwin') {
         try {
-            $cycleProbe = Sampler::open([Metric::CpuCycles]);
+            $cycleProbe = Sampler::open([Metric::CpuCycles], Scope::CurrentProcess);
             $cycleProbe->close();
             $darwinCyclesAvailable = true;
         } catch (UnsupportedMetricException) {
         }
     }
     $supportedExtendedMetrics = match (PHP_OS_FAMILY) {
-        'Linux' => [Metric::ContextSwitches],
+        'Linux' => [],
         'Windows' => [Metric::CpuCycles],
         'Darwin' => $darwinCyclesAvailable
             ? [Metric::ContextSwitches, Metric::CpuCycles]
@@ -65,7 +69,7 @@ try {
     $eachUnsupportedProcessMetricRejectedIndependently = true;
     foreach ($unsupportedProcessMetrics as $unsupportedMetric) {
         try {
-            $unexpectedSampler = Sampler::open([$unsupportedMetric]);
+            $unexpectedSampler = Sampler::open([$unsupportedMetric], Scope::CurrentProcess);
             $unexpectedSampler->close();
             $eachUnsupportedProcessMetricRejectedIndependently = false;
         } catch (UnsupportedMetricException $exception) {
@@ -86,7 +90,7 @@ try {
     }
     var_dump($eachUnsupportedProcessMetricRejectedIndependently);
 
-    Sampler::open($staticallyUnsupportedProcessMetrics);
+    Sampler::open($staticallyUnsupportedProcessMetrics, Scope::CurrentProcess);
 } catch (UnsupportedMetricException $exception) {
     $message = $exception->getMessage();
     $listsEveryUnsupportedMetric = true;
@@ -103,10 +107,10 @@ try {
 
 try {
     Sampler::open(array_merge(
-        [Metric::CpuTime, Metric::PageFaults],
+        PHP_OS_FAMILY === 'Linux' ? [] : [Metric::CpuTime, Metric::PageFaults],
         $supportedExtendedMetrics,
         $staticallyUnsupportedProcessMetrics,
-    ));
+    ), Scope::CurrentProcess);
 } catch (UnsupportedMetricException $exception) {
     $message = $exception->getMessage();
     $listsEveryUnsupportedMetric = true;
@@ -123,7 +127,7 @@ try {
 
 if (PHP_OS_FAMILY === 'Darwin') {
     try {
-        Sampler::open([Metric::CpuCycles, Metric::Instructions]);
+        Sampler::open([Metric::CpuCycles, Metric::Instructions], Scope::CurrentProcess);
         var_dump(false);
     } catch (UnsupportedMetricException $exception) {
         var_dump(
@@ -135,13 +139,14 @@ if (PHP_OS_FAMILY === 'Darwin') {
     var_dump(true);
 }
 
-$afterRejectedRequest = Sampler::open([Metric::PageFaults, Metric::CpuTime]);
+$afterRejectedRequest = Sampler::open([Metric::PageFaults, Metric::CpuTime],
+    PHP_OS_FAMILY === 'Linux' ? Scope::CurrentThread : Scope::CurrentProcess);
 var_dump($afterRejectedRequest->metrics() === [Metric::PageFaults, Metric::CpuTime]);
 $afterRejectedRequest->close();
 
 $threadMetricSupportMatchesPlatform = true;
 foreach (Metric::cases() as $metric) {
-    $isSupported = (
+    $isSupported = PHP_OS_FAMILY === 'Linux' || (
         PHP_OS_FAMILY === 'Windows' &&
         in_array($metric, [Metric::CpuTime, Metric::ContextSwitches, Metric::CpuCycles], true)
     ) || (
@@ -154,8 +159,10 @@ foreach (Metric::cases() as $metric) {
         $threadSampler->close();
         $threadMetricSupportMatchesPlatform = $threadMetricSupportMatchesPlatform && $isSupported;
     } catch (UnsupportedMetricException $exception) {
+        $isOptionalHardware = PHP_OS_FAMILY === 'Linux' &&
+            in_array($metric, [Metric::CpuCycles, Metric::Instructions], true);
         $threadMetricSupportMatchesPlatform = $threadMetricSupportMatchesPlatform &&
-            !$isSupported &&
+            (!$isSupported || $isOptionalHardware) &&
             str_contains($exception->getMessage(), $metric->value) &&
             str_contains($exception->getMessage(), 'current-thread');
     }

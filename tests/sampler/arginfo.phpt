@@ -42,8 +42,8 @@ var_dump(
     $scope->isOptional(),
     !$scope->allowsNull(),
     $scope->isDefaultValueConstant(),
-    $scope->getDefaultValueConstantName() === Scope::class . '::CurrentProcess',
-    $scope->getDefaultValue() === Scope::CurrentProcess,
+    $scope->getDefaultValueConstantName() === Scope::class . '::CurrentThread',
+    $scope->getDefaultValue() === Scope::CurrentThread,
 );
 --EXPECT--
 bool(true)

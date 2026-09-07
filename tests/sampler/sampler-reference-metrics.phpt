@@ -2,6 +2,10 @@
 Sampler validates referenced array values by their PHP value
 --EXTENSIONS--
 perfidious
+--SKIPIF--
+<?php
+require __DIR__ . '/skipif-perf-permissions.inc';
+?>
 --FILE--
 <?php
 
