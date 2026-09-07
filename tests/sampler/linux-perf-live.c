@@ -157,15 +157,12 @@ int main(void)
     }
     int status;
     CHECK(waitpid(child, &status, 0) == child && WIFEXITED(status) && WEXITSTATUS(status) == 0);
-    CHECK(perfidious_platform_sampler_read(parent_sampler, &before) == SUCCESS);
-    CHECK(
-        before.values[PERFIDIOUS_METRIC_CPU_TIME] - after.values[PERFIDIOUS_METRIC_CPU_TIME] <=
-        thread_cpu_time() - before_child
-    );
-    after = before;
+    /* Parent work keeps accounting jitter small relative to the measured interval. */
     work();
     CHECK(perfidious_platform_sampler_read(parent_sampler, &before) == SUCCESS);
-    CHECK(before.values[PERFIDIOUS_METRIC_CPU_TIME] > after.values[PERFIDIOUS_METRIC_CPU_TIME]);
+    uint64_t parent_cpu = thread_cpu_time() - before_child;
+    uint64_t measured = before.values[PERFIDIOUS_METRIC_CPU_TIME] - after.values[PERFIDIOUS_METRIC_CPU_TIME];
+    CHECK(measured >= parent_cpu - parent_cpu / 5 && measured <= parent_cpu + parent_cpu / 5);
     perfidious_platform_sampler_close(parent_sampler);
     CHECK(thrown == NULL);
     puts("Live user-only perf counters and thread isolation passed");
