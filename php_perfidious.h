@@ -29,8 +29,8 @@
 #endif
 
 #define PHP_PERFIDIOUS_NAME "perfidious"
-#define PHP_PERFIDIOUS_VERSION "0.2.0"
-#define PHP_PERFIDIOUS_RELEASE "2026-08-01"
+#define PHP_PERFIDIOUS_VERSION "0.3.0"
+#define PHP_PERFIDIOUS_RELEASE "2026-09-07"
 #define PHP_PERFIDIOUS_AUTHORS "John Boehr <jbboehr@gmail.com> (lead)"
 #define PHP_PERFIDIOUS_NAMESPACE "Perfidious"
 

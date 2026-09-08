@@ -6,10 +6,18 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-07
+
 ### Added
 
-- PIE metadata, local-checkout installation support, and a CI smoke test that installs and loads the extension through
-  PIE.
+- A common `Sampler`, `Sample`, and `SampleDelta` API for cumulative measurements and differences between samples.
+  The default scope is the calling native thread on every platform. CPU time is available on Linux, Windows, and macOS;
+  Windows and macOS also support explicit process scope. See the [sampler support matrix](docs/SAMPLER_API.md#support-matrix).
+- The Linux sampler uses `perf_events` for current-thread CPU time, page faults, context switches, CPU cycles, and
+  retired instructions, subject to event availability. Events include kernel execution, so the sampler requires
+  kernel-inclusive perf permissions; permission failures throw `IOException`. Hardware counts are scaled for
+  multiplexing. Linux process scope is unsupported.
+- PIE package metadata and installation from a local Linux source checkout.
 - An experimental low-level Windows x64 backend for process and thread cycle counts, process CPU time and page faults,
   and current-thread profiling data, with immutable typed result objects.
 - Experimental macOS process and current-thread resource snapshots on Apple Silicon with ARM64 PHP.
@@ -21,30 +29,35 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
   current-thread misuse, and thread-profiling conflicts from native `IOException` failures.
 - `Metric::unit()` exposes each sampler metric's `MetricUnit`, allowing generic reporters to distinguish nanoseconds
   from unitless counts without hard-coded metric lists.
-- The common sampler supports current-thread CPU time on macOS, backed by Darwin's native thread resource accounting.
+- The macOS sampler probes process CPU-cycle accounting when opened and rejects cycle requests when the host
+  provides no usable counter.
 
 ### Changed
 
-- All platforms now require 64-bit PHP. Composer installation and native compilation reject 32-bit builds.
+- All platforms now require 64-bit PHP, enforced during native compilation.
 - The Composer package type is now `php-ext`, allowing PIE to recognize this package as `ext-perfidious`.
-- `Handle::rawStream()` now accepts an optional descriptor index (`0` is the event-group leader) and throws
-  `ValueError` for an invalid index instead of returning `null`. Its `resource` return is documented in PHPDoc rather
-  than native reflection metadata, which PHP cannot represent safely.
+- `Handle::rawStream()` now declares its existing optional descriptor index (`0` is the event-group leader) in
+  reflection and stubs. Invalid indices throw `ValueError` instead of returning `null`. Its `resource` return is
+  documented in PHPDoc rather than native reflection metadata, which PHP cannot represent safely.
 - Runtime reflection and the shipped, platform-specific PHPStan declaration set now expose the same public contract.
   The top-level `perfidious.stub.php` remains a declarative all-platform compatibility stub, while platform-specific
   PHPStan configurations expose only the APIs available on their selected platform.
 - `Perfidious\open()` now declares its `$pid` and `$cpu` parameters as non-nullable integers, matching the existing
   runtime parser and their respective `0` and `-1` defaults.
-- On Darwin, the sampler now probes CPU-cycle accounting when opened and rejects cycle requests only when the host
-  provides no usable counter. The low-level Darwin snapshot API remains unchanged.
 - Linux perf-event reads now always throw `OverflowException` when a native counter or timing field cannot fit in a
-  PHP integer. The configurable overflow modes, their constants, and `perfidious.overflow_mode` have been removed.
+  PHP integer.
+- Resetting an enabled Linux handle briefly pauses counting and resumes it after the reset. Public reads retain
+  kernel-lifetime enabled/running timing totals.
 
 ### Removed
 
 - The Linux `Perfidious\global_handle()` API and the `perfidious.global.enable` / `perfidious.global.metrics` INI
   settings. This is a breaking change: automatic cumulative counters across requests are no longer provided. The
   per-request handle and explicitly owned handles remain available.
+- Configurable overflow modes: `OVERFLOW_THROW`, `OVERFLOW_WARN`, `OVERFLOW_SATURATE`, `OVERFLOW_WRAP`, and
+  `perfidious.overflow_mode`. Callers must handle `OverflowException` instead of selecting warning, saturation, or wrap
+  behavior.
+- The obsolete PECL `package.xml` manifest. Use PIE or the documented source build.
 
 ### Fixed
 
@@ -58,16 +71,15 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
   and error messages preserve the original PHP integer.
 - Linux counter descriptors and raw streams now close automatically when a child executes another program.
   This requires kernel support for `PERF_FLAG_FD_CLOEXEC`, introduced in Linux 3.14.
+- Linux capability checks release their libcap allocation when opening a handle for a positive PID, fixing a memory leak.
 - Unix configure now honors debug, coverage, and sanitizer options when run by Dash or another POSIX shell.
-- Linux handle, common sampler, and Windows thread-profile factories now create their PHP cleanup owners before
-  acquiring resources, and attach acquired resources before further PHP allocations or sampler reads.
+- Linux handle construction establishes PHP cleanup ownership before acquiring native resources and releases partially
+  opened event groups on failure.
 - Linux phpinfo request-counter scaling now uses enabled/running times since the latest reset, so earlier requests'
   scheduling ratios do not affect the current estimate. Public reads retain kernel-lifetime timing totals.
-- Darwin process CPU-time readings now convert Mach clock units to nanoseconds, matching the API's declared units
-  on machines with a non-unit timebase.
 - Automatic Linux request counters now open in the serving worker, including after opcache preloading, and are
-  released when their module globals are destroyed. Initialization errors are deferred to `request_handle()`;
-  failed opens are retried on later requests.
+  released when their module globals are destroyed. Initialization and lifecycle errors are deferred to
+  `request_handle()` and delivered once; failed opens are retried on later requests.
 - Linux phpinfo counter scaling now uses unsigned 128-bit intermediates when available, avoiding overflow in
   `counter * timeEnabled / timeRunning` when the final scaled value still fits in 64 bits.
 
@@ -128,4 +140,5 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
 
 - Initial release
 
-[Unreleased]: https://github.com/jbboehr/php-perfidious/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/jbboehr/php-perfidious/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/jbboehr/php-perfidious/compare/v0.2.0...v0.3.0
