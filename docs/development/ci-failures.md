@@ -1,8 +1,10 @@
 # CI failure investigation
 
-Updated on 2026-09-07, based on `554278a`. The Linux Valgrind failure was a reproducible false positive in the native
-fixture's CPU-time assertion. The corrected fixture compares perf with the parent's own CPU clock. Both Apple Silicon
-macOS jobs now pass; the fixture correction has not run in CI.
+Updated on 2026-09-07. The sampler fixture now compares perf with the parent's own CPU clock; the FPM fixture checks
+counter resets across consecutive requests. The full
+[CI run at `14e3012`](https://github.com/jbboehr/php-perfidious/actions/runs/34173996224) passed, including all seven
+Linux test jobs. The FPM correction passed review and has not run in CI. Both Apple Silicon macOS jobs passed after
+the runner change.
 
 ## Linux Valgrind test
 
@@ -95,10 +97,11 @@ expected CPU-time assertion, natively and under Ubuntu Valgrind with sibling-thr
 The Linux PHP 8.1.34 rebuild and focused sampler suite passed: 7 tests passed and 12 skipped. The full ordinary suite
 passed 84 tests with 34 skips and zero failures. Skips cover native platforms, kernel-inclusive perf permissions,
 ZTS, release-only behavior, and OpCache prerequisites. Composer validation, stub freshness, PHPCS, and all documented
-PHPStan checks, configured lint hooks, C formatting, and local documentation links passed. The correction has not
-run on GitHub or under other PHP versions, ZTS, or kernel-inclusive perf access.
+PHPStan checks, configured lint hooks, C formatting, and local documentation links passed. The committed sampler
+correction subsequently passed the Linux CI jobs for PHP 8.1–8.5, including the PHP 8.1 and 8.4 extension-debug jobs.
+Other PHP configurations, ZTS, and kernel-inclusive perf access were not repeated locally.
 
-### Separate FPM timing failure
+### FPM timing failure and correction
 
 The full Valgrind 3.26.0 suite passed the corrected sampler fixture, but finished with 83 passes, 34 skips, one
 failure, and zero leaked tests. The failure is in [the FPM worker test](../../tests/request-handle/fpm-worker.py):
@@ -110,7 +113,41 @@ check(result["start"] < result["fresh"] / 2, result)
 The first request's initial counter was 53.372 ms; the fresh counter measured 101.141 ms, giving a 50.571 ms limit.
 Running only this unchanged FPM fixture reproduced the failure: 60.183 ms against a 50.642 ms limit. That isolated
 run does not execute the modified sampler fixture. Request and fresh workload deltas agreed, and second-request
-initial counters were below 1 ms. The FPM assertion's timing assumptions need a separate investigation and correction.
+initial counters were below 1 ms.
+
+The FPM correction uses review base `14e3012`. A fresh focused Valgrind run reproduced the failure before editing:
+the first request started at 53.030 ms against a 50.513 ms limit. Request counters start in RINIT, before the PHP
+script reaches its first sample. Work done before that sample is part of the current request; its CPU cost has no
+required relationship to the later workload.
+
+A temporary fixture added 100 ms of legitimate CPU work before the initial read, using
+[getrusage()](https://www.php.net/manual/en/function.getrusage.php) to bound that work. The original assertion failed
+without Valgrind: the start count was 100.171 ms and the later workload measured 100.012 ms. This demonstrates that
+the startup limit can reject correctly scoped request counters.
+
+The fixture now returns its ending request count. The runner matches responses by PID and requires each worker's
+second starting count to be below its first ending count. An unreset counter would remain monotonic across that
+boundary. The fresh-counter comparison still checks workload attribution and rejects disabled request counters.
+Worker reuse, master-process separation, and debug opening-count checks are unchanged. Production code is unchanged.
+
+Verification on Linux x86-64 with PHP 8.1.34:
+
+- The original focused Valgrind failure passed after correction. The controlled startup-work fixture also passed
+  normally and under Valgrind, including when second-round responses arrived in a different worker order.
+- All 14 applicable request-handle tests passed normally and under Valgrind 3.26.0; the ZTS fixture skipped. An explicit
+  `PERFIDIOUS_TEST_OPCACHE` path enabled both preload tests. Worker and preload modes also passed under Valgrind with
+  the runner and its children restricted to one CPU.
+- A temporary module omitted both request-startup and request-shutdown reset calls. Worker and preload modes rejected
+  it at the new reset assertion, both normally and under Valgrind. In one Valgrind run, a worker's previous ending
+  count was 159.369 ms and its next starting count was 173.363 ms.
+- A temporary fixture disabled the request counter before the workload. The retained fresh-counter comparison
+  rejected its zero request delta both normally and under Valgrind.
+- The ordinary and Valgrind full suites each passed 86 tests with 32 skips and zero failures. Valgrind reported zero
+  leaked tests. PHP/Python syntax, Composer validation, stub freshness, PHPCS, all documented PHPStan checks,
+  configured lint hooks, local documentation links, and `git diff --check` passed.
+
+These checks exercised real user-only perf events in FPM workers. Other PHP versions, ZTS, sanitizers, and native
+Windows/macOS were not rerun for this fixture change.
 
 ## Intel macOS PHP installation
 

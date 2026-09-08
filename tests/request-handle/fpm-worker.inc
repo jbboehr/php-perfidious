@@ -19,6 +19,7 @@ echo json_encode([
     'pid' => getmypid(),
     'opens' => $opens,
     'start' => $start,
+    'end' => $after[0],
     'request' => $after[0] - $before[0],
     'fresh' => $after[1] - $before[1],
 ]), "\n";

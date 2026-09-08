@@ -219,12 +219,19 @@ file_put_contents(__DIR__ . '/preload.json', json_encode(['pid' => getmypid(), '
                     pids = {result["pid"] for result in rounds[0]}
                     check(len(pids) == 2 and process.pid not in pids, rounds)
                     check({result["pid"] for result in rounds[1]} == pids, rounds)
+                    first_ends = {result["pid"]: result["end"] for result in rounds[0]}
                     for number, results in enumerate(rounds):
                         for result in results:
                             # A fresh counter is the oracle; never excuse a zero request counter.
                             check(result["fresh"] > 0, ("fresh task clock did not advance", result))
                             check(0.5 < result["request"] / result["fresh"] < 2, result)
-                            check(result["start"] < result["fresh"] / 2, result)
+                            if number > 0:
+                                # A reset makes this worker's count drop across the request boundary.
+                                previous_end = first_ends[result["pid"]]
+                                check(
+                                    result["start"] < previous_end,
+                                    ("request counter did not reset", previous_end, result),
+                                )
                             if result["opens"] is not None:
                                 # One automatic open per worker; each prior workload opens one oracle.
                                 check(result["opens"] == 1 + preloading + number, result)
