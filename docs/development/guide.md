@@ -3,6 +3,7 @@
 Run these commands from the repository root. The build and runtime examples below cover Linux. Native Windows and
 Apple Silicon macOS builds have separate jobs in [CI](../../.github/workflows/ci.yml). The
 [sampler support matrix](../SAMPLER_API.md#support-matrix) describes the available APIs on each platform.
+See [Releases](releases.md) for Windows package checks on branches and automatic publication from version tags.
 
 ## Build a local module
 

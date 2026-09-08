@@ -22,17 +22,23 @@ This extension provides a common sampler for a small set of process and thread m
 
 ### PIE
 
-PIE installation is currently Linux-only. PIE installs precompiled extension DLLs on Windows,
-and this project does not publish those release artifacts yet.
+PIE builds from source on Linux and installs precompiled x64 DLLs on Windows. Windows installation requires a tagged
+release with matching PHP version and TS/NTS binaries; development checkouts still require the Windows source build.
+macOS PIE installation is not enabled yet.
 
-Install the build toolchain and required system libraries first. On Ubuntu and Debian:
+On Linux, install the build toolchain and required system libraries first. On Ubuntu and Debian:
 
 ```bash
 apt install build-essential git libcap-dev libpfm4-dev php-dev
 ```
 
-After [installing PIE](https://php.github.io/pie/#installing-pie), install the current development version from a source
-checkout:
+After [installing PIE](https://php.github.io/pie/#installing-pie), install a released version:
+
+```bash
+pie install jbboehr/perfidious
+```
+
+To install the current Linux development version from a source checkout:
 
 ```bash
 git clone https://github.com/jbboehr/php-perfidious.git

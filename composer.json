@@ -35,7 +35,8 @@
     "php-ext": {
         "extension-name": "perfidious",
         "os-families": [
-            "linux"
+            "linux",
+            "windows"
         ],
         "configure-options": [
             {
