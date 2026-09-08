@@ -17,9 +17,10 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
   retired instructions, subject to event availability. Events include kernel execution, so the sampler requires
   kernel-inclusive perf permissions; permission failures throw `IOException`. Hardware counts are scaled for
   multiplexing. Linux process scope is unsupported.
-- PIE package metadata, installation from Linux and macOS source checkouts, and precompiled Windows x64 and macOS
-  ARM64 packages for PHP 8.1–8.5 in TS and NTS builds. Binary packages are published automatically when a version tag
-  is pushed. macOS retains source builds as a fallback.
+- PIE installation from Linux and macOS source checkouts, and precompiled packages for PHP 8.1–8.5: Windows x64 and
+  macOS ARM64 in TS and NTS builds, plus Linux x64 NTS for glibc and musl. Linux binaries include libcap and libpfm.
+  Binary packages are published automatically when a version tag is pushed. Linux and macOS retain source builds
+  as a fallback.
 - An experimental low-level Windows x64 backend for process and thread cycle counts, process CPU time and page faults,
   and current-thread profiling data, with immutable typed result objects.
 - Experimental macOS process and current-thread resource snapshots on Apple Silicon with ARM64 PHP.

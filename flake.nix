@@ -538,6 +538,32 @@
             default = packages.php81-gcc;
           };
 
+        releaseMuslPkgs = pkgs.pkgsCross.musl64.extend nix-phps.overlays.default;
+        releasePackages = lib.optionalAttrs (system == "x86_64-linux") (builtins.listToAttrs (map
+          ({
+            php,
+            libc,
+          }: let
+            targetPkgs =
+              if libc == "musl"
+              then releaseMuslPkgs
+              else pkgs;
+          in
+            lib.nameValuePair "release-${php}-${libc}" (import ./nix/release-linux.nix {
+              pkgs = targetPkgs;
+              buildPkgs = pkgs;
+              php =
+                if libc == "musl"
+                then targetPkgs.${php}
+                else matrix.php.${php};
+              inherit src libc;
+              projectSource = src';
+            }))
+          (lib.cartesianProduct {
+            php = ["php81" "php82" "php83" "php84" "php85"];
+            libc = ["glibc" "musl"];
+          })));
+
         # Build Perfidious into PHP so CLI and FPM use the same instrumented extension.
         # Only Perfidious's objects are instrumented; PHP core links the sanitizer runtimes.
         # Rebuilding PHP is slow, so these targets are excluded from the normal package/check/shell
@@ -675,6 +701,7 @@
         # makeSanitizeStaticPhp's comment above.
         packages =
           packages
+          // releasePackages
           // {
             sanitize-static-php82 = sanitizeStaticPhp;
             sanitize-static-php82-check = sanitizeStaticPhpCheck;
@@ -697,6 +724,15 @@
               runPhpt = false;
             };
             php85-gcc-vmtest = makeVmCheck {package = packages.php85-gcc;};
+          }
+          // lib.optionalAttrs (system == "x86_64-linux") {
+            release-packaging =
+              pkgs.runCommand "perfidious-release-packaging-check" {
+                nativeBuildInputs = [pkgs.python3 pkgs.stdenv.cc pkgs.patchelf pkgs.binutils];
+              } ''
+                python3 ${src'}/tests/package-linux.py
+                touch $out
+              '';
           }
           // (builtins.mapAttrs (name: package: makeCheck package) (builtins.removeAttrs packages ["default"]));
 

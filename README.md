@@ -14,7 +14,7 @@ This extension provides a common sampler for a small set of process and thread m
 ## Requirements
 
 * 64-bit PHP 8.1 - 8.5; 32-bit builds are unsupported
-* Linux: libcap and libpfm4
+* Linux source builds: libcap and libpfm4; the prebuilt Linux packages include both libraries
 * Windows: 64-bit x64 PHP on a Windows version supported by that PHP release
 * macOS: Apple Silicon with ARM64 PHP; Intel Macs are unsupported and untested
 
@@ -22,13 +22,19 @@ This extension provides a common sampler for a small set of process and thread m
 
 ### PIE
 
-PIE installs precompiled x64 DLLs on Windows and ARM64 modules on macOS for PHP 8.1–8.5, in TS and NTS builds.
-The macOS binaries target macOS 11 or newer and require a compatible ARM64 PHP installation. Windows installation
-requires a tagged release with matching binaries; development checkouts still require the Windows source build.
-Linux builds from source. macOS also builds from source when no matching binary is published or configure options
-are requested.
+PIE installs precompiled packages for PHP 8.1–8.5:
 
-On Linux, install the build toolchain and required system libraries first. On Ubuntu and Debian:
+| Platform | Architecture | PHP build | Binary requirements |
+| --- | --- | --- | --- |
+| Linux | x64 | NTS | glibc 2.36+ or musl 1.2.5+ |
+| Windows | x64 | TS and NTS | A Windows version supported by that PHP release |
+| macOS | ARM64 | TS and NTS | macOS 11+ and a compatible ARM64 PHP installation |
+
+Linux and macOS build from source when no matching binary is published or configure options are requested. Linux
+ARM64, ZTS, and PHP debug builds use this fallback. Windows requires matching release binaries; development checkouts
+still require the Windows source build.
+
+For Linux source installation, install the toolchain and required system libraries first. On Ubuntu and Debian:
 
 ```bash
 apt install build-essential git libcap-dev libpfm4-dev php-dev
@@ -50,7 +56,8 @@ cd php-perfidious
 pie install
 ```
 
-To build a released version from source on macOS, pass a configure option:
+To build a released version from source on Linux or macOS, pass a configure option. Use this on Linux systems older
+than the libc requirements above: PIE matches the libc flavor, but does not check its version.
 
 ```bash
 pie install jbboehr/perfidious --enable-compile-warnings=yes
