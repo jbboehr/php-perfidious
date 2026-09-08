@@ -1,6 +1,12 @@
 #ifndef PERFIDIOUS_TEST_MACH_H
 #define PERFIDIOUS_TEST_MACH_H
 
+#ifdef __APPLE__
+
+#include_next <mach/mach.h>
+
+#else
+
 /* Minimal native boundary for compiling the real Darwin backend on Linux. */
 #include <stdint.h>
 #include <pthread.h>
@@ -30,5 +36,7 @@ thread_t mach_task_self(void);
 kern_return_t mach_port_deallocate(thread_t task, thread_t thread);
 kern_return_t thread_info(thread_t thread, int flavor, thread_info_t info, mach_msg_type_number_t *count);
 int pthread_threadid_np(void *thread, uint64_t *thread_id);
+
+#endif /* __APPLE__ */
 
 #endif

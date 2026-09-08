@@ -22,9 +22,11 @@ This extension provides a common sampler for a small set of process and thread m
 
 ### PIE
 
-PIE builds from source on Linux and installs precompiled x64 DLLs on Windows. Windows installation requires a tagged
-release with matching PHP version and TS/NTS binaries; development checkouts still require the Windows source build.
-macOS PIE installation is not enabled yet.
+PIE installs precompiled x64 DLLs on Windows and ARM64 modules on macOS for PHP 8.1–8.5, in TS and NTS builds.
+The macOS binaries target macOS 11 or newer and require a compatible ARM64 PHP installation. Windows installation
+requires a tagged release with matching binaries; development checkouts still require the Windows source build.
+Linux builds from source. macOS also builds from source when no matching binary is published or configure options
+are requested.
 
 On Linux, install the build toolchain and required system libraries first. On Ubuntu and Debian:
 
@@ -32,18 +34,26 @@ On Linux, install the build toolchain and required system libraries first. On Ub
 apt install build-essential git libcap-dev libpfm4-dev php-dev
 ```
 
+macOS source builds need Apple's Command Line Tools, Autoconf, and matching ARM64 `phpize` and `php-config` tools.
+
 After [installing PIE](https://php.github.io/pie/#installing-pie), install a released version:
 
 ```bash
 pie install jbboehr/perfidious
 ```
 
-To install the current Linux development version from a source checkout:
+To install the current Linux or macOS development version from a source checkout:
 
 ```bash
 git clone https://github.com/jbboehr/php-perfidious.git
 cd php-perfidious
 pie install
+```
+
+To build a released version from source on macOS, pass a configure option:
+
+```bash
+pie install jbboehr/perfidious --enable-compile-warnings=yes
 ```
 
 ### Source

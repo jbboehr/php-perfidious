@@ -1,6 +1,6 @@
 {
     "name": "jbboehr/perfidious",
-    "description": "PHP extension providing access to Linux and Windows performance monitoring counters",
+    "description": "PHP extension providing access to Linux, Windows, and macOS performance counters",
     "type": "php-ext",
     "keywords": [
         "perf",
@@ -36,7 +36,12 @@
         "extension-name": "perfidious",
         "os-families": [
             "linux",
-            "windows"
+            "windows",
+            "darwin"
+        ],
+        "download-url-method": [
+            "pre-packaged-binary",
+            "composer-default"
         ],
         "configure-options": [
             {
