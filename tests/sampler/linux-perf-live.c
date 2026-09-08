@@ -1,5 +1,6 @@
 /* Exercise the production backend with real user-only events on restricted Linux hosts. */
 #include <errno.h>
+#include <inttypes.h>
 #include <linux/perf_event.h>
 #include <pthread.h>
 #include <stdarg.h>
@@ -83,13 +84,26 @@ static void work(void)
 
 static struct perfidious_platform_sampler *parent_sampler;
 static uint32_t metrics;
-static struct perfidious_sampler_snapshot worker_delta;
 
 static uint64_t thread_cpu_time(void)
 {
     struct timespec time;
     CHECK(clock_gettime(CLOCK_THREAD_CPUTIME_ID, &time) == 0);
     return (uint64_t) time.tv_sec * UINT64_C(1000000000) + (uint64_t) time.tv_nsec;
+}
+
+static void check_parent_cpu_time(const char *phase, uint64_t measured, uint64_t expected)
+{
+    if (measured < expected - expected / 5 || measured > expected + expected / 5) {
+        fprintf(
+            stderr,
+            "%s CPU time: perf=%" PRIu64 " ns, thread clock=%" PRIu64 " ns (allowed difference: 20%%)\n",
+            phase,
+            measured,
+            expected
+        );
+        exit(1);
+    }
 }
 
 static void *worker(void *unused)
@@ -112,12 +126,12 @@ static void *worker(void *unused)
     CHECK(perfidious_platform_sampler_read(sampler, &after) == SUCCESS);
     for (int metric = 0; metric < PERFIDIOUS_METRIC_COUNT; ++metric) {
         CHECK(after.values[metric] >= before.values[metric]);
-        worker_delta.values[metric] = after.values[metric] - before.values[metric];
+        uint64_t delta = after.values[metric] - before.values[metric];
         if (metrics & PERFIDIOUS_METRIC_MASK(metric)) {
-            if (worker_delta.values[metric] == 0) {
+            if (delta == 0) {
                 fprintf(stderr, "Metric %d did not advance\n", metric);
             }
-            CHECK(worker_delta.values[metric] > 0);
+            CHECK(delta > 0);
         }
     }
     free(pages);
@@ -134,15 +148,17 @@ int main(void)
     CHECK((metrics & software) == software);
     CHECK(perfidious_platform_sampler_open(metrics, PERFIDIOUS_SCOPE_CURRENT_THREAD, &parent_sampler) == SUCCESS);
     struct perfidious_sampler_snapshot before, after;
+    uint64_t before_thread = thread_cpu_time();
     CHECK(perfidious_platform_sampler_read(parent_sampler, &before) == SUCCESS);
     pthread_t thread;
     CHECK(pthread_create(&thread, NULL, worker, NULL) == 0);
     CHECK(pthread_join(thread, NULL) == 0);
+    /* Include thread setup in the CPU-clock comparison; parent work limits sampling jitter. */
+    work();
     CHECK(perfidious_platform_sampler_read(parent_sampler, &after) == SUCCESS);
-    CHECK(
-        after.values[PERFIDIOUS_METRIC_CPU_TIME] - before.values[PERFIDIOUS_METRIC_CPU_TIME] <
-        worker_delta.values[PERFIDIOUS_METRIC_CPU_TIME] / 5
-    );
+    uint64_t parent_cpu = thread_cpu_time() - before_thread;
+    uint64_t measured = after.values[PERFIDIOUS_METRIC_CPU_TIME] - before.values[PERFIDIOUS_METRIC_CPU_TIME];
+    check_parent_cpu_time("Thread isolation", measured, parent_cpu);
     uint64_t before_child = thread_cpu_time();
     CHECK(perfidious_platform_sampler_read(parent_sampler, &after) == SUCCESS);
     pid_t child = fork();
@@ -160,9 +176,9 @@ int main(void)
     /* Parent work keeps accounting jitter small relative to the measured interval. */
     work();
     CHECK(perfidious_platform_sampler_read(parent_sampler, &before) == SUCCESS);
-    uint64_t parent_cpu = thread_cpu_time() - before_child;
-    uint64_t measured = before.values[PERFIDIOUS_METRIC_CPU_TIME] - after.values[PERFIDIOUS_METRIC_CPU_TIME];
-    CHECK(measured >= parent_cpu - parent_cpu / 5 && measured <= parent_cpu + parent_cpu / 5);
+    parent_cpu = thread_cpu_time() - before_child;
+    measured = before.values[PERFIDIOUS_METRIC_CPU_TIME] - after.values[PERFIDIOUS_METRIC_CPU_TIME];
+    check_parent_cpu_time("Fork isolation", measured, parent_cpu);
     perfidious_platform_sampler_close(parent_sampler);
     CHECK(thrown == NULL);
     puts("Live user-only perf counters and thread isolation passed");
