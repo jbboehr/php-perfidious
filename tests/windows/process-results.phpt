@@ -8,11 +8,10 @@ perfidious
 <?php
 
 $processCycles = Perfidious\Windows\query_current_process_cycle_time();
-$threadCycles = Perfidious\Windows\query_current_thread_cycle_time();
 $times = Perfidious\Windows\get_current_process_times();
 $memory = Perfidious\Windows\get_current_process_memory_info();
 
-var_dump(is_int($processCycles), is_int($threadCycles));
+var_dump(is_int($processCycles));
 var_dump($times instanceof Perfidious\Windows\ProcessTimes);
 var_dump(array_keys(get_object_vars($times)));
 var_dump(
@@ -24,7 +23,6 @@ var_dump($memory instanceof Perfidious\Windows\ProcessMemoryInfo);
 var_dump(array_keys(get_object_vars($memory)));
 var_dump($memory->pageFaultCount >= 0, $memory->privateUsage >= 0);
 --EXPECT--
-bool(true)
 bool(true)
 bool(true)
 array(3) {

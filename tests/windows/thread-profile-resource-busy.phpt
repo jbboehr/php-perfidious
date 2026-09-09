@@ -3,7 +3,10 @@ Windows thread profiling conflicts throw Perfidious\ResourceBusyException
 --EXTENSIONS--
 perfidious
 --SKIPIF--
-<?php require __DIR__ . '/../skipif-windows-only.inc'; ?>
+<?php
+require __DIR__ . '/../skipif-windows-only.inc';
+perfidious_skip_if_wine('EnableThreadProfiling');
+?>
 --FILE--
 <?php
 

@@ -32,6 +32,33 @@ build modes. To test a release configuration, use `--disable-perfidious-debug` i
 reconfiguring an existing build with different flags. Use a separate checkout when switching PHP versions so that
 generated files and compiled objects stay paired with the right PHP headers and executable.
 
+## Cross-compile the Windows module
+
+On Linux, build an x64 Windows DLL with [xwin](https://github.com/Jake-Shadle/xwin), Clang, and PHP's official
+Windows development packs:
+
+```sh
+nix build -L .#windows-php81-nts
+nix build -L .#windows-php85-zts
+```
+
+Packages cover PHP 8.1–8.5 in NTS and ZTS modes. Each output contains `lib/php/extensions/php_perfidious.dll`.
+The same targets appear under `checks`, so `nix flake check` and the Nix CI matrix also compile and link them.
+To run one check directly, use `nix build -L .#checks.x86_64-linux.windows-php81-nts`.
+
+[The recipe](../../nix/windows.nix) pins the PHP archives and Microsoft's SDK manifest. It invokes xwin with
+`--accept-license` to download the Microsoft CRT and SDK under their license terms. A small build-only header
+matches the official MSVC PHP ABI: vectorcall functions and no Clang-specific allocator entry points. Keep the
+recipe's source list aligned with `config.w32` when adding Windows source files.
+
+These checks inspect the DLL architecture, PHP import library, and module export. They do not run Windows PHPTs;
+the native Windows CI jobs still build and test release packages.
+
+When running PHPTs with Windows PHP under Wine, set `PERFIDIOUS_TEST_WINE=1` in the test environment. This skips
+tests requiring thread profiling, thread cycle queries, advancing process cycle/page-fault counts, or native
+process/thread creation order. Wine 11 lacks these behaviors; general validation, CPU-time sampling, result objects,
+and reflection tests remain enabled. Leave the variable unset on native Windows. It controls test selection only.
+
 ## Composer, declarations, and formatting
 
 Install the locked development dependencies and run the PHP checks:

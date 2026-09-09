@@ -528,6 +528,7 @@
           );
 
         packages' = builtins.listToAttrs (builtins.map buildFn buildConfs);
+        windowsPackages = import ./nix/windows.nix {inherit pkgs src;};
         packages =
           packages'
           // {
@@ -702,6 +703,7 @@
         packages =
           packages
           // releasePackages
+          // windowsPackages
           // {
             sanitize-static-php82 = sanitizeStaticPhp;
             sanitize-static-php82-check = sanitizeStaticPhpCheck;
@@ -725,6 +727,7 @@
             };
             php85-gcc-vmtest = makeVmCheck {package = packages.php85-gcc;};
           }
+          // windowsPackages
           // lib.optionalAttrs (system == "x86_64-linux") {
             release-packaging =
               pkgs.runCommand "perfidious-release-packaging-check" {

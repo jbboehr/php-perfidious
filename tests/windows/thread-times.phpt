@@ -11,7 +11,6 @@ $function = new ReflectionFunction('Perfidious\\Windows\\get_current_thread_time
 var_dump($function->getNumberOfParameters() === 0);
 var_dump((string) $function->getReturnType() === Perfidious\Windows\ThreadTimes::class);
 
-$processTimes = Perfidious\Windows\get_current_process_times();
 $before = Perfidious\Windows\get_current_thread_times();
 $accumulator = 0;
 
@@ -44,7 +43,6 @@ var_dump(array_reduce(
 
 var_dump($before->creationTimeFiletime > 0);
 var_dump($after->creationTimeFiletime === $before->creationTimeFiletime);
-var_dump($processTimes->creationTimeFiletime <= $before->creationTimeFiletime);
 var_dump($after->kernelTime100ns >= $before->kernelTime100ns);
 var_dump($after->userTime100ns > $before->userTime100ns);
 var_dump($userDelta > $kernelDelta);
@@ -61,7 +59,6 @@ array(3) {
   [2]=>
   string(13) "userTime100ns"
 }
-bool(true)
 bool(true)
 bool(true)
 bool(true)

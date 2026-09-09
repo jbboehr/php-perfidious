@@ -3,7 +3,10 @@ Perfidious Windows direct counters increase after work
 --EXTENSIONS--
 perfidious
 --SKIPIF--
-<?php require __DIR__ . '/../skipif-windows-only.inc'; ?>
+<?php
+require __DIR__ . '/../skipif-windows-only.inc';
+perfidious_skip_if_wine('QueryThreadCycleTime');
+?>
 --FILE--
 <?php
 
@@ -42,7 +45,7 @@ for ($attempt = 0; $attempt < 3; $attempt++) {
 }
 
 var_dump($processCyclesAfter > $processCyclesBefore);
-var_dump($threadCyclesAfter > $threadCyclesBefore);
+var_dump(is_int($threadCyclesBefore), $threadCyclesAfter > $threadCyclesBefore);
 var_dump(
     $timesAfter->kernelTime100ns + $timesAfter->userTime100ns >
     $timesBefore->kernelTime100ns + $timesBefore->userTime100ns
@@ -50,6 +53,7 @@ var_dump(
 var_dump($memoryAfter->pageFaultCount > $memoryBefore->pageFaultCount);
 var_dump($allocatedBytes >= 32 * 1024 * 1024, is_int($accumulator));
 --EXPECT--
+bool(true)
 bool(true)
 bool(true)
 bool(true)

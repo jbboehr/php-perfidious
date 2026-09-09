@@ -3,13 +3,40 @@ Sampler reads Windows current-thread context switches and CPU cycles
 --EXTENSIONS--
 perfidious
 --SKIPIF--
-<?php require __DIR__ . '/../skipif-windows-only.inc'; ?>
+<?php
+require __DIR__ . '/../skipif-windows-only.inc';
+perfidious_skip_if_wine('EnableThreadProfiling');
+?>
 --FILE--
 <?php
 
 use Perfidious\Metric;
 use Perfidious\Sampler;
 use Perfidious\Scope;
+use Perfidious\UnsupportedMetricException;
+
+foreach ([Metric::ContextSwitches, Metric::CpuCycles] as $metric) {
+    $probe = Sampler::open([$metric], Scope::CurrentThread);
+    var_dump($probe->metrics() === [$metric]);
+    $probe->close();
+}
+
+$mixedThreadRequestsRejectedWithoutProfileLeak = true;
+foreach ([Metric::PageFaults, Metric::Instructions] as $unsupportedThreadMetric) {
+    try {
+        $unexpectedThreadSampler = Sampler::open(
+            [Metric::ContextSwitches, $unsupportedThreadMetric, Metric::CpuCycles],
+            Scope::CurrentThread,
+        );
+        $unexpectedThreadSampler->close();
+        $mixedThreadRequestsRejectedWithoutProfileLeak = false;
+    } catch (UnsupportedMetricException) {
+    }
+
+    $profileAfterRejectedRequest = Perfidious\Windows\enable_current_thread_profiling();
+    $profileAfterRejectedRequest->close();
+}
+var_dump($mixedThreadRequestsRejectedWithoutProfileLeak);
 
 $metrics = [Metric::CpuTime, Metric::ContextSwitches, Metric::CpuCycles];
 $sampler = Sampler::open($metrics, Scope::CurrentThread);
@@ -128,6 +155,9 @@ echo "released after fiber close\n";
 
 var_dump(is_int($accumulator));
 --EXPECT--
+bool(true)
+bool(true)
+bool(true)
 bool(true)
 bool(true)
 bool(true)

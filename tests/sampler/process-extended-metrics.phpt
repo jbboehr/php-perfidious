@@ -5,6 +5,10 @@ perfidious
 --SKIPIF--
 <?php
 require __DIR__ . '/skipif-perf-permissions.inc';
+if (PHP_OS_FAMILY === 'Windows') {
+    require __DIR__ . '/../skipif-windows-only.inc';
+    perfidious_skip_if_wine('process cycle counts');
+}
 ?>
 --FILE--
 <?php

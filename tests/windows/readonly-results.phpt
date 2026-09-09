@@ -7,12 +7,10 @@ perfidious
 --FILE--
 <?php
 
-$profile = Perfidious\Windows\enable_current_thread_profiling();
 $results = [
     Perfidious\Windows\get_current_process_times(),
     Perfidious\Windows\get_current_thread_times(),
     Perfidious\Windows\get_current_process_memory_info(),
-    $profile->read(),
 ];
 
 foreach ($results as $result) {
@@ -51,13 +49,7 @@ foreach ([
     var_dump((new ReflectionClass($class))->getConstructor()?->isPrivate());
 }
 
-$profile->close();
 --EXPECT--
-bool(true)
-bool(true)
-bool(true)
-readonly
-no dynamic properties
 bool(true)
 bool(true)
 bool(true)

@@ -1,9 +1,12 @@
 --TEST--
-Perfidious Windows thread profiling lifecycle and dispatch counters
+Perfidious Windows thread profiling lifecycle, dispatch counters, and result objects
 --EXTENSIONS--
 perfidious
 --SKIPIF--
-<?php require __DIR__ . '/../skipif-windows-only.inc'; ?>
+<?php
+require __DIR__ . '/../skipif-windows-only.inc';
+perfidious_skip_if_wine('EnableThreadProfiling');
+?>
 --FILE--
 <?php
 
@@ -40,6 +43,29 @@ var_dump($after->contextSwitchCount > $before->contextSwitchCount);
 var_dump($after->cycleCount > $before->cycleCount);
 var_dump($after->hardwareCounters);
 
+$reflection = new ReflectionClass($after);
+$properties = $reflection->getProperties(ReflectionProperty::IS_PUBLIC);
+var_dump($reflection->isFinal());
+var_dump($reflection->getConstructor()?->isPrivate());
+var_dump(array_reduce(
+    $properties,
+    static fn(bool $readonly, ReflectionProperty $property): bool => $readonly && $property->isReadOnly(),
+    true
+));
+
+$property = $properties[0]->getName();
+try {
+    $after->$property = 0;
+} catch (Error) {
+    echo "readonly\n";
+}
+try {
+    $after->extra = 0;
+} catch (Error) {
+    echo "no dynamic properties\n";
+}
+var_dump(unserialize(serialize($after)) == $after);
+
 $profile->close();
 $profile->close();
 
@@ -70,4 +96,10 @@ bool(true)
 bool(true)
 array(0) {
 }
+bool(true)
+bool(true)
+bool(true)
+readonly
+no dynamic properties
+bool(true)
 closed

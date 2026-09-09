@@ -7,12 +7,10 @@ perfidious
 --FILE--
 <?php
 
-$profile = Perfidious\Windows\enable_current_thread_profiling();
 $results = [
     Perfidious\Windows\get_current_process_times(),
     Perfidious\Windows\get_current_thread_times(),
     Perfidious\Windows\get_current_process_memory_info(),
-    $profile->read(),
 ];
 
 foreach ($results as $result) {
@@ -20,9 +18,7 @@ foreach ($results as $result) {
     var_dump($copy == $result);
 }
 
-$profile->close();
 --EXPECT--
-bool(true)
 bool(true)
 bool(true)
 bool(true)

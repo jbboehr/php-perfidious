@@ -145,10 +145,13 @@ var_dump($afterRejectedRequest->metrics() === [Metric::PageFaults, Metric::CpuTi
 $afterRejectedRequest->close();
 
 $threadMetricSupportMatchesPlatform = true;
-foreach (Metric::cases() as $metric) {
+$threadMetrics = PHP_OS_FAMILY === 'Windows'
+    ? [Metric::CpuTime, Metric::PageFaults, Metric::Instructions]
+    : Metric::cases();
+foreach ($threadMetrics as $metric) {
     $isSupported = PHP_OS_FAMILY === 'Linux' || (
         PHP_OS_FAMILY === 'Windows' &&
-        in_array($metric, [Metric::CpuTime, Metric::ContextSwitches, Metric::CpuCycles], true)
+        $metric === Metric::CpuTime
     ) || (
         PHP_OS_FAMILY === 'Darwin' &&
         $metric === Metric::CpuTime
@@ -168,25 +171,6 @@ foreach (Metric::cases() as $metric) {
     }
 }
 var_dump($threadMetricSupportMatchesPlatform);
-
-$mixedThreadRequestsRejectedWithoutProfileLeak = true;
-if (PHP_OS_FAMILY === 'Windows') {
-    foreach ([Metric::PageFaults, Metric::Instructions] as $unsupportedThreadMetric) {
-        try {
-            $unexpectedThreadSampler = Sampler::open(
-                [Metric::ContextSwitches, $unsupportedThreadMetric, Metric::CpuCycles],
-                Scope::CurrentThread,
-            );
-            $unexpectedThreadSampler->close();
-            $mixedThreadRequestsRejectedWithoutProfileLeak = false;
-        } catch (UnsupportedMetricException) {
-        }
-
-        $profileAfterRejectedRequest = Perfidious\Windows\enable_current_thread_profiling();
-        $profileAfterRejectedRequest->close();
-    }
-}
-var_dump($mixedThreadRequestsRejectedWithoutProfileLeak);
 
 $firstSampler = Sampler::open([Metric::CpuTime]);
 $secondSampler = Sampler::open([Metric::CpuTime]);
@@ -228,7 +212,6 @@ $secondSampler->close();
 invalid metric set
 invalid metric set
 invalid metric type
-bool(true)
 bool(true)
 bool(true)
 bool(true)
