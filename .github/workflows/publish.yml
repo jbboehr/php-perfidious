@@ -1,0 +1,167 @@
+name: publish
+
+on:
+    workflow_call:
+        inputs:
+            tag:
+                description: Package tag determined by CI from the version header.
+                required: true
+                type: string
+
+permissions:
+    contents: read
+
+jobs:
+    publish:
+        name: Check release packages and publish tags
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        steps:
+            -   uses: actions/checkout@v7
+
+            -   name: Download the versioned release packages
+                uses: actions/download-artifact@v8
+                with:
+                    pattern: php_perfidious-${{ inputs.tag }}[-_]*.zip
+                    path: artifacts
+                    merge-multiple: true
+
+            -   name: Check that packages were downloaded
+                run: |
+                    archives=(artifacts/*.zip)
+                    test -f "${archives[0]}"
+
+            -   name: Publish the release
+                if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+                env:
+                    GH_TOKEN: ${{ github.token }}
+                    RELEASE_TAG: ${{ github.ref_name }}
+                run: |
+                    if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+                        gh release create "$RELEASE_TAG" --draft --verify-tag --title "$RELEASE_TAG" --notes ""
+                    fi
+                    if gh release verify "$RELEASE_TAG" >/dev/null 2>&1; then
+                        echo "Release $RELEASE_TAG is immutable and cannot be overwritten" >&2
+                        exit 1
+                    fi
+                    gh release upload "$RELEASE_TAG" artifacts/*.zip --clobber
+                    gh release edit "$RELEASE_TAG" --draft=false \
+                        --notes "See [CHANGELOG.md](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/blob/${RELEASE_TAG}/CHANGELOG.md)."
+
+    pie:
+        name: "PIE | PHP ${{ matrix.php-version }} ${{ matrix.ts }} ${{ matrix.os }}"
+        needs: publish
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+        runs-on: ${{ matrix.os }}
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [windows-2022, macos-15]
+                php-version: ["8.1", "8.2", "8.3", "8.4", "8.5"]
+                ts: [nts, ts]
+        steps:
+            -   uses: actions/checkout@v7
+
+            -   name: Install PHP
+                uses: shivammathur/setup-php@v2
+                with:
+                    php-version: "${{ matrix.php-version }}"
+                    coverage: "none"
+                    tools: none
+                env:
+                    phpts: ${{ matrix.ts }}
+
+            -   name: Verify ARM64 PHP on macOS
+                if: runner.os == 'macOS'
+                shell: bash
+                run: test "$(lipo -archs "$(command -v php)")" = arm64
+
+            -   name: Download and verify PIE
+                shell: bash
+                env:
+                    GH_TOKEN: ${{ github.token }}
+                run: |
+                    curl --proto '=https' --tlsv1.2 -fL \
+                        --output "${RUNNER_TEMP}/pie.phar" \
+                        https://github.com/php/pie/releases/latest/download/pie.phar
+                    gh attestation verify --repo php/pie "${RUNNER_TEMP}/pie.phar"
+                    php "${RUNNER_TEMP}/pie.phar" --version
+
+            -   name: Install the tagged release with PIE
+                shell: bash
+                env:
+                    RELEASE_TAG: ${{ github.ref_name }}
+                run: |
+                    php "${RUNNER_TEMP}/pie.phar" repository:add vcs "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git" --no-interaction
+                    php "${RUNNER_TEMP}/pie.phar" install "jbboehr/perfidious:${RELEASE_TAG}" --no-interaction --no-cache --no-ansi | tee "${RUNNER_TEMP}/pie-install.log"
+                    if [[ "$RUNNER_OS" == macOS ]]; then
+                        grep -F 'Pre-packaged binary found:' "${RUNNER_TEMP}/pie-install.log"
+                    fi
+
+            -   name: Verify the installed version and sampler
+                shell: bash
+                env:
+                    RELEASE_TAG: ${{ github.ref_name }}
+                    EXPECTED_TS: ${{ matrix.ts }}
+                run: |
+                    php --ri perfidious
+                    php -r 'if (phpversion("perfidious") !== substr(getenv("RELEASE_TAG"), 1) || (PHP_ZTS ? "ts" : "nts") !== getenv("EXPECTED_TS")) { throw new RuntimeException("Installed release or PHP thread-safety mode does not match the matrix"); }'
+                    # PHP expands these variables, not Bash.
+                    # shellcheck disable=SC2016
+                    php -r '$sampler = Perfidious\Sampler::open([Perfidious\Metric::CpuTime]); $sampler->read(); $sampler->close();'
+
+    pie-linux:
+        name: "PIE | PHP ${{ matrix.php-version }} nts x64 Linux ${{ matrix.libc }}"
+        needs: publish
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+        runs-on: ubuntu-24.04
+        strategy:
+            fail-fast: false
+            matrix:
+                php-version: ["8.1", "8.2", "8.3", "8.4", "8.5"]
+                libc: [glibc, musl]
+                include:
+                    -   libc: glibc
+                        image: bookworm
+                    -   libc: musl
+                        image: alpine3.22
+        steps:
+            -   uses: actions/checkout@v7
+
+            -   name: Download and verify PIE
+                env:
+                    GH_TOKEN: ${{ github.token }}
+                run: |
+                    curl --proto '=https' --tlsv1.2 -fL \
+                        --output "${RUNNER_TEMP}/pie.phar" \
+                        https://github.com/php/pie/releases/latest/download/pie.phar
+                    gh attestation verify --repo php/pie "${RUNNER_TEMP}/pie.phar"
+
+            -   name: Install and check the published binary in a fresh container
+                env:
+                    RELEASE_TAG: ${{ github.ref_name }}
+                    EXPECTED_PHP_VERSION: ${{ matrix.php-version }}
+                    RELEASE_IMAGE: ${{ matrix.image }}
+                run: |
+                    export EXPECTED_VERSION="${RELEASE_TAG#v}"
+                    export RELEASE_REPOSITORY="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+                    docker run --rm \
+                        -v "$PWD:/source:ro" -v "${RUNNER_TEMP}/pie.phar:/pie.phar:ro" \
+                        -e RELEASE_TAG -e RELEASE_REPOSITORY -e EXPECTED_VERSION -e EXPECTED_PHP_VERSION \
+                        "php:${EXPECTED_PHP_VERSION}-cli-${RELEASE_IMAGE}" sh -eu -c '
+                            if command -v apk >/dev/null; then
+                                apk add --no-cache git unzip
+                            else
+                                apt-get update
+                                apt-get install -y --no-install-recommends git unzip
+                            fi
+                            php /pie.phar repository:add vcs "$RELEASE_REPOSITORY" --no-interaction
+                            php /pie.phar install "jbboehr/perfidious:$RELEASE_TAG" --no-interaction --no-cache --no-ansi > /tmp/pie-install.log 2>&1 || {
+                                cat /tmp/pie-install.log
+                                exit 1
+                            }
+                            cat /tmp/pie-install.log
+                            grep -F "Pre-packaged binary found:" /tmp/pie-install.log
+                            php /source/tools/check-linux-release.php
+                        '

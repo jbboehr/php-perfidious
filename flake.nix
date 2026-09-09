@@ -58,39 +58,39 @@
     pre-commit-hooks,
     nix-github-actions,
     nix-phps,
-  }:
-    flake-utils.lib.eachDefaultSystem (
+  }: let
+    src' = gitignore.lib.gitignoreSource ./.;
+
+    src = nixpkgs.lib.cleanSourceWith {
+      name = "php-perfidious-source";
+      src = src';
+      filter = gitignore.lib.gitignoreFilterWith {
+        basePath = ./.;
+        extraRules = ''
+          .clang-format
+          composer.json
+          composer.lock
+          .editorconfig
+          .envrc
+          .gitattributes
+          .github
+          .gitignore
+          *.md
+          *.nix
+          flake.*
+          nix/checks/
+          nix/vm-test/
+          tests/valgrind/
+        '';
+      };
+    };
+  in
+    nixpkgs.lib.recursiveUpdate (flake-utils.lib.eachDefaultSystem (
       system: let
         pkgs = nixpkgs.legacyPackages.${system};
         lib = pkgs.lib;
 
-        src' = gitignore.lib.gitignoreSource ./.;
-
         iwyu = pkgs.callPackage ./nix/iwyu.nix {};
-
-        src = pkgs.lib.cleanSourceWith {
-          name = "php-perfidious-source";
-          src = src';
-          filter = gitignore.lib.gitignoreFilterWith {
-            basePath = ./.;
-            extraRules = ''
-              .clang-format
-              composer.json
-              composer.lock
-              .editorconfig
-              .envrc
-              .gitattributes
-              .github
-              .gitignore
-              *.md
-              *.nix
-              flake.*
-              nix/checks/
-              nix/vm-test/
-              tests/valgrind/
-            '';
-          };
-        };
 
         makePackage = {
           stdenv ? pkgs.stdenv,
@@ -738,11 +738,35 @@
 
         formatter = pkgs.alejandra;
       }
-    )
-    // {
-      # prolly gonna break at some point
+    )) {
+      # Darwin exposes release packages only; Linux development and VM targets stay Linux-only.
+      packages.aarch64-darwin = let
+        pkgs = nixpkgs.legacyPackages.aarch64-darwin;
+        phps = {
+          inherit (pkgs) php82 php83 php84 php85;
+          php81 = nix-phps.packages.aarch64-darwin.php81;
+        };
+      in
+        builtins.listToAttrs (map ({
+          php,
+          ts,
+        }:
+          nixpkgs.lib.nameValuePair "release-${php}-darwin-${ts}" (import ./nix/release-darwin.nix {
+            inherit pkgs src;
+            projectSource = src';
+            php = phps.${php};
+            ztsSupport = ts == "zts";
+          })) (nixpkgs.lib.cartesianProduct {
+          php = ["php81" "php82" "php83" "php84" "php85"];
+          ts = ["nts" "zts"];
+        }));
       githubActions.matrix.include = let
-        cleanFn = v: v // {name = builtins.replaceStrings ["githubActions." "checks." "x86_64-linux."] ["" "" ""] v.attr;};
+        cleanFn = v:
+          v
+          // {
+            attr = builtins.replaceStrings ["\""] [""] v.attr;
+            name = builtins.replaceStrings ["githubActions." "checks." "x86_64-linux." "\""] ["" "" "" ""] v.attr;
+          };
       in
         builtins.map cleanFn
         (nix-github-actions.lib.mkGithubMatrix {

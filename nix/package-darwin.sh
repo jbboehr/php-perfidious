@@ -11,6 +11,10 @@ if [[ "$(lipo -archs "$module")" != arm64 ]]; then
 fi
 
 load_commands=$(otool -l "$module")
+if [[ "$load_commands" == *LC_RPATH* ]]; then
+    echo "macOS packages must not contain runtime search paths" >&2
+    exit 1
+fi
 minimum_os=$(printf '%s\n' "$load_commands" | awk '$1 == "minos" { print $2 }')
 if [[ "$minimum_os" != 11.0 && "$minimum_os" != 11.0.0 ]]; then
     echo "Expected a macOS 11.0 deployment target, got: $minimum_os" >&2
@@ -29,5 +33,5 @@ profile=$(php -r 'if (PHP_DEBUG) { throw new RuntimeException("Release packages 
 mkdir -p "$output_directory"
 output_directory=$(cd "$output_directory" && pwd)
 archive="$output_directory/php_perfidious-${tag}_php${profile}.zip"
-zip -j -q "$archive" "$module" LICENSE.md docs/LICENSE_EXCEPTION.md
+zip -X -j -q "$archive" "$module" LICENSE.md docs/LICENSE_EXCEPTION.md
 printf '%s\n' "$archive"

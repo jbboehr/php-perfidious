@@ -1,142 +1,112 @@
 # Releases
 
-Prepare the version, release date, generated declarations, and changelog before tagging. After the release commit
-passes CI, push a `v`-prefixed version tag such as `v0.3.0`.
+Update the version metadata, generated declarations, release date, and changelog. After the release commit passes
+CI on `develop` or `master`, push a matching version tag, such as `v0.3.0`.
 
-[The release workflow](../../.github/workflows/release.yml) runs on pushes to `master`, `develop`, and `v*` tags. It
-builds and tests PHP 8.1–8.5 packages: Windows x64 and macOS ARM64 in TS and NTS modes, and Linux x64 NTS for glibc
-and musl. Every run checks the package version against the header and loads each extracted module with matching PHP.
-Package checks verify the license text, extension version, thread-safety mode, and a CPU-time sampler read. Linux
-reports the sampler check as skipped when the host denies perf access; PMU enumeration must still succeed.
+The process is: **read version → build and test packages → collect artifacts → publish tags → check PIE installation**.
 
-Branch runs retain the ZIPs as workflow artifacts and create no GitHub release. Tag runs reject tags that disagree
-with `PHP_PERFIDIOUS_VERSION`. Once all thirty builds and package checks pass, a tag run creates a GitHub release,
-uploads the binary ZIPs, and publishes it.
-The release notes link to the tagged changelog.
-No manual release creation or publication is required.
+## Packages and CI
 
-The workflow uses [PHP's Windows builder and release actions](https://github.com/php/php-windows-builder#workflow-for-tags).
-Windows packages contain the combined license and exception text as `LICENSE`.
+[CI](../../.github/workflows/ci.yml) builds these packages for PHP 8.1–8.5:
 
-macOS jobs build and install from the checkout with PIE, then run the PHPT suite before packaging. The
-[packaging script](../../tools/package-darwin.sh) checks that the module is ARM64-only, targets macOS 11.0, and links
-only system libraries. It follows [PIE's binary naming convention](https://github.com/php/pie/blob/1.4.10/docs/extension-maintainers.md#pre-packaged-binary)
-and includes `perfidious.so`, `LICENSE.md`, and `LICENSE_EXCEPTION.md` at the ZIP root. This
-avoids distributing modules that depend on the runner's Homebrew library paths. The deployment target does not
-replace the PHP runtime's own OS requirements.
+| Platform | Architecture | Thread safety | Minimum platform |
+| --- | --- | --- | --- |
+| Windows | x64 | NTS and TS | Matching PHP runtime requirements |
+| macOS | ARM64 | NTS and ZTS | macOS 11.0; PHP may require a newer OS |
+| Linux | x64 | NTS | glibc 2.36+ or musl 1.2.5+ |
 
-Source archives are provided by GitHub for the same tag. Only the publication job has repository write permission.
+One CI job reads `PHP_PERFIDIOUS_VERSION`, rejects a mismatched tag, and supplies the version to the package jobs.
+Windows uses [PHP's Windows builder](https://github.com/php/php-windows-builder#workflow-for-tags). Linux and macOS
+use Nix, then load the extracted modules and run PHPTs with PHP installed outside Nix. Each ZIP is built once per run.
+Platform-specific branches retain their Windows-only or macOS-only job selection.
 
-After publication, fresh jobs install the tagged version with PIE for all thirty configurations. They check
-the loaded version, PHP thread-safety mode, and a CPU-time sampler read. A VCS repository points PIE directly at this
-repository so verification does not depend on Packagist discovering the tag first.
-Branch runs exercise packaging and module loading; PIE's release-asset discovery and installation run only after a tag
-has been published. The Linux and macOS install checks require PIE to select the prebuilt binary, so a source fallback cannot
-hide a missing or incorrectly named release asset.
+Package checks cover licenses, the extension version, PHP thread-safety mode, and a CPU-time sampler read.
+Linux may skip the sampler read when perf access is denied; PMU enumeration must still succeed.
+The macOS test command explicitly selects the installed PHP executable so tests cannot silently use a missing CLI.
 
-The PIE metadata prefers prebuilt binaries with source downloads as a fallback. PIE keeps its separate Windows DLL
-download method. Linux ARM64, Linux ZTS, PHP debug builds, and other unmatched Unix builds use source installation.
-Configure options also select source installation. PIE does not check libc versions; users on older Linux systems
-must explicitly request a source build as described in the [README](../../README.md#pie).
+After required CI checks pass, [the publication workflow](../../.github/workflows/publish.yml) collects the versioned
+ZIPs from that same run. This happens on branches, pull requests, and tags, and fails if no ZIPs were downloaded.
+Only version-tag pushes create or reuse a draft release, upload the ZIPs, and publish it. Release notes link to the
+tagged changelog. Failed, cancelled, or skipped prerequisites prevent publication; coverage-report finalization
+(`finish`) is not a prerequisite. Publication does not rebuild packages.
 
-If a build or upload fails, publication does not run; rerun the failed jobs after resolving the failure. A failed PIE
-check leaves the release published and requires investigation. Publishing also makes the assets immutable when
-GitHub release immutability is enabled, so a successful release cannot be repaired by overwriting its ZIPs.
+After publication, fresh jobs use PIE to install all thirty package configurations and check the loaded extension.
+Linux and macOS must select a prebuilt binary. A VCS repository points PIE at this project without waiting for
+Packagist to discover the tag. These release-asset installation checks run only after a tag is published.
 
-## Linux packages
+Rerun failed jobs after fixing a build or upload failure. A failed PIE check leaves the release published and requires
+investigation. If GitHub release immutability is enabled, published ZIPs cannot be overwritten.
 
-[The Nix release derivation](../../nix/release-linux.nix) builds the module and its static libcap/libpfm dependencies
-from the locked inputs. It reuses the ordinary extension derivation and runs its PHPT suite. The musl target uses
-Nix's x64 musl toolchain with matching PHP headers and runtime. PHP runs its configure probes on the x64 build host
-because PHP 8.1's cross-compilation defaults otherwise select the wrong stream offset type.
+GitHub supplies source archives for each tag. Linux ARM64, Linux ZTS, debug builds, and other unmatched Unix builds
+use PIE's source fallback; configure options also select source installation. Users on older Linux systems must
+request a source build explicitly because PIE does not check libc versions. See the [PIE installation guide](../../README.md#pie).
 
-Build either ZIP on x64 Linux:
+## Build packages locally
+
+On Apple Silicon, use the [Darwin release derivation](../../nix/release-darwin.nix):
+
+```sh
+nix build -L .#release-php81-darwin-nts
+nix build -L .#release-php81-darwin-zts
+```
+
+The derivation runs PHPTs, removes runtime search paths, refreshes the ad-hoc signature, and checks that the module
+loads. The [packager](../../nix/package-darwin.sh) requires ARM64, a macOS 11.0 deployment target, and system libraries
+only. ZIPs contain `perfidious.so`, `LICENSE.md`, and `LICENSE_EXCEPTION.md` with fixed timestamps and no host metadata.
+The Nix build tools may require newer macOS than the module; CI uses macOS 15.
+
+On x64 Linux, use the [Linux release derivation](../../nix/release-linux.nix):
 
 ```sh
 nix build -L .#release-php81-glibc
 nix build -L .#release-php81-musl
 ```
 
-Replace `php81` with `php82` through `php85` for the other PHP versions. These targets are separate from the normal
-development packages and do not change ARM64 or ZTS support.
+Replace `php81` with `php82` through `php85` for other PHP versions. ZIPs appear under `result/`.
+Linux packages statically link libcap/libpfm, hide their symbols, and remove Nix runtime paths. Packaging rejects
+unexpected dependencies, Nix store references, and glibc requirements above 2.36. Each ZIP includes the module,
+project licenses, dependency source archives, and dependency version/license information in `dependencies/README.txt`.
 
-The packages require glibc 2.36+ or musl 1.2.5+. Static dependency symbols stay private to the extension. Packaging
-removes Nix runtime paths, adapts musl's libc dependency name, and rejects unexpected shared libraries, Nix store
-references, non-x64 modules, ZTS/debug PHP builds, and glibc symbol requirements above 2.36.
-Each ZIP contains `perfidious.so`, the project license and exception, and both dependency source archives with their
-complete copyright and license notices. The dependency versions and license locations are recorded in
-`dependencies/README.txt` inside the ZIP.
-
-Branch and tag jobs load the extracted module and run the full PHPT suite in official `php:8.x-cli-bookworm` and
-`php:8.x-cli-alpine3.22` containers without mounting `/nix/store` or installing libcap/libpfm. Run the same check locally
-with Docker after building the matching ZIP:
+Test a Linux ZIP outside Nix with Docker:
 
 ```sh
 nix build -L .#release-php81-glibc
 docker run --rm -v "$PWD:/source:ro" -v "$(readlink -f result):/packages:ro" \
+    --cap-add CAP_PERFMON \
     -e EXPECTED_VERSION=0.3.0 -e EXPECTED_PHP_VERSION=8.1 php:8.1-cli-bookworm \
     sh /source/tools/test-linux-release.sh \
     /packages/php_perfidious-v0.3.0_php8.1-x86_64-linux-glibc-nts.zip
 ```
 
-Run the packaging fixtures with Nix, or with Python 3, a native glibc C compiler, Binutils, and PatchELF available:
+Use the corresponding `alpine3.22` image and musl ZIP for musl. CI runs both variants without mounting `/nix/store`
+or installing libcap/libpfm separately.
+
+## Packaging fixtures
+
+With PHP, Python 3, Bash, and Zip available, run the macOS fixtures; use Nix for the Linux fixtures:
 
 ```sh
+python3 nix/package-darwin.py
 nix build -L .#checks.x86_64-linux.release-packaging
-python3 tests/package-linux.py
 ```
 
-## Verification
+Linux fixtures also run as `python3 tests/package-linux.py` with a native glibc C compiler, Binutils, and PatchELF.
+The macOS fixtures use controlled `lipo`/`otool` output and real ZIPs; they do not establish native Mach-O compatibility.
 
-All ten Linux Nix builds passed their PHPT suites: each glibc build had 69 passes and 49 skips; each musl build had
-63 passes and 55 skips. The extracted packages also passed the full suites in official Debian and Alpine PHP image
-filesystems for PHP 8.1 and 8.5, with the same respective counts. These local runs used Bubblewrap user namespaces
-because no Docker daemon was available. They mounted neither `/nix/store` nor separate libcap/libpfm installations.
-Skips covered perf permissions, platform, ZTS/debug, FPM/OpCache, and native compiler prerequisites.
+## Build cache
 
-All fourteen Linux packaging fixtures passed, including archive contents, file modes, and independence from staging
-timestamps. Removing the dependency, glibc-version, or symbol-visibility guard made its negative fixture fail.
-PIE 1.4.10 accepted all ten Linux asset names and excluded them for all twenty corresponding ARM64/ZTS profiles while
-retaining source fallback. Native Docker execution, published Linux PIE installation, and GitHub publication remain
-unverified; the workflow runs those checks on GitHub. The existing ARM64 and ZTS runtime checks were not rerun.
+CI configures Nix and [cache-nix-action](https://github.com/nix-community/cache-nix-action) directly in each Nix job.
+Keys include the platform, lockfile, target, and commit, with broader restore prefixes on a miss. Garbage collection targets a
+2 GiB store before saving, although retained build roots can exceed it. A cache hit still runs package checks outside Nix.
+Cache reuse is optional; missing entries cause a normal build. Tag runs can read default-branch caches, subject to
+[GitHub's cache access rules](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching#restrictions-for-accessing-a-cache).
 
-Local checks passed for workflow syntax, branch version preparation, tag-version rejection, license preparation,
-ZIP extraction, and loaded-version/thread-safety rejection. Nine invalid ZIP fixtures covered missing, corrupt,
-ambiguous, or mismatched packages and incomplete contents. Removing the license check made its negative fixture pass.
-ZIP extraction and version checks used the local Linux module; they did not execute a Windows DLL.
-The publication command was checked with a stand-in `gh`
-executable, including failure propagation; it made no GitHub writes. Composer validation, declaration freshness,
-PHP_CodeSniffer, PHPStan, configured lint hooks, and local documentation links also passed.
+## Verification limits
 
-Run the macOS packaging fixtures locally with PHP, Python 3, Bash, and Zip available:
+Local Linux release builds and packaged-module tests passed, including checks in Debian and Alpine image filesystems
+using Bubblewrap. All twenty Unix package targets evaluated with PHPT checks enabled. Packaging fixtures and local
+workflow checks passed, including publication failure paths exercised with a stand-in `gh`.
 
-```sh
-python3 tests/package-darwin.py
-```
-
-These fixtures use controlled `lipo`/`otool` output and real archives. They cover accepted system dependencies,
-rejected Intel/universal modules, Homebrew and `@rpath` dependencies, deployment-target mismatches, and tool failure.
-They do not establish Mach-O loadability or native macOS compatibility.
-
-Local verification passed all nine packaging fixtures; removing the architecture, deployment-target, or dependency
-guard made its corresponding negative fixture fail. PIE 1.4.10 accepted all twenty expected asset names and
-the root-level `perfidious.so` layout; its Windows download method remained unchanged. An isolated Linux PHP 8.1
-source installation through PIE passed, followed by 74 PHPT passes and 44 skips. The skips covered unavailable
-platform, debug, ZTS, OpCache, and perf prerequisites. Workflow lint, PHP checks, and documentation lint also passed.
-
-[Release run 34188446793](https://github.com/jbboehr/php-perfidious/actions/runs/34188446793) built and installed the
-extension through PIE on all ten macOS configurations. PHP 8.3/8.4 NTS then failed to compile the Darwin probe harness:
-its Linux substitute Mach headers shadowed Apple's headers. The Mach shims now forward to the SDK on macOS, matching
-the existing `libproc.h` shim. PHP 8.2–8.5 ZTS reported success without running PHPTs because the generated Makefile
-could not find its configured CLI. The release workflow now passes the installed PHP executable explicitly.
-
-One-off compiler fixtures reproduced the conflicting pthread declaration and missing Mach clock declaration before
-the fix, then passed with controlled platform headers. Executing the workflow's test command against a Makefile with
-a nonexistent PHP path previously ran no tests; it now runs the focused PHPT and propagates an intentional test failure.
-Both affected PHPTs passed on Linux/PHP 8.1, and the full suite had 84 passes and 34 prerequisite/platform skips.
-The standalone probe also compiled and ran with PHP 8.3/8.4 Linux headers. Composer validation, declaration freshness,
-PHP_CodeSniffer, PHPStan, and configured lint hooks passed.
-
-These fixes still need a native macOS CI rerun. GitHub publication, PIE installation of a published macOS binary,
-and execution on the minimum macOS version remain unverified. Ordinary Windows and macOS CI builds remain separate
-from this release workflow.
+Native Windows/macOS execution, macOS Nix builds and signing, the minimum macOS version, Docker execution, GitHub
+cache transfers/publication, and PIE installation of published binaries still require live verification. Local workflow
+fixtures do not verify GitHub scheduling or permissions.

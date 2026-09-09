@@ -8,6 +8,8 @@ on:
             - ci
             - "windows/**"
             - "darwin/**"
+        tags:
+            - "v*"
     pull_request:
         branches:
             - master
@@ -16,6 +18,33 @@ permissions:
     contents: read
 
 jobs:
+    version:
+        name: Package version
+        runs-on: ubuntu-latest
+        outputs:
+            version: ${{ steps.version.outputs.version }}
+            tag: ${{ steps.version.outputs.tag }}
+        steps:
+            -   uses: actions/checkout@v7
+
+            -   name: Determine the package version and validate release tags
+                id: version
+                env:
+                    REF_NAME: ${{ github.ref_name }}
+                    REF_TYPE: ${{ github.ref_type }}
+                run: |
+                    version=$(sed -n 's/^#define PHP_PERFIDIOUS_VERSION "\(.*\)"/\1/p' php_perfidious.h)
+                    if [[ -z "$version" ]]; then
+                        echo "Missing extension version" >&2
+                        exit 1
+                    fi
+                    if [[ "$REF_TYPE" == tag && "$REF_NAME" != "v$version" ]]; then
+                        echo "Tag $REF_NAME does not match extension version $version" >&2
+                        exit 1
+                    fi
+                    echo "tag=v$version" >> "$GITHUB_OUTPUT"
+                    echo "version=$version" >> "$GITHUB_OUTPUT"
+
     lint:
         if: >-
             ${{
@@ -131,31 +160,86 @@ jobs:
                 github.event_name != 'push' ||
                 !startsWith(github.ref_name, 'darwin/')
             }}
-        runs-on: windows-2022
         name: "Windows | PHP ${{ matrix.php-version }} ${{ matrix.ts }} x64"
+        needs: version
+        runs-on: windows-2022
         strategy:
             fail-fast: false
             matrix:
-                include:
-                    - php-version: "8.1"
-                      ts: nts
-                    - php-version: "8.4"
-                      ts: nts
-                    - php-version: "8.4"
-                      ts: ts
-                    - php-version: "8.5"
-                      ts: nts
+                php-version: ["8.1", "8.2", "8.3", "8.4", "8.5"]
+                ts: [nts, ts]
         steps:
             -   uses: actions/checkout@v7
+
+            -   name: Include the license and exception in binary packages
+                shell: bash
+                run: cat LICENSE.md docs/LICENSE_EXCEPTION.md > LICENSE
 
             -   name: Build and test the Windows extension
                 uses: php/php-windows-builder/extension@v1
                 with:
+                    extension-ref: ${{ needs.version.outputs.tag }}
                     php-version: "${{ matrix.php-version }}"
                     arch: x64
                     ts: "${{ matrix.ts }}"
                     args: --enable-perfidious
                     test-workers: "1"
+
+            -   name: Install PHP for the packaged DLL check
+                uses: shivammathur/setup-php@v2
+                with:
+                    php-version: "${{ matrix.php-version }}"
+                    coverage: "none"
+                    tools: none
+                    extensions: zip
+                env:
+                    phpts: ${{ matrix.ts }}
+
+            -   name: Check and extract the binary package
+                shell: bash
+                env:
+                    RELEASE_TAG: ${{ needs.version.outputs.tag }}
+                run: |
+                    php <<'PHP'
+                    <?php
+                    $prefix = sprintf('artifacts/php_perfidious-%s-%d.%d-%s-', getenv('RELEASE_TAG'), PHP_MAJOR_VERSION, PHP_MINOR_VERSION, PHP_ZTS ? 'ts' : 'nts');
+                    $archives = glob($prefix . '*-x86_64.zip');
+                    if ($archives === false || count($archives) !== 1) {
+                        throw new RuntimeException('Expected one binary package for this PHP configuration');
+                    }
+                    $zip = new ZipArchive();
+                    if ($zip->open($archives[0]) !== true) {
+                        throw new RuntimeException('Cannot open binary package');
+                    }
+                    $license = file_get_contents('LICENSE.md') . file_get_contents('docs/LICENSE_EXCEPTION.md');
+                    if ($zip->getFromName('LICENSE') !== $license) {
+                        throw new RuntimeException('Binary package is missing the complete license and exception');
+                    }
+                    $dll = pathinfo($archives[0], PATHINFO_FILENAME) . '.dll';
+                    if ($zip->locateName($dll) === false) {
+                        throw new RuntimeException('Binary package DLL name does not match its archive');
+                    }
+                    $directory = getenv('RUNNER_TEMP') . '/perfidious-package';
+                    if (!$zip->extractTo($directory)) {
+                        throw new RuntimeException('Cannot extract binary package');
+                    }
+                    $zip->close();
+                    if (file_put_contents(getenv('GITHUB_ENV'), 'PACKAGE_DLL=' . $directory . '/' . $dll . PHP_EOL, FILE_APPEND) === false) {
+                        throw new RuntimeException('Cannot export the packaged DLL path');
+                    }
+                    PHP
+
+            -   name: Verify the packaged version and sampler
+                shell: bash
+                env:
+                    RELEASE_TAG: ${{ needs.version.outputs.tag }}
+                    EXPECTED_TS: ${{ matrix.ts }}
+                run: |
+                    php -n -d "extension=$PACKAGE_DLL" --ri perfidious
+                    php -n -d "extension=$PACKAGE_DLL" -r 'if (phpversion("perfidious") !== substr(getenv("RELEASE_TAG"), 1) || (PHP_ZTS ? "ts" : "nts") !== getenv("EXPECTED_TS")) { throw new RuntimeException("Packaged release or PHP thread-safety mode does not match the matrix"); }'
+                    # PHP expands these variables, not Bash.
+                    # shellcheck disable=SC2016
+                    php -n -d "extension=$PACKAGE_DLL" -r '$sampler = Perfidious\Sampler::open([Perfidious\Metric::CpuTime]); $sampler->read(); $sampler->close();'
 
     macos:
         if: >-
@@ -198,6 +282,192 @@ jobs:
 
             -   name: Verify extension is loaded
                 run: php -n -d extension="$(pwd)/modules/perfidious.so" --ri perfidious
+
+    macos-packages:
+        if: >-
+            ${{
+                github.event_name != 'push' ||
+                !startsWith(github.ref_name, 'windows/')
+            }}
+        name: "Package | PHP ${{ matrix.php-version }} ${{ matrix.ts }} arm64 macOS"
+        needs: version
+        runs-on: macos-15
+        strategy:
+            fail-fast: false
+            matrix:
+                php-version: ["8.1", "8.2", "8.3", "8.4", "8.5"]
+                ts: [nts, ts]
+        env:
+            MACOSX_DEPLOYMENT_TARGET: "11.0"
+            EXPECTED_TS: ${{ matrix.ts }}
+            EXPECTED_PHP_VERSION: ${{ matrix.php-version }}
+        steps:
+            -   uses: actions/checkout@v7
+
+            -   name: Select the Nix package
+                env:
+                    RELEASE_PHP: ${{ matrix.php-version }}
+                    RELEASE_TS: ${{ matrix.ts }}
+                run: |
+                    if [[ "$RELEASE_TS" == ts ]]; then
+                        RELEASE_TS=zts
+                    fi
+                    echo "RELEASE_TARGET=packages.aarch64-darwin.release-php${RELEASE_PHP//./}-darwin-${RELEASE_TS}" >> "$GITHUB_ENV"
+
+            -   name: Install PHP
+                uses: shivammathur/setup-php@v2
+                with:
+                    php-version: "${{ matrix.php-version }}"
+                    coverage: "none"
+                    tools: none
+                    extensions: json, opcache
+                env:
+                    phpts: ${{ matrix.ts }}
+
+            -   name: Verify the PHP build
+                run: |
+                    test "$(lipo -archs "$(command -v php)")" = arm64
+                    php -r 'if (PHP_OS_FAMILY !== "Darwin" || PHP_DEBUG || PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION !== getenv("EXPECTED_PHP_VERSION") || (PHP_ZTS ? "ts" : "nts") !== getenv("EXPECTED_TS")) { throw new RuntimeException("PHP does not match the macOS release matrix"); }'
+
+            -   uses: cachix/install-nix-action@v31
+                with:
+                    extra_nix_config: |
+                        system-features = nixos-test benchmark big-parallel kvm
+                        keep-outputs = true
+                        keep-derivations = true
+                        extra-substituters = https://fossar.cachix.org
+                        extra-trusted-public-keys = fossar.cachix.org-1:Zv6FuqIboeHPWQS7ysLCJ7UT7xExb4OE8c4LyGb5AsE=
+            -   uses: nix-community/cache-nix-action@v7
+                with:
+                    primary-key: nix-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock') }}-${{ env.RELEASE_TARGET }}-${{ github.sha }}
+                    restore-prefixes-first-match: |
+                        nix-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock') }}-${{ env.RELEASE_TARGET }}-
+                        nix-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock') }}-
+                        nix-v1-${{ runner.os }}-${{ runner.arch }}-
+                    gc-max-store-size: 2G
+
+            -   name: Build and check the release package with Nix
+                run: nix build -L ".#${RELEASE_TARGET}"
+
+            -   name: Extract the ARM64 package
+                id: package
+                run: |
+                    archives=(result/*.zip)
+                    test "${#archives[@]}" = 1
+                    archive="${archives[0]}"
+                    unzip -q "$archive" -d "${RUNNER_TEMP}/perfidious-package"
+                    cmp LICENSE.md "${RUNNER_TEMP}/perfidious-package/LICENSE.md"
+                    cmp docs/LICENSE_EXCEPTION.md "${RUNNER_TEMP}/perfidious-package/LICENSE_EXCEPTION.md"
+                    echo "archive=$archive" >> "$GITHUB_OUTPUT"
+                    echo "name=$(basename "$archive")" >> "$GITHUB_OUTPUT"
+
+            -   name: Verify the packaged version and sampler
+                env:
+                    RELEASE_TAG: ${{ needs.version.outputs.tag }}
+                run: |
+                    php -n -d "extension=${RUNNER_TEMP}/perfidious-package/perfidious.so" --ri perfidious
+                    php -n -d "extension=${RUNNER_TEMP}/perfidious-package/perfidious.so" -r 'if (phpversion("perfidious") !== substr(getenv("RELEASE_TAG"), 1)) { throw new RuntimeException("Packaged extension version does not match the release"); }'
+                    # PHP expands these variables, not Bash.
+                    # shellcheck disable=SC2016
+                    php -n -d "extension=${RUNNER_TEMP}/perfidious-package/perfidious.so" -r '$sampler = Perfidious\Sampler::open([Perfidious\Metric::CpuTime]); $sampler->read(); $sampler->close();'
+
+            -   name: Run the packaged module's tests with PHP outside Nix
+                env:
+                    NO_INTERACTION: 1
+                    REPORT_EXIT_STATUS: 1
+                run: |
+                    TEST_PHP_EXECUTABLE=$(command -v php)
+                    export TEST_PHP_EXECUTABLE
+                    # The PHP test runner writes helper files beside itself.
+                    test_runner="${RUNNER_TEMP}/run-tests.php"
+                    cp "$(nix eval --raw ".#${RELEASE_TARGET}.module.php.unwrapped.dev")/lib/build/run-tests.php" "$test_runner"
+                    php -n "$test_runner" -q -n -d "extension=${RUNNER_TEMP}/perfidious-package/perfidious.so" tests
+
+            -   name: Print test failure diagnostics
+                if: failure()
+                run: find tests -type f \( -name '*.log' -o -name '*.diff' -o -name '*.mem' \) -print -exec cat {} \;
+
+            -   name: Upload the binary package
+                uses: actions/upload-artifact@v7
+                with:
+                    name: ${{ steps.package.outputs.name }}
+                    path: ${{ steps.package.outputs.archive }}
+                    if-no-files-found: error
+
+    linux-packages:
+        if: >-
+            ${{
+                github.event_name != 'push' ||
+                (
+                    !startsWith(github.ref_name, 'windows/') &&
+                    !startsWith(github.ref_name, 'darwin/')
+                )
+            }}
+        name: "Package | PHP ${{ matrix.php-version }} nts x64 Linux ${{ matrix.libc }}"
+        needs: version
+        runs-on: ubuntu-24.04
+        strategy:
+            fail-fast: false
+            matrix:
+                php-version: ["8.1", "8.2", "8.3", "8.4", "8.5"]
+                libc: [glibc, musl]
+                include:
+                    -   libc: glibc
+                        image: bookworm
+                    -   libc: musl
+                        image: alpine3.22
+        steps:
+            -   uses: actions/checkout@v7
+
+            -   name: Select the Nix package
+                env:
+                    RELEASE_PHP: ${{ matrix.php-version }}
+                    RELEASE_LIBC: ${{ matrix.libc }}
+                run: echo "RELEASE_TARGET=packages.x86_64-linux.release-php${RELEASE_PHP//./}-${RELEASE_LIBC}" >> "$GITHUB_ENV"
+
+            -   uses: cachix/install-nix-action@v31
+                with:
+                    extra_nix_config: |
+                        system-features = nixos-test benchmark big-parallel kvm
+                        keep-outputs = true
+                        keep-derivations = true
+                        extra-substituters = https://fossar.cachix.org
+                        extra-trusted-public-keys = fossar.cachix.org-1:Zv6FuqIboeHPWQS7ysLCJ7UT7xExb4OE8c4LyGb5AsE=
+            -   uses: nix-community/cache-nix-action@v7
+                with:
+                    primary-key: nix-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock') }}-${{ env.RELEASE_TARGET }}-${{ github.sha }}
+                    restore-prefixes-first-match: |
+                        nix-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock') }}-${{ env.RELEASE_TARGET }}-
+                        nix-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock') }}-
+                        nix-v1-${{ runner.os }}-${{ runner.arch }}-
+                    gc-max-store-size: 2G
+
+            -   run: sudo sysctl -w kernel.perf_event_paranoid=1
+
+            -   name: Build and check the release package with Nix
+                run: nix build -L ".#${RELEASE_TARGET}"
+
+            -   name: Test the ZIP in a PHP installation without Nix
+                env:
+                    EXPECTED_VERSION: ${{ needs.version.outputs.version }}
+                    EXPECTED_PHP_VERSION: ${{ matrix.php-version }}
+                    RELEASE_LIBC: ${{ matrix.libc }}
+                    RELEASE_IMAGE: ${{ matrix.image }}
+                run: |
+                    archive="php_perfidious-v${EXPECTED_VERSION}_php${EXPECTED_PHP_VERSION}-x86_64-linux-${RELEASE_LIBC}-nts.zip"
+                    docker run --rm \
+                        --cap-add CAP_PERFMON \
+                        -v "$PWD:/source:ro" -v "$(readlink -f result):/packages:ro" \
+                        -e EXPECTED_VERSION -e EXPECTED_PHP_VERSION \
+                        "php:${EXPECTED_PHP_VERSION}-cli-${RELEASE_IMAGE}" \
+                        sh /source/tools/test-linux-release.sh "/packages/$archive"
+
+            -   name: Upload the binary package
+                uses: actions/upload-artifact@v7
+                with:
+                    name: php_perfidious-${{ needs.version.outputs.tag }}_php${{ matrix.php-version }}-x86_64-linux-${{ matrix.libc }}-nts.zip
+                    path: result/*.zip
+                    if-no-files-found: error
 
     test:
         if: >-
@@ -271,7 +541,6 @@ jobs:
             -   name: Print test failure diagnostics
                 run: find tests -type f \( -name '*.log' -o -name '*.diff' -o -name '*.mem' \) -print -exec cat {} \;
                 if: failure()
-
 
     coverage:
         if: >-
@@ -425,29 +694,22 @@ jobs:
         steps:
             -   uses: actions/checkout@v7
 
-            -   name: Set Up Build Cache
-                uses: actions/cache@v6
-                id: nix-cache
-                with:
-                    path: /tmp/nix-store.nar
-                    key: nix-store.nar-${{ runner.os }}-${{ hashFiles('flake.lock') }}-${{ matrix.attr }}
-                    restore-keys: |
-                        nix-store.nar-${{ runner.os }}-${{ hashFiles('flake.lock') }}-${{ matrix.attr }}
-                        nix-store.nar-${{ runner.os }}-${{ hashFiles('flake.lock') }}-
-                        nix-store.nar-${{ runner.os }}-
-
             -   uses: cachix/install-nix-action@v31
                 with:
-                    nix_path: nixpkgs=channel:nixos-26.05
                     extra_nix_config: |
                         system-features = nixos-test benchmark big-parallel kvm
+                        keep-outputs = true
+                        keep-derivations = true
                         extra-substituters = https://fossar.cachix.org
                         extra-trusted-public-keys = fossar.cachix.org-1:Zv6FuqIboeHPWQS7ysLCJ7UT7xExb4OE8c4LyGb5AsE=
-
-            -   name: Import Nix Store Cache
-                if: "steps.nix-cache.outputs.cache-hit != ''"
-                run: |
-                    nix-store --import < /tmp/nix-store.nar
+            -   uses: nix-community/cache-nix-action@v7
+                with:
+                    primary-key: nix-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock') }}-${{ matrix.attr }}-${{ github.sha }}
+                    restore-prefixes-first-match: |
+                        nix-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock') }}-${{ matrix.attr }}-
+                        nix-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock') }}-
+                        nix-v1-${{ runner.os }}-${{ runner.arch }}-
+                    gc-max-store-size: 2G
 
             -   run: sudo sysctl -w kernel.perf_event_paranoid=1
 
@@ -471,19 +733,6 @@ jobs:
                     file: coverage.info
                     format: lcov
                     parallel: true
-
-            -   name: Export Nix Store Cache
-                if: "steps.nix-cache.outputs.cache-hit != 'true'"
-                shell: bash
-                # partially based on https://github.com/NixOS/nix/issues/1245#issuecomment-282586759
-                run: |
-                    drv="$(nix-store -qd "$(readlink result)")"
-                    drvRefs="$( echo "$drv" | xargs nix-store -q --references )"
-                    ( echo "$drvRefs" | grep '[.]drv$' | xargs nix-store -q --outputs ;
-                      echo "$drvRefs" | grep -v '[.]drv$' ) | \
-                        xargs nix-store -r | \
-                        xargs nix-store -qR |
-                        xargs nix-store --export > /tmp/nix-store.nar
 
     docker:
         if: >-
@@ -561,3 +810,12 @@ jobs:
                     DOCKER_NAME: ${{ matrix.DOCKER_NAME }}
                     TEST_PHP_EXECUTABLE: /usr/bin/php
                 run: bash ./.github/scripts/docker.sh
+
+    publish:
+        name: Check release packages and publish tags
+        needs: [version, lint, pie, windows, macos, macos-packages, linux-packages, test, coverage, nix, docker, docker-fedora]
+        permissions:
+            contents: write
+        uses: ./.github/workflows/publish.yml
+        with:
+            tag: ${{ needs.version.outputs.tag }}

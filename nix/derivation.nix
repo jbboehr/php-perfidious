@@ -40,7 +40,7 @@
 
   inherit src;
 
-  buildInputs = [libcap libpfm];
+  buildInputs = lib.optionals stdenv.hostPlatform.isLinux [libcap libpfm];
   nativeBuildInputs =
     [php.unwrapped.dev pkg-config]
     ++ lib.optional valgrindSupport valgrind
@@ -97,7 +97,7 @@
   meta = with lib; {
     homepage = "https://github.com/jbboehr/php-perfidious";
     license = licenses.agpl3Plus;
-    platforms = platforms.linux;
+    platforms = platforms.linux ++ platforms.darwin;
     outputsToInstall = outputs;
   };
 
