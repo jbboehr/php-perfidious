@@ -13,7 +13,7 @@ namespace Perfidious;
 /** @var bool Whether the extension was built with its debug-only test hooks. */
 const DEBUG = false;
 
-const VERSION = "0.3.0";
+const VERSION = "0.3.1";
 
 const MOTD = "Think not that I am come to send peace on earth: I came not to send peace, but a sword. Matthew 10:34";
 

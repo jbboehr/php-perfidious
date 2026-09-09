@@ -6,6 +6,19 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-09-08
+
+### Added
+
+- Precompiled packages for PHP 8.1–8.5: Windows x64 and macOS ARM64 in TS and NTS builds, plus Linux x64 NTS
+  for glibc 2.36+ and musl 1.2.5+. Linux binaries include libcap and libpfm.
+- PIE installation on Windows through matching binaries, and on macOS through binaries or source builds.
+  Linux and macOS fall back to source builds when no matching binary is available or configure options are requested.
+- CI builds and tests release packages before publishing tagged releases. Release branches can prepare draft releases
+  for inspection before tagging.
+- Nix packages and checks that cross-compile Windows x64 DLLs with xwin for PHP 8.1–8.5, in NTS and ZTS modes.
+  Windows tests can also run under Wine with `PERFIDIOUS_TEST_WINE=1`, with skips for unsupported profiling behavior.
+
 ## [0.3.0] - 2026-09-07
 
 ### Added
@@ -17,10 +30,7 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
   retired instructions, subject to event availability. Events include kernel execution, so the sampler requires
   kernel-inclusive perf permissions; permission failures throw `IOException`. Hardware counts are scaled for
   multiplexing. Linux process scope is unsupported.
-- PIE installation from Linux and macOS source checkouts, and precompiled packages for PHP 8.1–8.5: Windows x64 and
-  macOS ARM64 in TS and NTS builds, plus Linux x64 NTS for glibc and musl. Linux binaries include libcap and libpfm.
-  Binary packages are published automatically when a version tag is pushed. Linux and macOS retain source builds
-  as a fallback.
+- PIE package metadata and installation from a local Linux source checkout.
 - An experimental low-level Windows x64 backend for process and thread cycle counts, process CPU time and page faults,
   and current-thread profiling data, with immutable typed result objects.
 - Experimental macOS process and current-thread resource snapshots on Apple Silicon with ARM64 PHP.
@@ -143,5 +153,6 @@ Updates should follow the [Keep a CHANGELOG](http://keepachangelog.com/) princip
 
 - Initial release
 
-[Unreleased]: https://github.com/jbboehr/php-perfidious/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/jbboehr/php-perfidious/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/jbboehr/php-perfidious/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/jbboehr/php-perfidious/compare/v0.2.0...v0.3.0

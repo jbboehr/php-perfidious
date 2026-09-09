@@ -36,7 +36,7 @@
 (buildPecl rec {
   pname = "perfidious";
   name = "perfidious-${version}";
-  version = "v0.3.0";
+  version = "v0.3.1";
 
   inherit src;
 

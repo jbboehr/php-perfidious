@@ -4,19 +4,19 @@ Update the version metadata, generated declarations, release date, and changelog
 `release` or a `release/**` branch to build a draft release before creating a tag:
 
 ```sh
-git switch -c release/v0.3.0
-git push -u origin release/v0.3.0
+git switch -c release/v0.3.1
+git push -u origin release/v0.3.1
 ```
 
 After CI passes, inspect the draft and its ZIPs on GitHub's Releases page. The draft uses the version from the header
-(`v0.3.0` in this example) without creating the Git tag. Each successful release-branch run refreshes its assets and
+(`v0.3.1` in this example) without creating the Git tag. Each successful release-branch run refreshes its assets and
 links to the changelog at the exact build commit. Branch runs refuse to change an already published release.
 
 When ready, replace `COMMIT_SHA` below with the commit you inspected and push the matching tag:
 
 ```sh
-git tag -a v0.3.0 COMMIT_SHA -m "v0.3.0"
-git push origin v0.3.0
+git tag -a v0.3.1 COMMIT_SHA -m "v0.3.1"
+git push origin v0.3.1
 ```
 
 The tag run rebuilds and checks the packages, then publishes the existing draft. Tagging directly after CI passes on
@@ -92,9 +92,9 @@ Test a Linux ZIP outside Nix with Docker:
 nix build -L .#release-php81-glibc
 docker run --rm -v "$PWD:/source:ro" -v "$(readlink -f result):/packages:ro" \
     --cap-add CAP_PERFMON \
-    -e EXPECTED_VERSION=0.3.0 -e EXPECTED_PHP_VERSION=8.1 php:8.1-cli-bookworm \
+    -e EXPECTED_VERSION=0.3.1 -e EXPECTED_PHP_VERSION=8.1 php:8.1-cli-bookworm \
     sh /source/tools/test-linux-release.sh \
-    /packages/php_perfidious-v0.3.0_php8.1-x86_64-linux-glibc-nts.zip
+    /packages/php_perfidious-v0.3.1_php8.1-x86_64-linux-glibc-nts.zip
 ```
 
 Use the corresponding `alpine3.22` image and musl ZIP for musl. CI runs both variants without mounting `/nix/store`

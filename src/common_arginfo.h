@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 5fc876192e7eb8b71a5715754ffb83ddee803ec6 */
+ * Stub hash: 394c81b6f1d95300f779f0a8fdc63b92a53805e5 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Perfidious_UnsupportedMetricException___construct, 0, 0, 0)
 ZEND_END_ARG_INFO()
