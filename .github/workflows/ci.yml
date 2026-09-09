@@ -6,6 +6,8 @@ on:
             - master
             - develop
             - ci
+            - release
+            - "release/**"
             - "windows/**"
             - "darwin/**"
         tags:
@@ -812,7 +814,7 @@ jobs:
                 run: bash ./.github/scripts/docker.sh
 
     publish:
-        name: Check release packages and publish tags
+        name: Check release packages and update releases
         needs: [version, lint, pie, windows, macos, macos-packages, linux-packages, test, coverage, nix, docker, docker-fedora]
         permissions:
             contents: write

@@ -13,10 +13,13 @@ permissions:
 
 jobs:
     publish:
-        name: Check release packages and publish tags
+        name: Check release packages and update releases
         runs-on: ubuntu-latest
         permissions:
             contents: write
+        concurrency:
+            group: release-${{ inputs.tag }}
+            queue: max
         steps:
             -   uses: actions/checkout@v7
 
@@ -32,22 +35,40 @@ jobs:
                     archives=(artifacts/*.zip)
                     test -f "${archives[0]}"
 
-            -   name: Publish the release
-                if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+            -   name: Update the release
+                if: >-
+                    ${{ github.event_name == 'push' && (
+                        startsWith(github.ref, 'refs/tags/v') ||
+                        github.ref == 'refs/heads/release' ||
+                        startsWith(github.ref, 'refs/heads/release/')
+                    ) }}
                 env:
                     GH_TOKEN: ${{ github.token }}
-                    RELEASE_TAG: ${{ github.ref_name }}
+                    RELEASE_TAG: ${{ inputs.tag }}
+                    RELEASE_DRAFT: ${{ github.ref_type != 'tag' }}
                 run: |
-                    if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-                        gh release create "$RELEASE_TAG" --draft --verify-tag --title "$RELEASE_TAG" --notes ""
+                    tag_flags=()
+                    if [[ "$RELEASE_DRAFT" == false ]]; then
+                        tag_flags+=(--verify-tag)
+                    fi
+                    if is_draft=$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft 2>/dev/null); then
+                        if [[ "$RELEASE_DRAFT" == true && "$is_draft" != true ]]; then
+                            echo "Release $RELEASE_TAG is already published; refusing a draft update" >&2
+                            exit 1
+                        fi
+                    else
+                        gh release create "$RELEASE_TAG" --draft "${tag_flags[@]}" \
+                            --target "$GITHUB_SHA" --title "$RELEASE_TAG" --notes ""
                     fi
                     if gh release verify "$RELEASE_TAG" >/dev/null 2>&1; then
                         echo "Release $RELEASE_TAG is immutable and cannot be overwritten" >&2
                         exit 1
                     fi
                     gh release upload "$RELEASE_TAG" artifacts/*.zip --clobber
-                    gh release edit "$RELEASE_TAG" --draft=false \
-                        --notes "See [CHANGELOG.md](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/blob/${RELEASE_TAG}/CHANGELOG.md)."
+                    # gh release edit verifies only tags explicitly supplied with --tag.
+                    gh release edit "$RELEASE_TAG" --tag "$RELEASE_TAG" "${tag_flags[@]}" \
+                        --draft="$RELEASE_DRAFT" --target "$GITHUB_SHA" \
+                        --notes "See [CHANGELOG.md](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/blob/${GITHUB_SHA}/CHANGELOG.md)."
 
     pie:
         name: "PIE | PHP ${{ matrix.php-version }} ${{ matrix.ts }} ${{ matrix.os }}"

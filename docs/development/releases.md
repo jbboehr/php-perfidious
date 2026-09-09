@@ -1,9 +1,26 @@
 # Releases
 
-Update the version metadata, generated declarations, release date, and changelog. After the release commit passes
-CI on `develop` or `master`, push a matching version tag, such as `v0.3.0`.
+Update the version metadata, generated declarations, release date, and changelog. Push the prepared commit to
+`release` or a `release/**` branch to build a draft release before creating a tag:
 
-The process is: **read version → build and test packages → collect artifacts → publish tags → check PIE installation**.
+```sh
+git switch -c release/v0.3.0
+git push -u origin release/v0.3.0
+```
+
+After CI passes, inspect the draft and its ZIPs on GitHub's Releases page. The draft uses the version from the header
+(`v0.3.0` in this example) without creating the Git tag. Each successful release-branch run refreshes its assets and
+links to the changelog at the exact build commit. Branch runs refuse to change an already published release.
+
+When ready, replace `COMMIT_SHA` below with the commit you inspected and push the matching tag:
+
+```sh
+git tag -a v0.3.0 COMMIT_SHA -m "v0.3.0"
+git push origin v0.3.0
+```
+
+The tag run rebuilds and checks the packages, then publishes the existing draft. Tagging directly after CI passes on
+`develop` or `master` also works; preparing a draft first is optional.
 
 ## Packages and CI
 
@@ -26,9 +43,11 @@ The macOS test command explicitly selects the installed PHP executable so tests 
 
 After required CI checks pass, [the publication workflow](../../.github/workflows/publish.yml) collects the versioned
 ZIPs from that same run. This happens on branches, pull requests, and tags, and fails if no ZIPs were downloaded.
-Only version-tag pushes create or reuse a draft release, upload the ZIPs, and publish it. Release notes link to the
-tagged changelog. Failed, cancelled, or skipped prerequisites prevent publication; coverage-report finalization
-(`finish`) is not a prerequisite. Publication does not rebuild packages.
+Release-branch pushes create or update a draft and upload the ZIPs. Version-tag pushes publish after uploading their
+checked ZIPs. Updates for the same version [queue](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency#example-queueing-multiple-pending-runs)
+to prevent overlapping uploads. Failed, cancelled, or skipped
+prerequisites prevent either operation; coverage-report finalization (`finish`) is not a prerequisite.
+The publication job does not rebuild packages.
 
 After publication, fresh jobs use PIE to install all thirty package configurations and check the loaded extension.
 Linux and macOS must select a prebuilt binary. A VCS repository points PIE at this project without waiting for

@@ -200,7 +200,11 @@
         pre-commit-check = pre-commit-hooks.lib.${system}.run {
           src = src';
           hooks = {
-            actionlint.enable = true;
+            actionlint = {
+              enable = true;
+              # GitHub supports concurrency.queue; actionlint 1.7.12 does not recognize it yet.
+              args = ["-ignore" ''^unexpected key "queue" for "concurrency" section''];
+            };
             alejandra.enable = true;
             alejandra.excludes = ["\/vendor\/"];
             # I hate formatters
