@@ -285,14 +285,47 @@ jobs:
             -   name: Verify extension is loaded
                 run: php -n -d extension="$(pwd)/modules/perfidious.so" --ri perfidious
 
-    macos-packages:
+    nix-cache-darwin:
         if: >-
             ${{
                 github.event_name != 'push' ||
                 !startsWith(github.ref_name, 'windows/')
             }}
+        name: Prepare macOS Nix dependencies
+        runs-on: macos-15
+        steps:
+            -   uses: actions/checkout@v7
+            -   uses: cachix/install-nix-action@v31
+                with:
+                    extra_nix_config: |
+                        extra-substituters = https://fossar.cachix.org
+                        extra-trusted-public-keys = fossar.cachix.org-1:Zv6FuqIboeHPWQS7ysLCJ7UT7xExb4OE8c4LyGb5AsE=
+            -   uses: nix-community/cache-nix-action/restore@v7
+                id: nix-cache
+                with:
+                    primary-key: nix-deps-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock', 'flake.nix', 'nix/*.nix') }}
+                    lookup-only: true
+            -   name: Prepare shared Nix dependencies
+                if: steps.nix-cache.outputs.hit-primary-key != 'true'
+                run: nix build -L .#ci-dependencies
+            -   name: Save shared Nix dependencies
+                if: success() && steps.nix-cache.outputs.hit-primary-key != 'true'
+                uses: nix-community/cache-nix-action/save@v7
+                with:
+                    primary-key: nix-deps-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock', 'flake.nix', 'nix/*.nix') }}
+                    gc-max-store-size: 0
+
+    macos-packages:
+        if: >-
+            ${{
+                !cancelled() && needs.version.result == 'success' &&
+                (
+                    github.event_name != 'push' ||
+                    !startsWith(github.ref_name, 'windows/')
+                )
+            }}
         name: "Package | PHP ${{ matrix.php-version }} ${{ matrix.ts }} arm64 macOS"
-        needs: version
+        needs: [version, nix-cache-darwin]
         runs-on: macos-15
         strategy:
             fail-fast: false
@@ -335,18 +368,12 @@ jobs:
                 with:
                     extra_nix_config: |
                         system-features = nixos-test benchmark big-parallel kvm
-                        keep-outputs = true
-                        keep-derivations = true
                         extra-substituters = https://fossar.cachix.org
                         extra-trusted-public-keys = fossar.cachix.org-1:Zv6FuqIboeHPWQS7ysLCJ7UT7xExb4OE8c4LyGb5AsE=
             -   uses: nix-community/cache-nix-action@v7
                 with:
-                    primary-key: nix-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock') }}-${{ env.RELEASE_TARGET }}-${{ github.sha }}
-                    restore-prefixes-first-match: |
-                        nix-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock') }}-${{ env.RELEASE_TARGET }}-
-                        nix-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock') }}-
-                        nix-v1-${{ runner.os }}-${{ runner.arch }}-
-                    gc-max-store-size: 2G
+                    primary-key: nix-deps-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock', 'flake.nix', 'nix/*.nix') }}
+                    save: false
 
             -   name: Build and check the release package with Nix
                 run: nix build -L ".#${RELEASE_TARGET}"
@@ -399,14 +426,17 @@ jobs:
     linux-packages:
         if: >-
             ${{
-                github.event_name != 'push' ||
+                !cancelled() && needs.version.result == 'success' &&
                 (
-                    !startsWith(github.ref_name, 'windows/') &&
-                    !startsWith(github.ref_name, 'darwin/')
+                    github.event_name != 'push' ||
+                    (
+                        !startsWith(github.ref_name, 'windows/') &&
+                        !startsWith(github.ref_name, 'darwin/')
+                    )
                 )
             }}
         name: "Package | PHP ${{ matrix.php-version }} nts x64 Linux ${{ matrix.libc }}"
-        needs: version
+        needs: [version, nix-matrix]
         runs-on: ubuntu-24.04
         strategy:
             fail-fast: false
@@ -431,18 +461,12 @@ jobs:
                 with:
                     extra_nix_config: |
                         system-features = nixos-test benchmark big-parallel kvm
-                        keep-outputs = true
-                        keep-derivations = true
                         extra-substituters = https://fossar.cachix.org
                         extra-trusted-public-keys = fossar.cachix.org-1:Zv6FuqIboeHPWQS7ysLCJ7UT7xExb4OE8c4LyGb5AsE=
             -   uses: nix-community/cache-nix-action@v7
                 with:
-                    primary-key: nix-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock') }}-${{ env.RELEASE_TARGET }}-${{ github.sha }}
-                    restore-prefixes-first-match: |
-                        nix-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock') }}-${{ env.RELEASE_TARGET }}-
-                        nix-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock') }}-
-                        nix-v1-${{ runner.os }}-${{ runner.arch }}-
-                    gc-max-store-size: 2G
+                    primary-key: nix-deps-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock', 'flake.nix', 'nix/*.nix') }}
+                    save: false
 
             -   run: sudo sysctl -w kernel.perf_event_paranoid=1
 
@@ -678,14 +702,31 @@ jobs:
                     set -Eeu
                     matrix="$(nix eval --json '.#githubActions.matrix')"
                     echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+            -   uses: nix-community/cache-nix-action/restore@v7
+                id: nix-cache
+                with:
+                    primary-key: nix-deps-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock', 'flake.nix', 'nix/*.nix') }}
+                    lookup-only: true
+            -   name: Prepare shared Nix dependencies
+                if: steps.nix-cache.outputs.hit-primary-key != 'true'
+                run: nix build -L .#ci-dependencies
+            -   name: Save shared Nix dependencies
+                if: success() && steps.nix-cache.outputs.hit-primary-key != 'true'
+                uses: nix-community/cache-nix-action/save@v7
+                with:
+                    primary-key: nix-deps-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock', 'flake.nix', 'nix/*.nix') }}
+                    gc-max-store-size: 0
 
     nix:
         if: >-
             ${{
-                github.event_name != 'push' ||
+                !cancelled() && needs.nix-matrix.outputs.matrix != '' &&
                 (
-                    !startsWith(github.ref_name, 'windows/') &&
-                    !startsWith(github.ref_name, 'darwin/')
+                    github.event_name != 'push' ||
+                    (
+                        !startsWith(github.ref_name, 'windows/') &&
+                        !startsWith(github.ref_name, 'darwin/')
+                    )
                 )
             }}
         name: "nix (${{ matrix.name }})"
@@ -700,18 +741,12 @@ jobs:
                 with:
                     extra_nix_config: |
                         system-features = nixos-test benchmark big-parallel kvm
-                        keep-outputs = true
-                        keep-derivations = true
                         extra-substituters = https://fossar.cachix.org
                         extra-trusted-public-keys = fossar.cachix.org-1:Zv6FuqIboeHPWQS7ysLCJ7UT7xExb4OE8c4LyGb5AsE=
             -   uses: nix-community/cache-nix-action@v7
                 with:
-                    primary-key: nix-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock') }}-${{ matrix.attr }}-${{ github.sha }}
-                    restore-prefixes-first-match: |
-                        nix-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock') }}-${{ matrix.attr }}-
-                        nix-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock') }}-
-                        nix-v1-${{ runner.os }}-${{ runner.arch }}-
-                    gc-max-store-size: 2G
+                    primary-key: nix-deps-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock', 'flake.nix', 'nix/*.nix') }}
+                    save: false
 
             -   run: sudo sysctl -w kernel.perf_event_paranoid=1
 

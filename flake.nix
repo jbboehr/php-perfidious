@@ -709,6 +709,13 @@
           // releasePackages
           // windowsPackages
           // {
+            # inputDerivation retains build dependencies without compiling or testing Perfidious.
+            ci-dependencies = pkgs.writeText "perfidious-ci-dependencies" (lib.concatMapStringsSep "\n"
+              (package: "${package.inputDerivation}")
+              (lib.attrValues packages'
+                ++ lib.attrValues windowsPackages
+                ++ map (package: package.module) (lib.attrValues releasePackages)
+                ++ [php85ZtsCheck pre-commit-check]));
             sanitize-static-php82 = sanitizeStaticPhp;
             sanitize-static-php82-check = sanitizeStaticPhpCheck;
             sanitize-static-php82-debug = sanitizeStaticPhpDebug;
@@ -753,8 +760,7 @@
           inherit (pkgs) php82 php83 php84 php85;
           php81 = nix-phps.packages.aarch64-darwin.php81;
         };
-      in
-        builtins.listToAttrs (map ({
+        releasePackages = builtins.listToAttrs (map ({
           php,
           ts,
         }:
@@ -767,6 +773,13 @@
           php = ["php81" "php82" "php83" "php84" "php85"];
           ts = ["nts" "zts"];
         }));
+      in
+        releasePackages
+        // {
+          ci-dependencies =
+            pkgs.writeText "perfidious-ci-dependencies" (nixpkgs.lib.concatMapStringsSep "\n"
+              (package: "${package.module.inputDerivation}") (builtins.attrValues releasePackages));
+        };
       githubActions.matrix.include = let
         cleanFn = v:
           v

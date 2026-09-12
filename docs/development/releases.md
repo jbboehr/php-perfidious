@@ -114,10 +114,18 @@ The macOS fixtures use controlled `lipo`/`otool` output and real ZIPs; they do n
 
 ## Build cache
 
-CI configures Nix and [cache-nix-action](https://github.com/nix-community/cache-nix-action) directly in each Nix job.
-Keys include the platform, lockfile, target, and commit, with broader restore prefixes on a miss. Garbage collection targets a
-2 GiB store before saving, although retained build roots can exceed it. A cache hit still runs package checks outside Nix.
-Cache reuse is optional; missing entries cause a normal build. Tag runs can read default-branch caches, subject to
+CI prepares one shared Nix dependency cache for each host system: Linux x64 and macOS ARM64. The Linux matrix job and
+the macOS dependency job are the only writers; build jobs wait for their host's preparation job and only restore caches.
+Keys include the host OS, architecture, and a hash of `flake.lock`, `flake.nix`, and `nix/*.nix`.
+
+Writers check for an existing cache without downloading it. On a miss, `nix build .#ci-dependencies` prepares compiler
+and PHP dependencies without building Perfidious. The Linux cache also includes Windows SDK and lint dependencies.
+If preparation fails, the failure remains visible in CI and build jobs still attempt their own dependencies.
+Failed preparation does not save a cache.
+
+Nix garbage collection removes unneeded store paths before saving. Source-only commits reuse the dependency cache;
+extension builds, tests, and packaging still run in their existing jobs. VM-specific dependencies are fetched separately.
+Missing cache entries cause normal dependency builds. Caches remain branch-scoped; tag runs can read default-branch caches, subject to
 [GitHub's cache access rules](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching#restrictions-for-accessing-a-cache).
 
 ## Verification limits
