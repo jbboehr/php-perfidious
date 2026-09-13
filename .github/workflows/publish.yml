@@ -113,9 +113,12 @@ jobs:
                 shell: bash
                 env:
                     RELEASE_TAG: ${{ github.ref_name }}
+                    COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ github.token }}"}}'
+                    # A fresh cache keeps Composer's Git fallback usable.
+                    COMPOSER_CACHE_DIR: ${{ runner.temp }}/pie-composer-cache
                 run: |
                     php "${RUNNER_TEMP}/pie.phar" repository:add vcs "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git" --no-interaction
-                    php "${RUNNER_TEMP}/pie.phar" install "jbboehr/perfidious:${RELEASE_TAG}" --no-interaction --no-cache --no-ansi | tee "${RUNNER_TEMP}/pie-install.log"
+                    php "${RUNNER_TEMP}/pie.phar" install "jbboehr/perfidious:${RELEASE_TAG}" --no-interaction --no-ansi | tee "${RUNNER_TEMP}/pie-install.log"
                     if [[ "$RUNNER_OS" == macOS ]]; then
                         grep -F 'Pre-packaged binary found:' "${RUNNER_TEMP}/pie-install.log"
                     fi
@@ -164,12 +167,14 @@ jobs:
                     RELEASE_TAG: ${{ github.ref_name }}
                     EXPECTED_PHP_VERSION: ${{ matrix.php-version }}
                     RELEASE_IMAGE: ${{ matrix.image }}
+                    COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ github.token }}"}}'
                 run: |
                     export EXPECTED_VERSION="${RELEASE_TAG#v}"
                     export RELEASE_REPOSITORY="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
                     docker run --rm \
                         -v "$PWD:/source:ro" -v "${RUNNER_TEMP}/pie.phar:/pie.phar:ro" \
                         -e RELEASE_TAG -e RELEASE_REPOSITORY -e EXPECTED_VERSION -e EXPECTED_PHP_VERSION \
+                        -e COMPOSER_AUTH -e COMPOSER_CACHE_DIR=/tmp/pie-composer-cache \
                         "php:${EXPECTED_PHP_VERSION}-cli-${RELEASE_IMAGE}" sh -eu -c '
                             if command -v apk >/dev/null; then
                                 apk add --no-cache git unzip
@@ -178,7 +183,7 @@ jobs:
                                 apt-get install -y --no-install-recommends git unzip
                             fi
                             php /pie.phar repository:add vcs "$RELEASE_REPOSITORY" --no-interaction
-                            php /pie.phar install "jbboehr/perfidious:$RELEASE_TAG" --no-interaction --no-cache --no-ansi > /tmp/pie-install.log 2>&1 || {
+                            php /pie.phar install "jbboehr/perfidious:$RELEASE_TAG" --no-interaction --no-ansi > /tmp/pie-install.log 2>&1 || {
                                 cat /tmp/pie-install.log
                                 exit 1
                             }
