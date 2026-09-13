@@ -56,6 +56,15 @@ Packagist to discover the tag. These release-asset installation checks run only 
 Rerun failed jobs after fixing a build or upload failure. A failed PIE check leaves the release published and requires
 investigation. If GitHub release immutability is enabled, published ZIPs cannot be overwritten.
 
+To check an existing release with the current PIE workflow, run it manually from `master`:
+
+```sh
+gh workflow run publish.yml --ref master -f tag=v0.3.1
+```
+
+Manual runs check all thirty PIE configurations and skip the publication job. They do not rebuild or upload assets.
+The manual trigger must be present on the default branch. Rerunning an old tag run uses its original workflow revision.
+
 GitHub supplies source archives for each tag. Linux ARM64, Linux ZTS, debug builds, and other unmatched Unix builds
 use PIE's source fallback; configure options also select source installation. Users on older Linux systems must
 request a source build explicitly because PIE does not check libc versions. See the [PIE installation guide](../../README.md#pie).
